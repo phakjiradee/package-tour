@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  BriefcaseBusiness,
   Boxes,
+  ChevronDown,
   ChevronRight,
   LayoutDashboard,
   LogOut,
@@ -23,11 +26,6 @@ const navItems = [
     href: "/backoffice/package",
     icon: Boxes,
   },
-  {
-    label: "Employee",
-    href: "/backoffice/employee",
-    icon: UsersRound,
-  },
 ];
 
 const utilityItems = [
@@ -36,10 +34,18 @@ const utilityItems = [
     href: "/backoffice/reports",
     icon: BarChart3,
   },
+];
+
+const settingItems = [
   {
-    label: "Settings",
-    href: "/backoffice/settings",
-    icon: Settings,
+    label: "พนักงาน",
+    href: "/backoffice/employee",
+    icon: UsersRound,
+  },
+  {
+    label: "ตำแหน่ง",
+    href: "/backoffice/position",
+    icon: BriefcaseBusiness,
   },
 ];
 
@@ -64,6 +70,47 @@ function SidebarLink({ item }) {
       {isActive ? <ChevronRight className="h-4 w-4 shrink-0" /> : null}
     </Link>
   );
+}
+
+function SettingsDropdownContent({ pathname }) {
+  const hasActiveChild = settingItems.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
+  const [open, setOpen] = useState(hasActiveChild);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className={`group flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+          hasActiveChild
+            ? "bg-slate-800 text-white"
+            : "text-slate-300 hover:bg-slate-800 hover:text-white"
+        }`}
+      >
+        <Settings className="h-4 w-4 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">ตั้งค่า</span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 transition ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open ? (
+        <div className="mt-1 space-y-1 pl-4">
+          {settingItems.map((item) => (
+            <SidebarLink key={item.href} item={item} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SettingsDropdown() {
+  const pathname = usePathname();
+
+  return <SettingsDropdownContent key={pathname} pathname={pathname} />;
 }
 
 export default function Sidebar() {
@@ -98,6 +145,7 @@ export default function Sidebar() {
           {utilityItems.map((item) => (
             <SidebarLink key={item.href} item={item} />
           ))}
+          <SettingsDropdown />
         </nav>
       </div>
 
