@@ -1,9 +1,9 @@
-import React from 'react'
+import React from 'react';
 
-const layout = () => {
+export default function CustomerLayout({ children }) {
   return (
-    <div>layout</div>
-  )
+    <main className="min-h-screen">
+      {children}
+    </main>
+  );
 }
-
-export default layout
