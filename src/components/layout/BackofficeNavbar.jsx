@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Bell, Menu, Plus, Search } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 import Dropdown from "@/components/ui/Dropdown";
 
 const titles = [
@@ -12,8 +12,13 @@ const titles = [
   },
   {
     href: "/backoffice/employee",
-    title: "Employee",
-    description: "Manage staff accounts, roles, and recent activity.",
+    title: "จัดการพนักงาน",
+    description: "จัดการข้อมูลพนักงาน ตำแหน่ง สถานะ และประวัติการอัปเดต",
+  },
+  {
+    href: "/backoffice/position",
+    title: "ตำแหน่ง",
+    description: "Manage employee positions and access levels.",
   },
   {
     href: "/backoffice/dashboard",
@@ -43,19 +48,6 @@ export default function BackofficeNavbar() {
             {current.description}
           </p>
         </div>
-
-        <label className="hidden h-10 w-full max-w-xs items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500 xl:flex">
-          <Search className="h-4 w-4" />
-          <input
-            className="min-w-0 flex-1 bg-transparent text-slate-700 outline-none placeholder:text-slate-400"
-            placeholder="Search"
-          />
-        </label>
-
-        <button className="hidden h-10 items-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 sm:inline-flex">
-          <Plus className="h-4 w-4" />
-          New
-        </button>
 
         <button className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50">
           <Bell className="h-4 w-4" />
