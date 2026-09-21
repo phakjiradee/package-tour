@@ -1,32 +1,37 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { 
-  Eye, 
-  EyeOff, 
-  Loader2, 
-  Mail, 
-  Lock, 
-  CheckCircle2, 
+import React, { useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  Mail,
+  Lock,
+  CheckCircle2,
   AlertCircle,
-  Compass
-} from 'lucide-react';
+  Compass,
+} from "lucide-react";
+import { setAuth } from "@/lib/auth-client";
+import TypingText from "@/components/ui/TypingText";
 
 export default function AuthForm({
-  mode: initialMode = 'sign-in',
+  mode: initialMode = "sign-in",
   onSubmit,
-  brandName = 'Package Tour',
+  brandName = "Package Tour",
   showBrand = true,
+  showcaseImage = "/cartoon-travel.gif",
 }) {
   const [mode, setMode] = useState(initialMode);
-  const isSignIn = mode === 'sign-in';
+  const isSignIn = mode === "sign-in";
+  const router = useRouter();
 
   // Form State
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
+    email: "",
+    password: "",
+    confirmPassword: "",
     rememberMe: false,
     terms: false,
   });
@@ -34,40 +39,46 @@ export default function AuthForm({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const switchMode = (next) => {
+    setMode(next);
+    setErrorMessage("");
+    setSuccessMessage("");
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
-    if (errorMessage) setErrorMessage('');
+    if (errorMessage) setErrorMessage("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
+    setErrorMessage("");
+    setSuccessMessage("");
 
     // Simple validation
     if (!formData.email || !formData.password) {
-      setErrorMessage('กรุณากรอกอีเมลและรหัสผ่าน');
+      setErrorMessage("กรุณากรอกอีเมลและรหัสผ่าน");
       return;
     }
 
     if (!isSignIn) {
       if (formData.password.length < 6) {
-        setErrorMessage('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+        setErrorMessage("รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
         return;
       }
       if (formData.password !== formData.confirmPassword) {
-        setErrorMessage('รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน');
+        setErrorMessage("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
         return;
       }
       if (!formData.terms) {
-        setErrorMessage('กรุณายอมรับเงื่อนไขการให้บริการ');
+        setErrorMessage("กรุณายอมรับเงื่อนไขการให้บริการ");
         return;
       }
     }
@@ -79,259 +90,283 @@ export default function AuthForm({
       } else {
         // Mock async request
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        setSuccessMessage(
-          isSignIn 
-            ? 'เข้าสู่ระบบสำเร็จ กำลังพาคุณเข้าสู่ระบบ...' 
-            : 'สร้างบัญชีสำเร็จแล้ว! กำลังเตรียมข้อมูลของคุณ...'
-        );
       }
+      // Mark the session as logged in so the navbar switches to its auth UI.
+      setAuth({ name: formData.email, email: formData.email });
+      setSuccessMessage(
+        isSignIn
+          ? "เข้าสู่ระบบสำเร็จ กำลังพาคุณเข้าสู่ระบบ..."
+          : "สร้างบัญชีสำเร็จแล้ว! กำลังเตรียมข้อมูลของคุณ...",
+      );
+      router.push("/feed");
     } catch (err) {
-      setErrorMessage(err?.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+      setErrorMessage(err?.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const inputClass =
+    "flex h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-10 py-2 text-xs text-slate-900 placeholder:text-slate-400 shadow-sm transition-all focus:border-blue-500 focus:bg-white focus:shadow-none focus:outline-none focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      {/* Shadcn Card Container */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-xs dark:border-zinc-800 dark:bg-zinc-950 transition-all">
-        
-        {/* Card Header */}
-        <div className="flex flex-col space-y-2 text-center mb-6">
+    <div className="w-full max-w-4xl mx-auto">
+      {/* Split Card Container */}
+      <div className="animate-card-in grid overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-2xl shadow-slate-900/10 ring-1 ring-white/50 md:grid-cols-2">
+        {/* Left: Form */}
+        <div className="p-8 sm:p-10 lg:p-12">
+          {/* Brand */}
           {showBrand && (
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 dark:bg-zinc-50 flex items-center justify-center text-white dark:text-zinc-900 shadow-xs">
+            <div
+              className="animate-fade-in-up mb-6 flex items-center gap-2"
+              style={{ animationDelay: "0.05s" }}
+            >
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-sm shadow-blue-500/30">
                 <Compass className="h-5 w-5" />
               </div>
-              <span className="font-semibold text-lg tracking-tight text-zinc-900 dark:text-zinc-100">
+              <span className="text-base font-bold tracking-tight text-slate-900">
                 {brandName}
               </span>
             </div>
           )}
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            {isSignIn ? 'ยินดีต้อนรับกลับมา' : 'สร้างบัญชีผู้ใช้ใหม่'}
-          </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {isSignIn
-              ? 'กรอกข้อมูลเพื่อเข้าสู่ระบบบัญชีของคุณ'
-              : 'เริ่มต้นใช้งานและสัมผัสประสบการณ์แพ็กเกจทัวร์ที่ดีที่สุด'}
-          </p>
-        </div>
 
-        {/* Feedback Alert: Error */}
-        {errorMessage && (
-          <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
-            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-            <div className="flex-1 leading-snug">{errorMessage}</div>
-          </div>
-        )}
-
-        {/* Feedback Alert: Success */}
-        {successMessage && (
-          <div className="mb-5 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-300">
-            <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <div className="flex-1 leading-snug">{successMessage}</div>
-          </div>
-        )}
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          
-          {/* Email */}
-          <div className="space-y-1.5">
-            <label 
-              htmlFor="email" 
-              className="text-sm font-medium text-zinc-900 dark:text-zinc-200 leading-none"
+          {/* Mode toggle: segmented control with sliding indicator */}
+          <div
+            className="animate-fade-in-up relative mb-6 grid grid-cols-2 rounded-full bg-slate-100 p-1 text-xs font-medium"
+            style={{ animationDelay: "0.08s" }}
+          >
+            <span
+              aria-hidden="true"
+              className={`absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-white shadow-sm ring-1 ring-slate-900/5 transition-transform duration-300 ease-out ${
+                isSignIn ? "translate-x-0" : "translate-x-full"
+              }`}
+            />
+            <button
+              type="button"
+              onClick={() => switchMode("sign-in")}
+              className={`relative z-10 inline-flex h-8 items-center justify-center rounded-full transition-colors ${
+                isSignIn
+                  ? "text-slate-900"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
             >
-              อีเมล
-            </label>
+              เข้าสู่ระบบ
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("sign-up")}
+              className={`relative z-10 inline-flex h-8 items-center justify-center rounded-full transition-colors ${
+                isSignIn
+                  ? "text-slate-500 hover:text-slate-700"
+                  : "text-slate-900"
+              }`}
+            >
+              สมัครสมาชิก
+            </button>
+          </div>
+
+          {/* Header */}
+          <div
+            className="animate-fade-in-up mb-6"
+            style={{ animationDelay: "0.1s" }}
+          >
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              {isSignIn ? "ยินดีต้อนรับกลับมา" : "สร้างบัญชีผู้ใช้ใหม่"}
+            </h1>
+            <p className="mt-1.5 text-xs text-slate-500">
+              {isSignIn
+                ? "กรุณาเข้าสู่ระบบเพื่อสำรวจแพ็กเกจทัวร์ของคุณ"
+                : "เริ่มต้นใช้งานและสัมผัสประสบการณ์แพ็กเกจทัวร์ที่ดีที่สุด"}
+            </p>
+          </div>
+
+          {/* Feedback Alert: Error */}
+          {errorMessage && (
+            <div className="animate-shake mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+              <div className="flex-1 leading-snug">{errorMessage}</div>
+            </div>
+          )}
+
+          {/* Feedback Alert: Success */}
+          {successMessage && (
+            <div className="animate-fade-in-up mb-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <div className="flex-1 leading-snug">{successMessage}</div>
+            </div>
+          )}
+
+          {/* Form Body */}
+          <form
+            onSubmit={handleSubmit}
+            className="animate-fade-in-up space-y-4"
+            style={{ animationDelay: "0.15s" }}
+          >
+            {/* Email */}
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="name@example.com"
+                placeholder="อีเมล"
                 value={formData.email}
                 onChange={handleChange}
                 disabled={isLoading}
                 autoComplete="email"
-                className="flex h-10 w-full rounded-md border border-zinc-200 bg-transparent pl-9 pr-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus-visible:ring-zinc-300"
+                className={inputClass}
               />
             </div>
-          </div>
 
-          {/* Password */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label 
-                htmlFor="password" 
-                className="text-sm font-medium text-zinc-900 dark:text-zinc-200 leading-none"
-              >
-                รหัสผ่าน
-              </label>
-              {isSignIn && (
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-xs text-zinc-500 hover:text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-400 dark:hover:text-zinc-100"
-                >
-                  ลืมรหัสผ่าน?
-                </Link>
-              )}
-            </div>
+            {/* Password */}
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 id="password"
                 name="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
+                type={showPassword ? "text" : "password"}
+                placeholder="รหัสผ่าน"
                 value={formData.password}
                 onChange={handleChange}
                 disabled={isLoading}
-                autoComplete={isSignIn ? 'current-password' : 'new-password'}
-                className="flex h-10 w-full rounded-md border border-zinc-200 bg-transparent pl-9 pr-10 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus-visible:ring-zinc-300"
+                autoComplete={isSignIn ? "current-password" : "new-password"}
+                className={inputClass}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors p-1"
-                aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </button>
             </div>
-          </div>
 
-          {/* Confirm Password (Sign Up only) */}
-          {!isSignIn && (
-            <div className="space-y-1.5">
-              <label 
-                htmlFor="confirmPassword" 
-                className="text-sm font-medium text-zinc-900 dark:text-zinc-200 leading-none"
-              >
-                ยืนยันรหัสผ่าน
-              </label>
+            {/* Confirm Password (Sign Up only) */}
+            {!isSignIn && (
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="ยืนยันรหัสผ่าน"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   disabled={isLoading}
                   autoComplete="new-password"
-                  className="flex h-10 w-full rounded-md border border-zinc-200 bg-transparent pl-9 pr-10 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus-visible:ring-zinc-300"
+                  className={inputClass}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   tabIndex={-1}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors p-1"
-                  aria-label={showConfirmPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                  aria-label={
+                    showConfirmPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
+                  }
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Checkbox Options */}
-          {isSignIn ? (
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                id="rememberMe"
-                name="rememberMe"
-                type="checkbox"
-                checked={formData.rememberMe}
-                onChange={handleChange}
-                className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-950 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-300 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
-              />
-              <label 
-                htmlFor="rememberMe" 
-                className="text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer select-none"
-              >
-                จดจำการเข้าสู่ระบบ
+            {/* Options Row */}
+            {isSignIn ? (
+              <div className="flex items-center">
+                <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-slate-600">
+                  <input
+                    id="rememberMe"
+                    name="rememberMe"
+                    type="checkbox"
+                    checked={formData.rememberMe}
+                    onChange={handleChange}
+                    className="checkbox-animated"
+                  />
+                  จดจำการเข้าสู่ระบบ
+                </label>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer select-none items-start gap-2 text-xs text-slate-600">
+                <input
+                  id="terms"
+                  name="terms"
+                  type="checkbox"
+                  checked={formData.terms}
+                  onChange={handleChange}
+                  className="checkbox-animated mt-0.5"
+                />
+                <span className="leading-relaxed">
+                  ฉันยอมรับ{" "}
+                  <a
+                    href="#terms"
+                    className="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700"
+                  >
+                    ข้อกำหนดการใช้งาน
+                  </a>{" "}
+                  และ{" "}
+                  <a
+                    href="#privacy"
+                    className="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700"
+                  >
+                    นโยบายความเป็นส่วนตัว
+                  </a>
+                </span>
               </label>
-            </div>
-          ) : (
-            <div className="flex items-start gap-2 pt-1">
-              <input
-                id="terms"
-                name="terms"
-                type="checkbox"
-                checked={formData.terms}
-                onChange={handleChange}
-                className="h-4 w-4 mt-0.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-950 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-300 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
-              />
-              <label 
-                htmlFor="terms" 
-                className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed cursor-pointer select-none"
-              >
-                ฉันยอมรับ{' '}
-                <a href="#terms" className="text-zinc-900 dark:text-zinc-200 underline underline-offset-2 hover:text-zinc-700">
-                  ข้อกำหนดการใช้งาน
-                </a>{' '}
-                และ{' '}
-                <a href="#privacy" className="text-zinc-900 dark:text-zinc-200 underline underline-offset-2 hover:text-zinc-700">
-                  นโยบายความเป็นส่วนตัว
-                </a>
-              </label>
-            </div>
-          )}
+            )}
 
-          {/* Shadcn Primary Button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-50 shadow-xs hover:bg-zinc-800 active:scale-[0.99] transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            <span>{isSignIn ? 'เข้าสู่ระบบ' : 'สร้างบัญชี'}</span>
-          </button>
-        </form>
-
-
-        {/* Card Footer: Toggle Mode */}
-        <div className="mt-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
-          {isSignIn ? (
-            <>
-              ยังไม่มีบัญชีผู้ใช้?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('sign-up');
-                  setErrorMessage('');
-                  setSuccessMessage('');
-                }}
-                className="font-medium text-zinc-900 underline underline-offset-4 hover:text-zinc-800 dark:text-zinc-100 dark:hover:text-zinc-300 transition-colors"
-              >
-                สมัครสมาชิก
-              </button>
-            </>
-          ) : (
-            <>
-              มีบัญชีผู้ใช้อยู่แล้ว?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('sign-in');
-                  setErrorMessage('');
-                  setSuccessMessage('');
-                }}
-                className="font-medium text-zinc-900 underline underline-offset-4 hover:text-zinc-800 dark:text-zinc-100 dark:hover:text-zinc-300 transition-colors"
-              >
-                เข้าสู่ระบบ
-              </button>
-            </>
-          )}
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 px-4 text-xs font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:shadow-blue-500/40 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-blue-500/30 disabled:pointer-events-none disabled:opacity-60"
+            >
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>{isSignIn ? "เข้าสู่ระบบ" : "สร้างบัญชี"}</span>
+            </button>
+          </form>
         </div>
 
+        {/* Right: Showcase Panel */}
+        <div className="relative hidden md:block md:overflow-hidden">
+          <Image
+            src={showcaseImage}
+            alt="แพ็กเกจทัวร์ทะเลไทย"
+            fill
+            priority
+            sizes="(max-width: 768px) 0px, 50vw"
+            className="object-cover"
+          />
+          {/* Gradient overlay for legibility */}
+          <div className="absolute inset-0 bg-gradient-to-t from-blue-950/85 via-blue-900/35 to-blue-800/10" />
+
+          <div
+            className="animate-fade-in-up absolute inset-x-0 bottom-0 z-10 p-10 text-center"
+            style={{ animationDelay: "0.25s" }}
+          >
+            <h2 className="flex min-h-7 items-center justify-center text-lg font-bold text-white drop-shadow-sm">
+              <TypingText
+                words={[
+                  "สำรวจแพ็กเกจทัวร์ทั่วไทย",
+                  "วางแผนทริปในแบบของคุณ",
+                  "จองง่าย ครบในที่เดียว",
+                ]}
+              />
+            </h2>
+            <p className="mt-2 text-xs text-blue-100 drop-shadow">
+              ทุกสิ่งที่คุณต้องการสำหรับการวางแผนทริปในแดชบอร์ดเดียว
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

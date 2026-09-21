@@ -1,14 +1,15 @@
-import React from 'react';
-import AuthForm from '@/components/auth/AuthForm';
+import React from "react";
+import AuthForm from "@/components/auth/AuthForm";
 
 export const metadata = {
-  title: 'เข้าสู่ระบบ | Package Tour',
-  description: 'เข้าสู่ระบบบัญชีของคุณ',
+  title: "เข้าสู่ระบบ | Package Tour",
+  description: "เข้าสู่ระบบบัญชีของคุณ",
 };
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center p-4 sm:p-8 bg-zinc-50/50 dark:bg-zinc-900/50">
+    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-gradient-to-b from-slate-50 via-white to-blue-50 p-4 sm:p-8">
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-200/40 blur-3xl" />
       <AuthForm mode="sign-in" />
     </div>
   );
