@@ -8,5 +8,6 @@ export const api = axios.create({
     Accept: "application/json",
     "Content-Type": "application/json",
   },
-  withCredentials: true, // 💡 สำคัญ: ส่งคุกกี้ไปด้วย
+  withCredentials: true, 
 });
+
