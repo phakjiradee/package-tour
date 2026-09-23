@@ -8,6 +8,16 @@ export const api = axios.create({
     Accept: "application/json",
     "Content-Type": "application/json",
   },
-  withCredentials: true, 
+
+});
+
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = window.localStorage.getItem("pt_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
 });
 

@@ -26,8 +26,11 @@ function emit() {
   listeners.forEach((listener) => listener(value));
 }
 
-export function setAuth(user) {
+export function setAuth(user, token) {
   if (typeof window === "undefined") return;
+  if (token) {
+    window.localStorage.setItem("pt_token", token);
+  }
   window.localStorage.setItem(AUTH_KEY, JSON.stringify(user));
   emit();
 }
@@ -35,6 +38,7 @@ export function setAuth(user) {
 export function clearAuth() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(AUTH_KEY);
+  window.localStorage.removeItem("pt_token");
   emit();
 }
 
