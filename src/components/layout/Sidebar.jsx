@@ -11,6 +11,7 @@ import {
   ChevronRight,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Settings,
   UsersRound,
 } from "lucide-react";
@@ -25,6 +26,11 @@ const navItems = [
     label: "Package",
     href: "/backoffice/package",
     icon: Boxes,
+  },
+  {
+    label: "สถานที่",
+    href: "/backoffice/location",
+    icon: MapPin,
   },
 ];
 
