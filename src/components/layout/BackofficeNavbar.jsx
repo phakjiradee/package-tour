@@ -17,8 +17,8 @@ const titles = [
   },
   {
     href: "/backoffice/position",
-    title: "ตำแหน่ง",
-    description: "Manage employee positions and access levels.",
+    title: "จัดการตำแหน่ง",
+    description: "จัดการข้อมูลตำแหน่ง สิทธิ์การเข้าถึง และจำนวนพนักงานในระบบ",
   },
   {
     href: "/backoffice/dashboard",

@@ -1,4 +1,5 @@
 import { Anuphan } from "next/font/google";
+import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
 const anuphan = Anuphan({
@@ -18,7 +19,9 @@ export default function RootLayout({ children }) {
       lang="th"
       className={`${anuphan.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AntdRegistry>{children}</AntdRegistry>
+      </body>
     </html>
   );
 }

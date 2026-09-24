@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { clearBackofficeAuth } from "@/lib/backoffice-auth";
 import {
   BarChart3,
   BriefcaseBusiness,
@@ -120,6 +121,13 @@ function SettingsDropdown() {
 }
 
 export default function Sidebar() {
+  const router = useRouter();
+
+  const handleSignOut = () => {
+    clearBackofficeAuth();
+    router.push("/backoffice/login");
+  };
+
   return (
     <aside className="hidden h-screen w-72 shrink-0 border-r border-slate-800 bg-slate-950 px-4 py-5 text-white lg:flex lg:flex-col">
       <div className="flex h-12 items-center gap-3 px-2">
@@ -160,7 +168,11 @@ export default function Sidebar() {
         <p className="mt-1 text-xs leading-5 text-slate-400">
           Manage tours, packages, and customer operations from one place.
         </p>
-        <button className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-slate-800 text-sm font-medium text-slate-100 transition hover:bg-slate-700">
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-slate-800 text-sm font-medium text-slate-100 transition hover:bg-slate-700 cursor-pointer"
+        >
           <LogOut className="h-4 w-4" />
           Sign out
         </button>

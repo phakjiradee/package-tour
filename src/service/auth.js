@@ -11,6 +11,11 @@ export const authService = {
     return response.data;
   },
 
+  async setPassword(payload) {
+    const response = await api.post("/auth/set-password", payload);
+    return response.data;
+  },
+
   async getMe() {
     const response = await api.get("/auth/me");
     return response.data;

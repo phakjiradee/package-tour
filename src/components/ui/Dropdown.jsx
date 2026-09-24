@@ -1,10 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
+import { clearBackofficeAuth } from "@/lib/backoffice-auth";
 
 export default function Dropdown() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  const handleSignOut = () => {
+    clearBackofficeAuth();
+    setOpen(false);
+    router.push("/backoffice/login");
+  };
 
   return (
     <div className="relative">
@@ -30,7 +39,11 @@ export default function Dropdown() {
             <Settings className="h-4 w-4" />
             Settings
           </button>
-          <button className="flex h-10 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-rose-600 hover:bg-rose-50">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex h-10 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-rose-600 hover:bg-rose-50 cursor-pointer"
+          >
             <LogOut className="h-4 w-4" />
             Sign out
           </button>
