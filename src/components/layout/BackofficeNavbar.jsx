@@ -21,6 +21,16 @@ const titles = [
     description: "จัดการข้อมูลตำแหน่ง สิทธิ์การเข้าถึง และจำนวนพนักงานในระบบ",
   },
   {
+    href: "/backoffice/location",
+    title: "จัดการสถานที่",
+    description: "จัดการข้อมูลจุดหมายปลายทาง แหล่งท่องเที่ยว และประเภทสถานที่",
+  },
+  {
+    href: "/backoffice/partner",
+    title: "จัดการพาร์ทเนอร์",
+    description: "จัดการข้อมูลคู่ค้า พาร์ทเนอร์ทางธุรกิจ โรงแรม ยานพาหนะ และประเภทพาร์ทเนอร์",
+  },
+  {
     href: "/backoffice/dashboard",
     title: "Dashboard",
     description: "Monitor operations, bookings, and revenue signals.",

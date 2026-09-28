@@ -10,6 +10,7 @@ import {
   Boxes,
   ChevronDown,
   ChevronRight,
+  Handshake,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -32,6 +33,11 @@ const navItems = [
     label: "สถานที่",
     href: "/backoffice/location",
     icon: MapPin,
+  },
+  {
+    label: "พาร์ทเนอร์",
+    href: "/backoffice/partner",
+    icon: Handshake,
   },
 ];
 
