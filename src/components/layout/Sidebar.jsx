@@ -135,7 +135,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="hidden h-screen w-72 shrink-0 border-r border-slate-800 bg-slate-950 px-4 py-5 text-white lg:flex lg:flex-col">
+    <aside className="hidden sticky top-0 h-screen w-72 shrink-0 border-r border-slate-800 bg-slate-950 px-4 py-5 text-white lg:flex lg:flex-col">
       <div className="flex h-12 items-center gap-3 px-2">
         <div className="grid h-10 w-10 place-items-center rounded-lg bg-cyan-400 text-sm font-black text-slate-950">
           Z

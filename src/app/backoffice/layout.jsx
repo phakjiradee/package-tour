@@ -7,6 +7,9 @@ import Sidebar from "@/components/layout/Sidebar";
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const isLoginPage = pathname === "/backoffice/login";
+  const isEditorPage =
+    pathname.includes("/backoffice/package/create") ||
+    (pathname.includes("/backoffice/package/") && pathname.includes("/edit"));
 
   if (isLoginPage) {
     return <>{children}</>;
@@ -18,7 +21,9 @@ export default function DashboardLayout({ children }) {
         <Sidebar />
         <div className="min-w-0 flex-1">
           <BackofficeNavbar />
-          <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+          <main className={isEditorPage ? "min-w-0" : "px-4 py-6 sm:px-6 lg:px-8"}>
+            {children}
+          </main>
         </div>
       </div>
     </div>
