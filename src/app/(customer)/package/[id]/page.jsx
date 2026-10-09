@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Calendar,
   Check,
@@ -41,6 +42,12 @@ export default function CustomerPackageViewPage({ params }) {
   // Unwrap params using React.use() in Next.js 15
   const unwrappedParams = React.use(params);
   const id = unwrappedParams?.id || "1";
+  const router = useRouter();
+
+  const handleBookingClick = () => {
+    const addonIds = Object.keys(selectedAddons).join(",");
+    router.push(`/package/${id}/booking?adults=${adults}${addonIds ? `&addons=${addonIds}` : ""}`);
+  };
 
   useEffect(() => {
     let ignore = false;
@@ -684,7 +691,10 @@ export default function CustomerPackageViewPage({ params }) {
 
               {/* Booking CTA Button */}
               {isBookingOpen ? (
-                <button className="w-full rounded-xl bg-indigo-600 py-3.5 text-base font-bold text-white shadow-md shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-100 active:scale-[0.99]">
+                <button
+                  onClick={handleBookingClick}
+                  className="w-full rounded-xl bg-indigo-600 py-3.5 text-base font-bold text-white shadow-md shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-100 active:scale-[0.99]"
+                >
                   จองแพ็กเกจนี้
                 </button>
               ) : (
@@ -720,7 +730,10 @@ export default function CustomerPackageViewPage({ params }) {
           <p className="text-xl font-bold text-indigo-600">฿{totalPrice.toLocaleString()}</p>
         </div>
         {isBookingOpen ? (
-          <button className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700">
+          <button
+            onClick={handleBookingClick}
+            className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700"
+          >
             จองแพ็กเกจ
           </button>
         ) : (
