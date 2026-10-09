@@ -30,6 +30,12 @@ export const bookingService = {
     const response = await api.get("/booking", { params });
     return response.data;
   },
+
+  // อัปเดตสถานะการจอง (สำหรับแอดมิน)
+  async updateStatus(id, status) {
+    const response = await api.patch(`/booking/${id}/status`, { status });
+    return response.data;
+  },
 };
 
 export default bookingService;

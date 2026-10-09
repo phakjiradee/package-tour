@@ -6,6 +6,11 @@ import Dropdown from "@/components/ui/Dropdown";
 
 const titles = [
   {
+    href: "/backoffice/booking",
+    title: "จัดการการจอง",
+    description: "ตรวจสอบรายการจอง รายละเอียดผู้เดินทาง และอัปเดตสถานะ",
+  },
+  {
     href: "/backoffice/package",
     title: "Package",
     description: "Create, review, and manage tour packages.",

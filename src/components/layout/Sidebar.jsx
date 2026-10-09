@@ -8,6 +8,7 @@ import {
   BarChart3,
   BriefcaseBusiness,
   Boxes,
+  CalendarCheck,
   ChevronDown,
   ChevronRight,
   Handshake,
@@ -23,6 +24,11 @@ const navItems = [
     label: "Dashboard",
     href: "/backoffice/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    label: "รายการจอง",
+    href: "/backoffice/booking",
+    icon: CalendarCheck,
   },
   {
     label: "Package",

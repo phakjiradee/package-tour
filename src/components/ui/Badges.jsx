@@ -154,3 +154,75 @@ export function StatusBadge({ status, className = "" }) {
     </span>
   );
 }
+
+/**
+ * BookingStatusBadge
+ * Formats booking status with modern color-coded badge
+ */
+export function BookingStatusBadge({ status, className = "" }) {
+  const s = (status || "").toUpperCase();
+
+  if (s === "CONFIRMED") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 ${className}`}
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+        ยืนยันการจองแล้ว
+      </span>
+    );
+  }
+
+  if (s === "PENDING_PAYMENT") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20 ${className}`}
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+        รอชำระเงิน
+      </span>
+    );
+  }
+
+  if (s === "AWAITING_VERIFICATION") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20 ${className}`}
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+        รอตรวจสอบการชำระเงิน
+      </span>
+    );
+  }
+
+  if (s === "CANCELLED") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20 ${className}`}
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+        ยกเลิกแล้ว
+      </span>
+    );
+  }
+
+  if (s === "COMPLETED") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20 ${className}`}
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span>
+        เดินทางสำเร็จ
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-500/20 ${className}`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+      {status || "-"}
+    </span>
+  );
+}
