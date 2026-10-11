@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -25,11 +25,27 @@ import {
   AlertCircle,
   Ban,
   EyeOff,
-  Archive
+  Archive,
+  X,
+  UserCheck,
+  Crown,
+  Search,
+  UserPlus
 } from "lucide-react";
 import PackageGallery from "@/components/package/PackageGallery";
+import CollaboratorBox, { UserAvatar } from "@/components/package/CollaboratorBox";
+import {
+  getAuth,
+  subscribeAuth,
+  getAuthServerSnapshot
+} from "@/lib/auth-client";
 
 export default function CustomerPackageViewPage({ params }) {
+  const currentUser = useSyncExternalStore(
+    subscribeAuth,
+    getAuth,
+    getAuthServerSnapshot
+  );
   const [packageData, setPackageData] = useState(null);
   const [expandedDays, setExpandedDays] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +54,27 @@ export default function CustomerPackageViewPage({ params }) {
   const [copied, setCopied] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState({});
+  const [collaborators, setCollaborators] = useState([]);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  const handleAddCollaborator = (user) => {
+    setCollaborators((prev) => {
+      if (prev.some((c) => c.id === user.id)) return prev;
+      const next = [...prev, user];
+      setAdults((cur) => Math.max(cur, 1 + next.length));
+      return next;
+    });
+  };
+
+  const handleRemoveCollaborator = (user) => {
+    setCollaborators((prev) => {
+      const next = prev.filter((c) => c.id !== user.id);
+      setAdults((cur) => Math.max(1 + next.length, Math.max(1, cur - 1)));
+      return next;
+    });
+  };
 
   // Unwrap params using React.use() in Next.js 15
   const unwrappedParams = React.use(params);
@@ -46,7 +83,8 @@ export default function CustomerPackageViewPage({ params }) {
 
   const handleBookingClick = () => {
     const addonIds = Object.keys(selectedAddons).join(",");
-    router.push(`/package/${id}/booking?adults=${adults}${addonIds ? `&addons=${addonIds}` : ""}`);
+    const collabParam = collaborators.length > 0 ? `&collabs=${collaborators.map((c) => c.id).join(",")}` : "";
+    router.push(`/package/${id}/booking?adults=${adults}${addonIds ? `&addons=${addonIds}` : ""}${collabParam}`);
   };
 
   useEffect(() => {
@@ -153,7 +191,7 @@ export default function CustomerPackageViewPage({ params }) {
   const isBookingOpen = packageData.status === "Published" || !packageData.status;
 
   return (
-    <div className="min-h-screen bg-white pb-24 lg:pb-12">
+    <div className="min-h-screen bg-white pb-36 lg:pb-12">
       
       {/* Top Navigation & Actions */}
       <div className="flex items-center justify-between py-4 border-b border-slate-100 mb-6">
@@ -458,7 +496,7 @@ export default function CustomerPackageViewPage({ params }) {
                                   <div key={act.id} className="relative flex items-start gap-2.5">
                                     {/* Fixed 24px column with dot centered horizontally at 12px */}
                                     <div className="flex w-6 shrink-0 justify-center pt-3.5">
-                                      <div className={`relative z-10 h-3 w-3 rounded-full border-2 ring-4 ring-white ${
+                                      <div className={`relative z-1 h-3 w-3 rounded-full border-2 ring-4 ring-white ${
                                         act.status === "optional" 
                                           ? "border-amber-400 bg-white" 
                                           : "border-indigo-600 bg-indigo-600"
@@ -637,10 +675,17 @@ export default function CustomerPackageViewPage({ params }) {
               </div>
 
               {/* Number of Travelers Counter */}
-              <div className="mb-6">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 block">
-                  จำนวนผู้เดินทาง
-                </label>
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                    จำนวนผู้เดินทาง
+                  </label>
+                  {collaborators.length > 0 && (
+                    <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                      คุณ + {collaborators.length} Collab
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center justify-between rounded-xl border border-slate-200 p-2.5 px-3 bg-white">
                   <div className="flex items-center gap-2 text-slate-700">
                     <Users className="h-4 w-4 text-slate-400" />
@@ -649,9 +694,9 @@ export default function CustomerPackageViewPage({ params }) {
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setAdults(prev => Math.max(1, prev - 1))}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold transition-colors"
-                      disabled={adults <= 1}
+                      onClick={() => setAdults(prev => Math.max(1 + collaborators.length, prev - 1))}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      disabled={adults <= 1 + collaborators.length}
                     >
                       -
                     </button>
@@ -667,11 +712,22 @@ export default function CustomerPackageViewPage({ params }) {
                 </div>
               </div>
 
+              {/* Collaborator Search & Widget (Sidebar - GitHub style) */}
+              <CollaboratorBox
+                currentUser={currentUser}
+                collaborators={collaborators}
+                onAddCollaborator={handleAddCollaborator}
+                onRemoveCollaborator={handleRemoveCollaborator}
+                variant="sidebar"
+                isOpen={isCollabModalOpen}
+                onOpenChange={setIsCollabModalOpen}
+              />
+
               {/* Itemized Price Breakdown */}
               {addonsTotal > 0 && (
                 <div className="pt-3 pb-1 space-y-1.5 border-t border-slate-100 text-xs">
                   <div className="flex justify-between text-slate-500">
-                    <span>ราคาหลัก ({adults} ท่าน):</span>
+                    <span>ราคาหลัก ({adults} ท่าน{collaborators.length > 0 ? ` รวม Collab ${collaborators.length} คน` : ""}):</span>
                     <span>฿{basePrice.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-indigo-600 font-medium">
@@ -692,8 +748,9 @@ export default function CustomerPackageViewPage({ params }) {
               {/* Booking CTA Button */}
               {isBookingOpen ? (
                 <button
+                  type="button"
                   onClick={handleBookingClick}
-                  className="w-full rounded-xl bg-indigo-600 py-3.5 text-base font-bold text-white shadow-md shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-100 active:scale-[0.99]"
+                  className="w-full rounded-xl bg-indigo-600 py-3.5 text-base font-bold text-white shadow-md shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-lg focus:ring-4 focus:ring-indigo-100 active:scale-[0.99] cursor-pointer"
                 >
                   จองแพ็กเกจนี้
                 </button>
@@ -724,27 +781,229 @@ export default function CustomerPackageViewPage({ params }) {
       </main>
 
       {/* Mobile Sticky Booking Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between border-t border-slate-200 bg-white px-5 py-3.5 shadow-[0_-10px_20px_rgba(0,0,0,0.06)] lg:hidden">
-        <div>
-          <p className="text-xs font-medium text-slate-500">ราคารวม ({adults} ท่าน)</p>
-          <p className="text-xl font-bold text-indigo-600">฿{totalPrice.toLocaleString()}</p>
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/90 bg-white shadow-[0_-10px_25px_rgba(0,0,0,0.08)] lg:hidden">
+        {/* Collab Row (Above Price Box) */}
+        <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-slate-50/80">
+          <div className="flex items-center gap-2">
+            <span className="text-xs sm:text-sm font-bold text-slate-700">
+              ผู้ร่วมทริป (Collab)
+            </span>
+            <span className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-2.5 py-0.5 text-[11px] font-bold text-white">
+              {collaborators.length + 1} คน
+            </span>
+          </div>
+
+          {/* Overlapping Avatars & Dashed Circle Add Button */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div
+              onClick={() => setIsCollabModalOpen(true)}
+              className="flex items-center -space-x-2.5 py-0.5 cursor-pointer"
+            >
+              <UserAvatar
+                user={currentUser || { name: "คุณ" }}
+                size="lg"
+                showCrown
+              />
+              {collaborators.slice(0, 3).map((c) => (
+                <UserAvatar key={c.id} user={c} size="lg" />
+              ))}
+              {collaborators.length > 3 && (
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600 ring-2 ring-white shadow-2xs">
+                  +{collaborators.length - 3}
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsCollabModalOpen(true)}
+              title={collaborators.length > 0 ? "จัดการ / ชวนเพิ่ม" : "ชวนเพื่อน (Collab)"}
+              className="flex h-9 w-9 items-center justify-center rounded-full border-1 border-dashed border-indigo-300 bg-white text-indigo-600 hover:border-indigo-600 hover:bg-indigo-50 shadow-2xs active:scale-95 transition-all cursor-pointer"
+            >
+              <UserPlus className="h-4.5 w-4.5" />
+            </button>
+          </div>
         </div>
-        {isBookingOpen ? (
-          <button
-            onClick={handleBookingClick}
-            className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700"
-          >
-            จองแพ็กเกจ
-          </button>
-        ) : (
-          <button
-            disabled
-            className="rounded-xl bg-slate-200 px-5 py-2.5 text-xs font-bold text-slate-400 cursor-not-allowed"
-          >
-            {packageData.status === "Closed" ? "ปิดรับจอง" : "ไม่เปิดให้จอง"}
-          </button>
-        )}
+
+        {/* Price & Action Row */}
+        <div className="flex items-center justify-between px-5 py-3">
+          <div>
+            <p className="text-xs font-medium text-slate-500">
+              ราคารวม ({adults} ท่าน{collaborators.length > 0 ? ` • ${collaborators.length} Collab` : ""})
+            </p>
+            <p className="text-xl font-bold text-indigo-600">฿{totalPrice.toLocaleString()}</p>
+          </div>
+          {isBookingOpen ? (
+            <button
+              type="button"
+              onClick={handleBookingClick}
+              className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all cursor-pointer"
+            >
+              จองแพ็กเกจ
+            </button>
+          ) : (
+            <button
+              disabled
+              className="rounded-xl bg-slate-200 px-5 py-2.5 text-xs font-bold text-slate-400 cursor-not-allowed"
+            >
+              {packageData.status === "Closed" ? "ปิดรับจอง" : "ไม่เปิดให้จอง"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Booking Confirmation Modal with Collab Summary */}
+      {isBookingModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 sm:p-7 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            {bookingSuccess ? (
+              <div className="py-6 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 mb-4 animate-bounce">
+                  <UserCheck className="h-9 w-9" />
+                </div>
+                <h3 className="text-xl font-extrabold text-slate-900">จองแพ็กเกจและส่งคำเชิญสำเร็จ!</h3>
+                <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto">
+                  ระบบได้บันทึกคำขอจองแพ็กเกจ {packageData.name} และส่งคำเชิญไปยังผู้ร่วมทริปทุกคนแล้ว
+                </p>
+                <div className="mt-6 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBookingModalOpen(false);
+                      setBookingSuccess(false);
+                    }}
+                    className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md hover:bg-indigo-700 transition-colors"
+                  >
+                    ปิดหน้าต่าง
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+                      <Sparkles className="h-4 w-4" />
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-900">ยืนยันข้อมูลการจองทริป</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsBookingModalOpen(false)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Tour details summary */}
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <p className="text-xs font-semibold uppercase text-slate-400">แพ็กเกจทัวร์</p>
+                    <h4 className="text-base font-bold text-slate-900 mt-0.5">{packageData.name}</h4>
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5" /> ระยะเวลา {totalDays} วัน
+                      {packageData.location?.name && (
+                        <>
+                          <span>•</span>
+                          <MapPin className="h-3.5 w-3.5" /> {packageData.location.name}
+                        </>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Participants Breakdown (Owner + Collaborators) */}
+                  <div className="rounded-2xl border border-slate-200 p-4 bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                        ผู้ร่วมเดินทางทั้งหมด ({adults} ท่าน)
+                      </span>
+                      <span className="text-xs font-medium text-indigo-600">
+                        {collaborators.length > 0 ? `ผู้จอง 1 + Collab ${collaborators.length} คน` : "ผู้จอง 1 คน"}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      {/* Overlapping Avatars */}
+                      <div className="flex items-center -space-x-2 shrink-0 py-0.5">
+                        <UserAvatar
+                          user={currentUser || { name: "คุณ" }}
+                          size="sm"
+                          showCrown
+                        />
+                        {collaborators.map((c) => (
+                          <UserAvatar key={c.id} user={c} size="sm" />
+                        ))}
+                      </div>
+
+                      {/* Member Chips */}
+                      <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700 border border-indigo-100">
+                          <span>{currentUser?.name || "คุณ"}</span>
+                          <span
+                            title="Owner"
+                            className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-600 text-white"
+                          >
+                            <Crown className="h-2 w-2" />
+                          </span>
+                        </span>
+                        {collaborators.map((c) => (
+                          <span
+                            key={c.id}
+                            className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200"
+                          >
+                            @{c.name}
+                          </span>
+                        ))}
+                        {adults > 1 + collaborators.length && (
+                          <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[11px] text-slate-500 border border-slate-200/60">
+                            +{adults - (1 + collaborators.length)} ผู้ติดตาม
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pricing summary */}
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-2 text-xs">
+                    <div className="flex justify-between text-slate-600">
+                      <span>ค่าแพ็กเกจ ({adults} ท่าน × ฿{unitPrice.toLocaleString()}):</span>
+                      <span className="font-semibold text-slate-900">฿{basePrice.toLocaleString()}</span>
+                    </div>
+                    {addonsTotal > 0 && (
+                      <div className="flex justify-between text-indigo-600">
+                        <span>บริการเสริม ({Object.keys(selectedAddons).length} รายการ):</span>
+                        <span className="font-semibold">+฿{addonsTotal.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-baseline pt-2 border-t border-slate-200 text-sm font-bold">
+                      <span className="text-slate-800">ยอดชำระสุทธิ:</span>
+                      <span className="text-xl font-extrabold text-indigo-600">฿{totalPrice.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsBookingModalOpen(false)}
+                    className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBookingClick}
+                    className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-colors cursor-pointer"
+                  >
+                    ไปกรอกข้อมูลการจอง
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

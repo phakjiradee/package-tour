@@ -29,6 +29,13 @@ export const authService = {
       return null;
     }
   },
+
+  async searchUsers(query = "") {
+    const response = await api.get("/collab/users/search", {
+      params: { q: query },
+    });
+    return response.data;
+  },
 };
 
 export const serviceAuth = authService;
