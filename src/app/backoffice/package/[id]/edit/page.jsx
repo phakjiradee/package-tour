@@ -48,6 +48,8 @@ export default function EditPackagePage({ params }) {
     partner_ids: [],
     price: "",
     status: "Draft",
+    booking_start_date: "",
+    booking_end_date: "",
     image: "",
     images: [],
     addons: [],
@@ -150,6 +152,8 @@ export default function EditPackagePage({ params }) {
               partner_ids: initialPartnerIds,
               price: data.price !== null && data.price !== undefined ? String(data.price) : "",
               status: data.status || "Draft",
+              booking_start_date: data.booking_start_date ? data.booking_start_date.split("T")[0] : "",
+              booking_end_date: data.booking_end_date ? data.booking_end_date.split("T")[0] : "",
               image: data.image || "",
               images: Array.isArray(data.images) && data.images.length > 0
                 ? data.images
@@ -374,7 +378,7 @@ export default function EditPackagePage({ params }) {
         showFeedback({
           type: "error",
           title: "อัปเดตไม่สำเร็จ",
-          message: data.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง",
+          message: data.error || data.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง",
         });
       }
     } catch (error) {
@@ -489,15 +493,13 @@ export default function EditPackagePage({ params }) {
         <a href="#overview" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
           1. ข้อมูลพื้นฐาน
         </a>
-        <a href="#gallery" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center gap-1.5">
-          <ImageIcon className="h-3.5 w-3.5 text-indigo-600" />
+        <a href="#gallery" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
           2. รูปภาพ ({packageData.images?.length || 0})
         </a>
         <a href="#partners" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
           3. ผู้ให้บริการร่วม ({packageData.partner_ids?.length || 0})
         </a>
-        <a href="#addons" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+        <a href="#addons" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
           4. บริการเสริมพิเศษ ({packageData.addons?.length || 0})
         </a>
         <a href="#itinerary" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
@@ -955,7 +957,7 @@ export default function EditPackagePage({ params }) {
                           {/* Logistics (Location, Hotel & Meals) */}
                           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                             <div>
-                              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                 <Map className="h-3.5 w-3.5" /> จุดท่องเที่ยว / ปลายทางของวันนี้
                               </label>
                               <select
@@ -972,7 +974,7 @@ export default function EditPackagePage({ params }) {
                               </select>
                             </div>
                             <div>
-                              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                 <Hotel className="h-3.5 w-3.5" /> โรงแรม / ที่พัก
                               </label>
                               <input
@@ -984,7 +986,7 @@ export default function EditPackagePage({ params }) {
                               />
                             </div>
                             <div>
-                              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
                                 <Utensils className="h-3.5 w-3.5" /> มื้ออาหารที่รวมในทริป
                               </label>
                               <div className="flex flex-wrap gap-2 mt-1">
@@ -1219,6 +1221,91 @@ export default function EditPackagePage({ params }) {
                   )}
                 </div>
               </div>
+
+              {/* ช่วงเวลาเปิดรับจอง (Booking Period) */}
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <div className="mb-2.5 flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>ช่วงเวลาเปิดรับจอง</span>
+                  </label>
+                  {(packageData.booking_start_date || packageData.booking_end_date) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handlePackageChange("booking_start_date", "");
+                        handlePackageChange("booking_end_date", "");
+                      }}
+                      className="text-[11px] font-medium text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    >
+                      ล้างวันที่
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <span className="mb-1 block text-[11px] font-medium text-slate-500">
+                      เปิดให้จองตั้งแต่วันที่
+                    </span>
+                    <input
+                      type="date"
+                      value={packageData.booking_start_date || ""}
+                      onChange={(e) => handlePackageChange("booking_start_date", e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-medium text-slate-800 shadow-2xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+
+                  <div>
+                    <span className="mb-1 block text-[11px] font-medium text-slate-500">
+                      เปิดให้จองถึงวันที่ (สิ้นสุดการจอง)
+                    </span>
+                    <input
+                      type="date"
+                      value={packageData.booking_end_date || ""}
+                      min={packageData.booking_start_date || undefined}
+                      onChange={(e) => handlePackageChange("booking_end_date", e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-medium text-slate-800 shadow-2xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                </div>
+
+                {/* Helper / Status Summary */}
+                <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/90 p-2.5 text-xs text-slate-600">
+                  {!packageData.booking_start_date && !packageData.booking_end_date ? (
+                    <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                      <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <span>ไม่จำกัดช่วงเวลา (เปิดให้จองได้ตลอดเวลา)</span>
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-indigo-900 text-[11px]">
+                        <Calendar className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                        <span>
+                          {packageData.booking_start_date
+                            ? new Date(packageData.booking_start_date).toLocaleDateString("th-TH", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "เริ่มต้นทันที"}
+                          {" — "}
+                          {packageData.booking_end_date
+                            ? new Date(packageData.booking_end_date).toLocaleDateString("th-TH", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "ไม่กำหนดสิ้นสุด"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500">
+                        ระบบจะเปิดรับจองเฉพาะช่วงวันที่ที่ระบุไว้
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Tour Summary */}
@@ -1250,6 +1337,14 @@ export default function EditPackagePage({ params }) {
                   <span className="text-sm font-medium text-slate-600">บริการเสริมพิเศษ</span>
                   <span className="text-sm font-bold text-slate-900">
                     {(packageData.addons || []).length} รายการ
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <span className="text-sm font-medium text-slate-600">ช่วงเวลาเปิดจอง</span>
+                  <span className="text-xs font-semibold text-slate-800 text-right">
+                    {packageData.booking_start_date || packageData.booking_end_date
+                      ? `${packageData.booking_start_date ? new Date(packageData.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "เริ่มต้น"} - ${packageData.booking_end_date ? new Date(packageData.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "ตลอดไป"}`
+                      : "เปิดจองตลอด"}
                   </span>
                 </div>
                 

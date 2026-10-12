@@ -89,6 +89,17 @@ export default function CustomerPackageListPage() {
         return true;
       })
       .sort((a, b) => {
+        const now = new Date();
+        const aAfterEnd = a.booking_end_date && new Date(new Date(a.booking_end_date).setHours(23, 59, 59, 999)) < now;
+        const bAfterEnd = b.booking_end_date && new Date(new Date(b.booking_end_date).setHours(23, 59, 59, 999)) < now;
+        const aClosed = a.status === "Closed" || aAfterEnd;
+        const bClosed = b.status === "Closed" || bAfterEnd;
+
+        // Push expired or closed packages to the bottom
+        if (!aClosed && bClosed) return -1;
+        if (aClosed && !bClosed) return 1;
+
+        // Otherwise sort by user selection
         if (sortBy === "price_asc") return (a.price || 0) - (b.price || 0);
         if (sortBy === "price_desc") return (b.price || 0) - (a.price || 0);
         if (sortBy === "duration_desc") return (b.dayplans?.length || 0) - (a.dayplans?.length || 0);
@@ -301,10 +312,18 @@ export default function CustomerPackageListPage() {
 
             const hasAddons = pkg.addons && pkg.addons.length > 0;
 
+            const now = new Date();
+            const isBeforeStart = pkg.booking_start_date && new Date(pkg.booking_start_date) > now;
+            const isAfterEnd = pkg.booking_end_date && new Date(new Date(pkg.booking_end_date).setHours(23, 59, 59, 999)) < now;
+            const isClosed = pkg.status === "Closed" || isAfterEnd;
+            const isUpcoming = isBeforeStart && !isClosed;
+
             return (
               <div
                 key={pkg.id}
-                className="group relative flex flex-col rounded-3xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl"
+                className={`group relative flex flex-col rounded-3xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl ${
+                  isAfterEnd ? "opacity-90" : ""
+                }`}
               >
                 {/* Image & Badges Container */}
                 <div className="relative h-56 w-full overflow-hidden rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200">
@@ -312,7 +331,9 @@ export default function CustomerPackageListPage() {
                     <img
                       src={pkg.image}
                       alt={pkg.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+                        isAfterEnd ? "grayscale-[25%]" : ""
+                      }`}
                       onError={(e) => {
                         e.target.onerror = null;
                         e.target.style.display = "none";
@@ -325,10 +346,20 @@ export default function CustomerPackageListPage() {
                   )}
 
                   {/* Duration & Status Badges */}
-                  {pkg.status === "Closed" ? (
+                  {isAfterEnd ? (
+                    <div className="absolute top-3 left-3 rounded-full bg-slate-900/90 px-3 py-1 text-xs font-bold text-white backdrop-blur-md shadow-md flex items-center gap-1.5 border border-white/10">
+                      <Ban className="h-3.5 w-3.5 text-rose-400" />
+                      <span>หมดเขตรับจองแล้ว</span>
+                    </div>
+                  ) : pkg.status === "Closed" ? (
                     <div className="absolute top-3 left-3 rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white backdrop-blur-md shadow-md flex items-center gap-1.5">
                       <Ban className="h-3.5 w-3.5" />
                       <span>ปิดรับจองแล้ว</span>
+                    </div>
+                  ) : isUpcoming ? (
+                    <div className="absolute top-3 left-3 rounded-full bg-amber-600/95 px-3 py-1 text-xs font-bold text-white backdrop-blur-md shadow-md flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span>เปิดจอง {new Date(pkg.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}</span>
                     </div>
                   ) : (
                     <div className="absolute top-3 left-3 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md shadow-sm flex items-center gap-1.5">
@@ -365,13 +396,21 @@ export default function CustomerPackageListPage() {
                 {/* Content */}
                 <div className="flex flex-1 flex-col justify-between pt-4 px-1.5">
                   <div className="space-y-2.5">
-                    {/* Partner Badge */}
-                    {partnerName && (
-                      <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 px-2.5 py-0.5 rounded-md border border-indigo-100/60">
-                        <Handshake className="h-3 w-3 text-indigo-600" />
-                        <span className="truncate max-w-[200px]">{partnerName}</span>
-                      </div>
-                    )}
+                    {/* Partner & Booking Period Badges */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {partnerName && (
+                        <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 px-2.5 py-0.5 rounded-md border border-indigo-100/60">
+                          <Handshake className="h-3 w-3 text-indigo-600" />
+                          <span className="truncate max-w-[170px]">{partnerName}</span>
+                        </div>
+                      )}
+                      {pkg.booking_end_date && !isClosed && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                          <Calendar className="h-2.5 w-2.5 text-amber-600" />
+                          จองได้ถึง {new Date(pkg.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}
+                        </span>
+                      )}
+                    </div>
 
                     {/* Title */}
                     <h3 className="text-base font-bold text-slate-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
@@ -410,12 +449,28 @@ export default function CustomerPackageListPage() {
                       </div>
                     </div>
 
-                    {pkg.status === "Closed" ? (
+                    {isAfterEnd ? (
                       <Link
                         href={`/package/${pkg.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-200"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-500 transition-all hover:bg-slate-200"
+                      >
+                        <span>ดูข้อมูล (หมดเขต)</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    ) : pkg.status === "Closed" ? (
+                      <Link
+                        href={`/package/${pkg.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-500 transition-all hover:bg-slate-200"
                       >
                         <span>ดูข้อมูล (ปิดรับจอง)</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    ) : isUpcoming ? (
+                      <Link
+                        href={`/package/${pkg.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs font-semibold text-amber-800 transition-all hover:bg-amber-100"
+                      >
+                        <span>ดูข้อมูล (เปิดจองเร็วๆ นี้)</span>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </Link>
                     ) : (

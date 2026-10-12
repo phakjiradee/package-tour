@@ -131,7 +131,7 @@ export default function DashboardPage() {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
       const label = d.toLocaleDateString("th-TH", { weekday: "short" });
-      
+
       const count = bookings.filter((b) => {
         if (!b.createdAt) return false;
         return new Date(b.createdAt).toISOString().slice(0, 10) === dateStr;
@@ -342,11 +342,10 @@ export default function DashboardPage() {
                 </div>
                 {/* Bar */}
                 <div
-                  className={`w-full max-w-[48px] rounded-t-lg transition-all duration-300 ${
-                    day.count > 0
+                  className={`w-full max-w-[48px] rounded-t-lg transition-all duration-300 ${day.count > 0
                       ? "bg-gradient-to-t from-cyan-600 to-cyan-400 group-hover:from-cyan-700 group-hover:to-cyan-500"
                       : "bg-slate-100"
-                  }`}
+                    }`}
                   style={{ height: `${day.heightPercent}%` }}
                 />
                 <span className="mt-2 text-xs font-semibold text-slate-500 truncate">

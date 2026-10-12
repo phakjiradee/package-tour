@@ -188,7 +188,22 @@ export default function CustomerPackageViewPage({ params }) {
   const basePrice = unitPrice * adults;
   const addonsTotal = Object.values(selectedAddons).reduce((sum, item) => sum + (item.price || 0), 0);
   const totalPrice = basePrice + addonsTotal;
-  const isBookingOpen = packageData.status === "Published" || !packageData.status;
+
+  const now = new Date();
+  const isBeforeBookingStart = packageData.booking_start_date && new Date(packageData.booking_start_date) > now;
+  const isAfterBookingEnd = packageData.booking_end_date && new Date(new Date(packageData.booking_end_date).setHours(23, 59, 59, 999)) < now;
+  const isBookingPeriodValid = !isBeforeBookingStart && !isAfterBookingEnd;
+  const isBookingOpen = (packageData.status === "Published" || !packageData.status) && isBookingPeriodValid;
+
+  const closedReason = !isBookingPeriodValid
+    ? (isBeforeBookingStart
+        ? `ยังไม่เปิดรับจอง (เปิด ${new Date(packageData.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })})`
+        : `หมดเขตรับจองแล้ว (สิ้นสุด ${new Date(packageData.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })})`)
+    : (packageData.status === "Closed"
+        ? "ปิดรับจองแล้ว / ที่นั่งเต็ม"
+        : packageData.status === "Draft"
+        ? "ยังไม่เปิดให้จอง (ฉบับร่าง)"
+        : "ปิดรับจองแล้ว");
 
   return (
     <div className="min-h-screen bg-white pb-36 lg:pb-12">
@@ -672,6 +687,18 @@ export default function CustomerPackageViewPage({ params }) {
                     </span>
                   </div>
                 )}
+                {(packageData.booking_start_date || packageData.booking_end_date) && (
+                  <div className="flex justify-between items-center text-slate-600 pt-1">
+                    <span className="flex items-center gap-2 text-slate-500">
+                      <Calendar className="h-4 w-4 text-amber-500" /> ช่วงเวลาเปิดจอง
+                    </span>
+                    <span className="font-semibold text-slate-900 text-xs">
+                      {packageData.booking_start_date ? new Date(packageData.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "วันนี้"}
+                      {" - "}
+                      {packageData.booking_end_date ? new Date(packageData.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "ตลอดไป"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Number of Travelers Counter */}
@@ -760,11 +787,7 @@ export default function CustomerPackageViewPage({ params }) {
                     disabled
                     className="w-full rounded-xl bg-slate-100 py-3.5 text-sm sm:text-base font-bold text-slate-400 cursor-not-allowed border border-slate-200"
                   >
-                    {packageData.status === "Closed"
-                      ? "ปิดรับจองแล้ว / ที่นั่งเต็ม"
-                      : packageData.status === "Draft"
-                      ? "ยังไม่เปิดให้จอง (ฉบับร่าง)"
-                      : "ปิดรับจองแล้ว"}
+                    {closedReason}
                   </button>
                   <Link
                     href="/package"
@@ -844,9 +867,10 @@ export default function CustomerPackageViewPage({ params }) {
           ) : (
             <button
               disabled
-              className="rounded-xl bg-slate-200 px-5 py-2.5 text-xs font-bold text-slate-400 cursor-not-allowed"
+              className="rounded-xl bg-slate-200 px-4 py-2.5 text-xs font-bold text-slate-500 cursor-not-allowed max-w-[200px] truncate"
+              title={closedReason}
             >
-              {packageData.status === "Closed" ? "ปิดรับจอง" : "ไม่เปิดให้จอง"}
+              {closedReason}
             </button>
           )}
         </div>

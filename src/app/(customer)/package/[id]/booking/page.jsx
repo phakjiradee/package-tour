@@ -430,12 +430,19 @@ export default function PackageBookingPage({ params }) {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-2">
-                      วันที่ออกเดินทาง <span className="text-rose-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs font-semibold text-slate-700">
+                        วันที่ออกเดินทาง <span className="text-rose-500">*</span>
+                      </label>
+                      {(packageData?.booking_start_date || packageData?.booking_end_date) && (
+                        <span className="text-[10px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                          เปิดจอง: {packageData.booking_start_date ? new Date(packageData.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "เริ่มทันที"} - {packageData.booking_end_date ? new Date(packageData.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "ตลอดไป"}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="date"
-                      min={minDateString}
+                      min={new Date().toISOString().split("T")[0]}
                       value={travelDate}
                       onChange={(e) => setTravelDate(e.target.value)}
                       required

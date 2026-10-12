@@ -13,7 +13,8 @@ import {
   MapPin,
   RotateCcw,
   Package2,
-  ImageIcon
+  ImageIcon,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import FeedbackModal from "@/components/ui/FeedbackModal";
@@ -428,9 +429,21 @@ export default function PackagePage() {
                             >
                               {item.name}
                             </Link>
-                            <span className="text-[11px] text-slate-400">
-                              รหัส: #{item.id}
-                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[11px] text-slate-400">
+                                รหัส: #{item.id}
+                              </span>
+                              {(item.booking_start_date || item.booking_end_date) && (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50/80 border border-indigo-100/80 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
+                                  <Calendar className="h-2.5 w-2.5 text-indigo-600" />
+                                  <span>
+                                    {item.booking_start_date ? new Date(item.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "เริ่มทันที"}
+                                    {" - "}
+                                    {item.booking_end_date ? new Date(item.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "ตลอดไป"}
+                                  </span>
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -477,10 +490,34 @@ export default function PackagePage() {
                       {/* Status */}
                       <td className="px-5 py-4">
                         {item.status === "Published" && (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 shadow-2xs">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                            Published (เปิดขาย)
-                          </span>
+                          (() => {
+                            const now = new Date();
+                            const isAfterEnd = item.booking_end_date && new Date(new Date(item.booking_end_date).setHours(23, 59, 59, 999)) < now;
+                            const isBeforeStart = item.booking_start_date && new Date(item.booking_start_date) > now;
+
+                            if (isAfterEnd) {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 border border-slate-300 shadow-2xs">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                  หมดเขตรับจอง (Expired)
+                                </span>
+                              );
+                            }
+                            if (isBeforeStart) {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800 border border-sky-200 shadow-2xs">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                                  รอเปิดจอง (Upcoming)
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 shadow-2xs">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                Published (เปิดขาย)
+                              </span>
+                            );
+                          })()
                         )}
                         {item.status === "Draft" && (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 border border-amber-200 shadow-2xs">
