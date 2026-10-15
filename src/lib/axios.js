@@ -1,18 +1,24 @@
 import axios from "axios";
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const getBaseURL = () => {
+  if (typeof window === "undefined") {
+    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+  }
+  return "/api";
+};
 
 export const api = axios.create({
-  baseURL,
+  baseURL: getBaseURL(),
+  timeout: 10000,
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
   },
-
 });
 
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
+    config.baseURL = "/api";
     const token =
       window.localStorage.getItem("bo_token") ||
       window.localStorage.getItem("pt_token");

@@ -36,6 +36,32 @@ export const bookingService = {
     const response = await api.patch(`/booking/${id}/status`, { status });
     return response.data;
   },
+
+  // จำลองการชำระเงิน (Mock QR Payment)
+  async mockPay(code) {
+    const response = await api.post(`/booking/${code}/mock-pay`);
+    return response.data;
+  },
+
+  // สร้าง Stripe Checkout Session (ชำระด้วยบัตรเครดิต/เดบิต)
+  async createStripeSession(code, origin) {
+    const response = await api.post(`/booking/${code}/create-stripe-session`, { origin });
+    return response.data;
+  },
+
+  // ตรวจสอบสถานะการชำระเงิน Stripe เมื่อกลับมาจากหน้า Checkout
+  async verifyStripe(code, sessionId) {
+    const response = await api.get(`/booking/${code}/verify-stripe`, {
+      params: { session_id: sessionId },
+    });
+    return response.data;
+  },
+
+  // ขอยกเลิกการจอง
+  async cancel(code, reason = "") {
+    const response = await api.post(`/booking/${code}/cancel`, { reason });
+    return response.data;
+  },
 };
 
 export default bookingService;

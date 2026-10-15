@@ -19,6 +19,7 @@ import {
   Users,
   X,
   XCircle,
+  Zap,
 } from "lucide-react";
 import { BookingStatusBadge } from "@/components/ui/Badges";
 
@@ -27,6 +28,7 @@ export default function BookingDetailModal({
   isOpen,
   onClose,
   onUpdateStatus,
+  onMockPay,
   updating = false,
 }) {
   const [copiedCode, setCopiedCode] = useState(false);
@@ -141,6 +143,19 @@ export default function BookingDetailModal({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                {booking.status === "PENDING_PAYMENT" && (
+                  <button
+                    type="button"
+                    disabled={updating}
+                    onClick={() => onMockPay && onMockPay(booking.booking_code)}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm hover:from-emerald-700 hover:to-teal-700 active:scale-95 disabled:opacity-50 transition"
+                    title="จำลองว่าลูกค้าสแกนจ่ายเงินผ่าน QR Code เรียบร้อยแล้ว"
+                  >
+                    <Zap className="h-3.5 w-3.5" />
+                    จำลองสแกนชำระเงิน (Mock Pay)
+                  </button>
+                )}
+
                 <button
                   type="button"
                   disabled={updating || booking.status === "CONFIRMED"}
@@ -382,6 +397,29 @@ export default function BookingDetailModal({
             )}
           </div>
 
+          {/* Collaborators List (if any) */}
+          {booking.bookingCollaps && booking.bookingCollaps.length > 0 && (
+            <div className="rounded-xl border border-purple-200/80 bg-purple-50/40 p-5 shadow-sm">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-purple-950 border-b border-purple-100 pb-3">
+                <Users className="h-4 w-4 text-purple-600" />
+                ผู้ร่วมทริปในการจองนี้ (Collaborators - {booking.bookingCollaps.length} ท่าน)
+              </h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 border border-purple-100 shadow-2xs text-xs">
+                  <span className="font-bold text-slate-800">👑 {booking.contact_name || booking.user?.name || "ผู้จองหลัก"}</span>
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">ผู้จองหลัก</span>
+                </div>
+                {booking.bookingCollaps.map((collab) => (
+                  <div key={collab.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 border border-purple-200 shadow-2xs text-xs">
+                    <span className="font-bold text-purple-900">@{collab.user?.name || "Collab"}</span>
+                    <span className="text-slate-500 text-[11px]">({collab.user?.email || "ผู้ร่วมทริป"})</span>
+                    <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">ผู้ร่วมทริป</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Add-ons List (if any) */}
           {booking.booking_addons && booking.booking_addons.length > 0 && (
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -458,17 +496,22 @@ export default function BookingDetailModal({
                     >
                       <div>
                         <p className="font-semibold text-slate-800">
-                          วิธีชำระ: {p.payment_method || "PromptPay QR"}
+                          วิธีชำระ:{" "}
+                          {p.payment_method === "PROMPTPAY_MOCK"
+                            ? "PromptPay QR (จำลอง)"
+                            : p.payment_method || "PromptPay QR"}
                         </p>
                         <p className="text-slate-500">
-                          {formatDateTime(p.createdAt)}
+                          {formatDateTime(p.paid_at || p.createdAt)}
                         </p>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-emerald-700">
                           ฿{formatPrice(p.amount)}
                         </span>
-                        <p className="text-slate-500 capitalize">{p.status}</p>
+                        <p className="text-[11px] font-semibold text-emerald-600">
+                          {p.status === "APPROVED" ? "อนุมัติแล้ว" : p.status}
+                        </p>
                       </div>
                     </div>
                   ))}

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { Suspense } from "react";
 import AuthForm from "@/components/auth/AuthForm";
+import { Loader2 } from "lucide-react";
 
 export const metadata = {
   title: "สมัครสมาชิก | Zentura",
@@ -10,7 +11,15 @@ export default function SignUpPage() {
   return (
     <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-linear-to-b from-white via-white">
       <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-teal-100/30 blur-3xl" />
-      <AuthForm mode="sign-up" />
+      <Suspense
+        fallback={
+          <div className="min-h-96 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+          </div>
+        }
+      >
+        <AuthForm mode="sign-up" />
+      </Suspense>
     </div>
   );
 }

@@ -25,15 +25,33 @@ import {
   Crown,
   UserCheck,
   Lock,
+  Plane,
 } from "lucide-react";
 import bookingService from "@/service/booking";
 import authService from "@/service/auth";
 import CollaboratorBox from "@/components/package/CollaboratorBox";
+import { formatThaiDateRange } from "@/lib/date";
 import {
   getAuth,
   subscribeAuth,
   getAuthServerSnapshot,
 } from "@/lib/auth-client";
+
+// Helper ฟังก์ชันจัดรูปแบบเบอร์โทรศัพท์ (0xx-xxx-xxxx) และจำกัดเฉพาะตัวเลข 10 หลัก
+const formatPhoneNumber = (value) => {
+  if (!value) return "";
+  // 1. ตัดตัวอักษรที่ไม่ใช่ตัวเลขออกทั้งหมด และจำกัดสูงสุด 10 หลัก
+  const cleaned = value.replace(/\D/g, "").slice(0, 10);
+  
+  // 2. เติมเครื่องหมายขีด (-) ตามตำแหน่ง
+  if (cleaned.length <= 3) {
+    return cleaned;
+  } else if (cleaned.length <= 6) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
+  } else {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+};
 
 export default function PackageBookingPage({ params }) {
   const router = useRouter();
@@ -69,8 +87,21 @@ export default function PackageBookingPage({ params }) {
   // State
   const [packageData, setPackageData] = useState(null);
   const [isLoadingPackage, setIsLoadingPackage] = useState(true);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // ตรวจสอบสถานะการเข้าสู่ระบบ หากยังไม่ได้ล็อกอิน ให้พาไปหน้า sign-in ทันที
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? window.localStorage.getItem("pt_token") : null;
+    const auth = getAuth();
+    if (!token && !auth && !currentUser) {
+      const currentPath = typeof window !== "undefined" ? window.location.pathname + window.location.search : `/package/${packageId}/booking`;
+      router.replace(`/auth/sign-in?redirect=${encodeURIComponent(currentPath)}`);
+    } else {
+      setIsCheckingAuth(false);
+    }
+  }, [currentUser, packageId, router]);
 
   // Collab System State
   const [isCollabEnabled, setIsCollabEnabled] = useState(
@@ -115,6 +146,10 @@ export default function PackageBookingPage({ params }) {
         if (res.ok) {
           const data = await res.json();
           setPackageData(data);
+          const defaultDate = data.start_date || data.dayplans?.[0]?.dt;
+          if (defaultDate) {
+            setTravelDate(defaultDate);
+          }
         }
       } catch (err) {
         console.error("Fetch package error:", err);
@@ -155,14 +190,20 @@ export default function PackageBookingPage({ params }) {
       if (!contactEmail && currentUser.email)
         setContactEmail(currentUser.email);
       if (!contactPhone && currentUser.phone)
-        setContactPhone(currentUser.phone);
+        setContactPhone(formatPhoneNumber(currentUser.phone));
     }
   }, [currentUser]);
 
-  // Set minimum travel date to tomorrow
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() + 1);
-  const minDateString = minDate.toISOString().split("T")[0];
+  const handlePhoneChange = (e) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setContactPhone(formatted);
+  };
+
+  // วันที่เดินทางของแพ็กเกจ และช่วงเวลาเปิดรับจอง
+  const travelStartDate = packageData?.start_date || packageData?.dayplans?.[0]?.dt;
+  const travelEndDate = packageData?.end_date || packageData?.dayplans?.[packageData?.dayplans?.length - 1]?.dt;
+  const travelDateRangeText = formatThaiDateRange(travelStartDate, travelEndDate);
+  const bookingPeriodText = formatThaiDateRange(packageData?.booking_start_date, packageData?.booking_end_date, { shortMonth: true });
 
   // Collaborator handlers
   const handleAddCollaborator = (user) => {
@@ -270,15 +311,26 @@ export default function PackageBookingPage({ params }) {
     e.preventDefault();
     setErrorMessage("");
 
-    // Validate Required Fields
-    if (!travelDate) {
-      setErrorMessage("กรุณาเลือกวันออกเดินทาง");
-      return;
-    }
+    // Travel date กำหนดตามรอบเดินทางของแพ็กเกจ ไม่ต้องให้ผู้ใช้เลือกเอง
+    const finalTravelDate = travelDate || travelStartDate || new Date().toISOString();
+
     if (!contactName.trim() || !contactPhone.trim() || !contactEmail.trim()) {
       setErrorMessage(
         "กรุณากรอกข้อมูลผู้ติดต่อให้ครบถ้วน (ชื่อ, เบอร์โทร, อีเมล)",
       );
+      return;
+    }
+
+    const cleanPhoneDigits = contactPhone.replace(/\D/g, "");
+    if (cleanPhoneDigits.length !== 10) {
+      setErrorMessage("กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (เช่น 095-809-2434)");
+      return;
+    }
+
+    // ตรวจสอบความปลอดภัย: หากยังไม่ได้ล็อกอิน ให้เด้งไปหน้า sign-in ทันที
+    if (!currentUser) {
+      const currentPath = typeof window !== "undefined" ? window.location.pathname + window.location.search : `/package/${packageId}/booking`;
+      router.replace(`/auth/sign-in?redirect=${encodeURIComponent(currentPath)}`);
       return;
     }
 
@@ -298,7 +350,7 @@ export default function PackageBookingPage({ params }) {
 
     const payload = {
       package_id: parseInt(packageId),
-      travel_date: new Date(travelDate).toISOString(),
+      travel_date: new Date(finalTravelDate).toISOString(),
       adult_count: adultCount,
       child_count: childCount,
       contact_name: contactName.trim(),
@@ -332,6 +384,15 @@ export default function PackageBookingPage({ params }) {
       setIsSubmitting(false);
     }
   };
+
+  if (isCheckingAuth && !currentUser) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-slate-500">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <p className="text-sm font-medium">กำลังตรวจสอบสิทธิ์การเข้าสู่ระบบ...</p>
+      </div>
+    );
+  }
 
   if (isLoadingPackage) {
     return (
@@ -423,34 +484,46 @@ export default function PackageBookingPage({ params }) {
                       กำหนดการเดินทาง
                     </h2>
                     <p className="text-xs text-slate-500">
-                      เลือกวันที่และจำนวนผู้ร่วมเดินทาง
+                      รอบการเดินทางถูกกำหนดตามตารางแพ็กเกจ และสามารถระบุจำนวนผู้เดินทางได้ทันที
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-xs font-semibold text-slate-700">
-                        วันที่ออกเดินทาง <span className="text-rose-500">*</span>
-                      </label>
-                      {(packageData?.booking_start_date || packageData?.booking_end_date) && (
-                        <span className="text-[10px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                          เปิดจอง: {packageData.booking_start_date ? new Date(packageData.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "เริ่มทันที"} - {packageData.booking_end_date ? new Date(packageData.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "ตลอดไป"}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* กล่องแสดงวันเดินทางคงที่ และช่วงเวลาเปิดรับจอง */}
+                  <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 via-white to-sky-50/40 p-4 shadow-2xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-900">
+                          <Plane className="h-4 w-4 text-indigo-600" /> วันเดินทางของแพ็กเกจ
                         </span>
-                      )}
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200/50">
+                          กำหนดตามรอบ
+                        </span>
+                      </div>
+                      <p className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
+                        ✈️ {travelDateRangeText || "กำลังโหลดข้อมูลตารางเดินทาง..."}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        ทริปนี้เดินทางตามวันที่กำหนดข้างต้น ไม่ต้องเลือกวันเดินทาง
+                      </p>
                     </div>
-                    <input
-                      type="date"
-                      min={new Date().toISOString().split("T")[0]}
-                      value={travelDate}
-                      onChange={(e) => setTravelDate(e.target.value)}
-                      required
-                      className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                    />
+
+                    {/* แสดงช่วงเวลาเปิดรับจอง */}
+                    {(packageData?.booking_start_date || packageData?.booking_end_date) && (
+                      <div className="mt-3 pt-2.5 border-t border-indigo-100/80 flex items-center justify-between text-xs">
+                        <span className="text-slate-500 flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-amber-500" /> ช่วงเวลาเปิดรับจอง:
+                        </span>
+                        <span className="font-bold text-amber-800">
+                          {bookingPeriodText || "เปิดรับจองตามรอบ"}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  <div>
+                  {/* กล่องปรับจำนวนผู้เดินทาง */}
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs flex flex-col justify-between">
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-xs font-semibold text-slate-700">
                         จำนวนผู้เดินทาง
@@ -557,20 +630,36 @@ export default function PackageBookingPage({ params }) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      เบอร์โทรศัพท์ <span className="text-rose-500">*</span>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex justify-between items-center">
+                      <span>เบอร์โทรศัพท์ <span className="text-rose-500">*</span></span>
+                      {contactPhone && (
+                        <span className={`text-[10px] font-medium ${
+                          contactPhone.replace(/\D/g, "").length === 10
+                            ? "text-emerald-600 font-semibold"
+                            : "text-slate-400"
+                        }`}>
+                          {contactPhone.replace(/\D/g, "").length}/10 หลัก
+                        </span>
+                      )}
                     </label>
                     <div className="relative">
                       <Phone className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                       <input
                         type="tel"
-                        placeholder="0812345678"
+                        inputMode="numeric"
+                        placeholder="095-809-2434"
                         value={contactPhone}
-                        onChange={(e) => setContactPhone(e.target.value)}
+                        onChange={handlePhoneChange}
+                        maxLength={12}
                         required
-                        className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 font-mono tracking-wide"
                       />
                     </div>
+                    {contactPhone && contactPhone.replace(/\D/g, "").length > 0 && contactPhone.replace(/\D/g, "").length < 10 && (
+                      <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
+                        * ต้องกรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (เช่น 095-809-2434)
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -947,14 +1036,16 @@ export default function PackageBookingPage({ params }) {
                     <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-relaxed">
                       {packageData.name}
                     </h4>
-                    {travelDate && (
-                      <p className="text-[11px] font-medium text-slate-500 mt-1 flex items-center gap-1">
-                        <Calendar className="h-3 w-3 text-indigo-500" />
-                        {new Date(travelDate).toLocaleDateString("th-TH", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
+                    {travelDateRangeText && (
+                      <p className="text-[11px] font-bold text-indigo-700 mt-1 flex items-center gap-1.5">
+                        <Plane className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                        <span>วันเดินทาง: {travelDateRangeText}</span>
+                      </p>
+                    )}
+                    {bookingPeriodText && (
+                      <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-amber-500 shrink-0" />
+                        <span>เปิดจอง: {bookingPeriodText}</span>
                       </p>
                     )}
                   </div>

@@ -71,4 +71,63 @@ export function formatThaiTime(dateStr) {
   return `${parts.hours}:${parts.minutes}`;
 }
 
+export const THAI_MONTHS_LONG = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+];
+
+export const THAI_MONTHS_SHORT = [
+  "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+];
+
+/**
+ * Format date range: e.g. "9 - 22 ตุลาคม 2569" or "1 ก.ย. - 7 ต.ค. 2569"
+ */
+export function formatThaiDateRange(startDateStr, endDateStr, options = {}) {
+  const { shortMonth = false, showYear = true } = options;
+  const months = shortMonth ? THAI_MONTHS_SHORT : THAI_MONTHS_LONG;
+
+  const start = parseDbDateParts(startDateStr);
+  const end = parseDbDateParts(endDateStr);
+
+  if (!start && !end) return null;
+  if (start && !end) {
+    const sMonth = months[parseInt(start.month, 10) - 1];
+    const sYear = start.year + 543;
+    return `${parseInt(start.day, 10)} ${sMonth}${showYear ? ` ${sYear}` : ""}`;
+  }
+  if (!start && end) {
+    const eMonth = months[parseInt(end.month, 10) - 1];
+    const eYear = end.year + 543;
+    return `ถึง ${parseInt(end.day, 10)} ${eMonth}${showYear ? ` ${eYear}` : ""}`;
+  }
+
+  const sDay = parseInt(start.day, 10);
+  const eDay = parseInt(end.day, 10);
+  const sMonthIdx = parseInt(start.month, 10) - 1;
+  const eMonthIdx = parseInt(end.month, 10) - 1;
+  const sYear = start.year + 543;
+  const eYear = end.year + 543;
+
+  // Same day, month, year
+  if (sYear === eYear && sMonthIdx === eMonthIdx && sDay === eDay) {
+    return `${sDay} ${months[sMonthIdx]}${showYear ? ` ${sYear}` : ""}`;
+  }
+
+  // Same month and year: "9 - 22 ตุลาคม 2569"
+  if (sYear === eYear && sMonthIdx === eMonthIdx) {
+    return `${sDay} - ${eDay} ${months[sMonthIdx]}${showYear ? ` ${sYear}` : ""}`;
+  }
+
+  // Same year, different months: "1 ก.ย. - 7 ต.ค. 2569" or "1 กันยายน - 7 ตุลาคม 2569"
+  if (sYear === eYear) {
+    return `${sDay} ${months[sMonthIdx]} - ${eDay} ${months[eMonthIdx]}${showYear ? ` ${sYear}` : ""}`;
+  }
+
+  // Different years
+  return `${sDay} ${months[sMonthIdx]} ${sYear} - ${eDay} ${months[eMonthIdx]} ${eYear}`;
+}
+
 export default formatThaiDateTime;
+

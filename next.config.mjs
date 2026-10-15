@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: [
+    "192.168.1.40",
+    "localhost",
+    "127.0.0.1",
+  ],
   images: {
     remotePatterns: [
       {
@@ -14,6 +19,14 @@ const nextConfig = {
         source: "/",
         destination: "/feed",
         permanent: false,
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://127.0.0.1:4000/api/:path*",
       },
     ];
   },

@@ -9,7 +9,6 @@ import AuthButton from "@/components/auth/AuthButton";
 const navLinks = [
   { href: "/feed", label: "ฟีด" },
   { href: "/package", label: "แพ็กเกจ" },
-  { href: "/my-bookings", label: "การจองของฉัน" },
 ];
 
 function isActivePath(pathname, href) {

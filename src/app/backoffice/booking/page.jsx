@@ -141,6 +141,31 @@ export default function BackofficeBookingPage() {
     }
   };
 
+  // Mock payment handler for Backoffice
+  const handleMockPay = async (bookingCode) => {
+    try {
+      setUpdatingStatus(true);
+      const res = await bookingService.mockPay(bookingCode);
+      showToast("จำลองการชำระเงินสำเร็จแล้ว");
+
+      // Refetch table data
+      fetchBookings(pagination.page, search, statusFilter);
+
+      // Refresh currently open modal booking
+      if (selectedBooking && selectedBooking.booking_code === bookingCode) {
+        const fresh = await bookingService.getByCode(bookingCode);
+        if (fresh?.data) {
+          setSelectedBooking(fresh.data);
+        }
+      }
+    } catch (err) {
+      console.error("Backoffice mock pay error:", err);
+      showToast(err.response?.data?.message || "ไม่สามารถจำลองการชำระเงินได้", "error");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   // Formatters
   const formatDate = (dateStr) => {
     if (!dateStr) return "-";
@@ -546,6 +571,7 @@ export default function BackofficeBookingPage() {
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         onUpdateStatus={handleUpdateStatus}
+        onMockPay={handleMockPay}
         updating={updatingStatus}
       />
     </div>

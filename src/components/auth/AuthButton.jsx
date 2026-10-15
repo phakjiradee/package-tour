@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, Package, UserRound } from "lucide-react";
+import { ChevronDown, LogOut, Package, UserRound, Ticket, LayoutDashboard } from "lucide-react";
 import {
   getAuth,
   clearAuth,
@@ -186,20 +186,31 @@ export default function AuthButton({ fullWidth = false }) {
           </div>
           <div className="my-1 h-px bg-slate-100" />
           <Link
-            href="/package"
+            href="/my-bookings"
             onClick={() => setOpen(false)}
-            className="flex h-10 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-slate-700 transition hover:bg-slate-100"
+            className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100/80"
           >
-            <Package className="h-4 w-4" />
-            แพ็กเกจของฉัน
+            <Ticket className="h-4 w-4 text-indigo-500" />
+            การจองของฉัน
           </Link>
-          <button
-            type="button"
-            className="flex h-10 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-slate-700 transition hover:bg-slate-100"
+          <Link
+            href="/profile"
+            onClick={() => setOpen(false)}
+            className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100/80"
           >
-            <UserRound className="h-4 w-4" />
+            <UserRound className="h-4 w-4 text-blue-500" />
             โปรไฟล์
-          </button>
+          </Link>
+          {(roleName?.toLowerCase() === "admin" || roleName?.toLowerCase() === "staff" || user?.isEmployee) && (
+            <Link
+              href="/backoffice/dashboard"
+              onClick={() => setOpen(false)}
+              className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm font-medium text-indigo-600 transition hover:bg-indigo-50"
+            >
+              <LayoutDashboard className="h-4 w-4 text-indigo-600" />
+              ระบบจัดการ (Backoffice)
+            </Link>
+          )}
           <div className="my-1 h-px bg-slate-100" />
           <button
             type="button"

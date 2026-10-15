@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -14,15 +14,40 @@ import {
   Loader2,
   Receipt,
   User,
-  ChevronRight
+  Users,
+  ChevronRight,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
 import bookingService from "@/service/booking";
+import CancelBookingModal from "@/components/booking/CancelBookingModal";
+import { getAuth, subscribeAuth, getAuthServerSnapshot } from "@/lib/auth-client";
 
 export default function MyBookingsPage() {
+  const currentUser = useSyncExternalStore(
+    subscribeAuth,
+    getAuth,
+    getAuthServerSnapshot
+  );
+
   const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUnauthorized, setIsUnauthorized] = useState(false);
+  const [cancelModalBooking, setCancelModalBooking] = useState(null);
   const [error, setError] = useState("");
+
+  const handleConfirmCancel = async (bookingCode) => {
+    const res = await bookingService.cancel(bookingCode);
+    if (res?.success) {
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.booking_code === bookingCode ? { ...b, status: "CANCELLED" } : b
+        )
+      );
+    } else {
+      throw new Error(res?.message || "ไม่สามารถยกเลิกการจองได้");
+    }
+  };
 
   useEffect(() => {
     async function loadBookings() {
@@ -150,17 +175,28 @@ export default function MyBookingsPage() {
                   })
                 : "-";
 
+              const isCollab = currentUser && item.user_id !== currentUser.id;
+
               return (
                 <div
                   key={item.id}
                   className="rounded-2xl bg-white p-5 sm:p-6 shadow-sm border border-slate-200/80 hover:shadow-md transition-shadow"
                 >
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                    <div>
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[11px] font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
                         {item.booking_code}
                       </span>
-                      <span className="text-xs text-slate-400 ml-2">
+                      {isCollab ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+                          <Users className="h-3 w-3" /> ผู้ร่วมทริป (Collab)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                          <User className="h-3 w-3" /> ผู้จองหลัก (Owner)
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-400">
                         จองเมื่อ {new Date(item.createdAt).toLocaleDateString("th-TH")}
                       </span>
                     </div>
@@ -195,6 +231,12 @@ export default function MyBookingsPage() {
                         <p className="text-xs text-slate-500 mt-0.5">
                           ผู้ร่วมเดินทาง: {item.adult_count} ท่าน {item.child_count > 0 && `(เด็ก ${item.child_count})`}
                         </p>
+                        {isCollab && (
+                          <p className="text-xs text-purple-700 mt-0.5 flex items-center gap-1 font-medium">
+                            <User className="h-3 w-3 text-purple-500" />
+                            <span>ผู้กรอกข้อมูลการจอง: <strong className="text-slate-800">{item.contact_name || item.user?.name || "ผู้จองหลัก"}</strong></span>
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -206,20 +248,78 @@ export default function MyBookingsPage() {
                         </p>
                       </div>
 
-                      <Link
-                        href={`/booking/success/${item.booking_code}`}
-                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
-                      >
-                        <span>ดูใบยืนยันการจอง</span>
-                        <ChevronRight className="h-4 w-4" />
-                      </Link>
+                      <div className="mt-2 flex items-center gap-2">
+                        {item.status !== "CANCELLED" && (
+                          <button
+                            type="button"
+                            onClick={() => setCancelModalBooking(item)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-100 transition-colors cursor-pointer"
+                            title="ยกเลิกการจอง"
+                          >
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            <span>ยกเลิก</span>
+                          </button>
+                        )}
+
+                        <Link
+                          href={`/booking/success/${item.booking_code}`}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                            item.status === "CONFIRMED"
+                              ? "text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+                              : item.status === "CANCELLED"
+                              ? "text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200"
+                              : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-200"
+                          }`}
+                        >
+                          <span>
+                            {item.status === "CONFIRMED"
+                              ? "ดูใบยืนยันการจอง"
+                              : item.status === "CANCELLED"
+                              ? "ดูรายละเอียด"
+                              : "ชำระเงิน"}
+                          </span>
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </div>
                     </div>
                   </div>
+
+                  {item.bookingCollaps && item.bookingCollaps.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-semibold text-purple-700 flex items-center gap-1">
+                        <Users className="h-3.5 w-3.5" /> สมาชิกในทริป:
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-medium text-[11px]">
+                        👑 {item.contact_name || item.user?.name || "ผู้จองหลัก"} (ผู้จอง)
+                      </span>
+                      {item.bookingCollaps.map((collab) => (
+                        <span
+                          key={collab.id}
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-medium ${
+                            collab.user_id === currentUser?.id
+                              ? "bg-purple-100 text-purple-800 font-bold border border-purple-200"
+                              : "bg-purple-50 text-purple-700"
+                          }`}
+                        >
+                          @{collab.user?.name || collab.user?.email || "ผู้ร่วมทริป"}
+                          {collab.user_id === currentUser?.id && " (คุณ)"}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
+
+        {/* Cancel Confirmation Modal */}
+        <CancelBookingModal
+          isOpen={!!cancelModalBooking}
+          onClose={() => setCancelModalBooking(null)}
+          booking={cancelModalBooking}
+          onConfirm={handleConfirmCancel}
+        />
 
       </div>
     </div>

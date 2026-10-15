@@ -28,13 +28,15 @@ import {
   CheckCircle2,
   EyeOff,
   Ban,
-  Archive
+  Archive,
+  Plane
 } from "lucide-react";
 import PartnerModal from "@/components/partner/PartnerModal";
 import { partnerService, partnerTypeService } from "@/service/partner";
 import { locationService } from "@/service/location";
 import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
+import { formatThaiDateRange } from "@/lib/date";
 
 export default function CreatePackagePage() {
   const router = useRouter();
@@ -49,6 +51,8 @@ export default function CreatePackagePage() {
     status: "Draft",
     booking_start_date: "",
     booking_end_date: "",
+    start_date: "",
+    end_date: "",
     image: "",
     images: [],
     addons: [],
@@ -133,7 +137,35 @@ export default function CreatePackagePage() {
   }, []);
 
   const handlePackageChange = (field, value) => {
-    setPackageData((prev) => ({ ...prev, [field]: value }));
+    setPackageData((prev) => {
+      // ตรวจสอบวันสิ้นสุดการจอง ไม่ให้เกินวันเริ่มเดินทาง
+      if (field === "booking_end_date" && value) {
+        const travelStart = prev.days[0]?.dt || prev.start_date;
+        if (travelStart && value > travelStart) {
+          showFeedback({
+            type: "warning",
+            title: "วันสิ้นสุดการจองไม่ถูกต้อง",
+            message: `วันสิ้นสุดการจองต้องไม่เกินวันเริ่มเดินทาง (${travelStart}) ระบบได้ปรับให้เป็นวันที่ ${travelStart} โดยอัตโนมัติ`,
+          });
+          return { ...prev, [field]: travelStart };
+        }
+      }
+
+      // ตรวจสอบวันเปิดรับจอง ไม่ให้เกินวันเริ่มเดินทาง
+      if (field === "booking_start_date" && value) {
+        const travelStart = prev.days[0]?.dt || prev.start_date;
+        if (travelStart && value > travelStart) {
+          showFeedback({
+            type: "warning",
+            title: "วันเปิดรับจองไม่ถูกต้อง",
+            message: `วันที่เปิดรับจองต้องอยู่ก่อนวันเริ่มเดินทาง (${travelStart})`,
+          });
+          return { ...prev, [field]: travelStart };
+        }
+      }
+
+      return { ...prev, [field]: value };
+    });
   };
 
   const handleTogglePartner = (partnerId) => {
@@ -212,6 +244,45 @@ export default function CreatePackagePage() {
     setPackageData((prev) => {
       const newDays = [...prev.days];
       newDays[dayIndex] = { ...newDays[dayIndex], [field]: value };
+
+      if (field === "dt") {
+        // หากเปลี่ยนวันที่ของวันนี้ ให้ปรับวันถัดไปไม่ให้ต่ำกว่าวันนี้
+        if (value) {
+          for (let i = dayIndex + 1; i < newDays.length; i++) {
+            if (newDays[i].dt && newDays[i].dt < value) {
+              newDays[i] = { ...newDays[i], dt: value };
+            }
+          }
+        }
+
+        // วันเริ่มเดินทาง = วันที่ของ Day 1
+        const firstDayDt = newDays[0]?.dt || "";
+        // วันสิ้นสุดเดินทาง = วันที่ของวันสุดท้ายที่มีการกำหนดวันที่
+        const lastDayDt = [...newDays].reverse().find((d) => d.dt)?.dt || firstDayDt;
+
+        let bStart = prev.booking_start_date;
+        let bEnd = prev.booking_end_date;
+
+        // ถ้าวันเริ่มเดินทางถูกกำหนด ให้ล็อควันจองไม่ให้เกินวันเริ่มเดินทาง
+        if (firstDayDt) {
+          if (bEnd && bEnd > firstDayDt) {
+            bEnd = firstDayDt;
+          }
+          if (bStart && bStart > firstDayDt) {
+            bStart = firstDayDt;
+          }
+        }
+
+        return {
+          ...prev,
+          days: newDays,
+          start_date: firstDayDt,
+          end_date: lastDayDt,
+          booking_start_date: bStart,
+          booking_end_date: bEnd,
+        };
+      }
+
       return { ...prev, days: newDays };
     });
   };
@@ -225,15 +296,24 @@ export default function CreatePackagePage() {
   };
 
   const addDay = () => {
-    setPackageData((prev) => ({
-      ...prev,
-      days: [
+    setPackageData((prev) => {
+      const lastDay = prev.days[prev.days.length - 1];
+      let nextDt = "";
+      if (lastDay && lastDay.dt) {
+        const d = new Date(lastDay.dt);
+        if (!isNaN(d.getTime())) {
+          d.setDate(d.getDate() + 1);
+          nextDt = d.toISOString().split("T")[0];
+        }
+      }
+
+      const newDays = [
         ...prev.days,
         {
           id: Date.now() + Math.random(),
           day_num: prev.days.length + 1,
           title: "",
-          dt: "",
+          dt: nextDt,
           description: "",
           hotel: "",
           id_location: "",
@@ -241,15 +321,32 @@ export default function CreatePackagePage() {
           activities: [],
           isExpanded: true,
         },
-      ],
-    }));
+      ];
+
+      const firstDayDt = newDays[0]?.dt || "";
+      const lastDayDt = [...newDays].reverse().find((d) => d.dt)?.dt || firstDayDt;
+
+      return {
+        ...prev,
+        days: newDays,
+        start_date: firstDayDt,
+        end_date: lastDayDt,
+      };
+    });
   };
 
   const removeDay = (indexToRemove) => {
     setPackageData((prev) => {
       const newDays = prev.days.filter((_, i) => i !== indexToRemove);
       const updatedDays = newDays.map((day, i) => ({ ...day, day_num: i + 1 }));
-      return { ...prev, days: updatedDays };
+      const firstDayDt = updatedDays[0]?.dt || "";
+      const lastDayDt = [...updatedDays].reverse().find((d) => d.dt)?.dt || firstDayDt;
+      return {
+        ...prev,
+        days: updatedDays,
+        start_date: firstDayDt,
+        end_date: lastDayDt,
+      };
     });
   };
 
@@ -872,12 +969,24 @@ export default function CreatePackagePage() {
                               />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                วันที่เดินทาง
-                              </label>
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                  วันที่เดินทาง {dayIndex === 0 ? "(วันแรก / วันเริ่มเดินทาง)" : ""}
+                                </label>
+                                {dayIndex > 0 && (packageData.days[dayIndex - 1]?.dt || packageData.days[0]?.dt) && (
+                                  <span className="text-[10px] text-indigo-600 font-semibold">
+                                    ล็อคไม่ต่ำกว่า {packageData.days[dayIndex - 1]?.dt || packageData.days[0]?.dt}
+                                  </span>
+                                )}
+                              </div>
                               <input
                                 type="date"
-                                value={day.dt}
+                                value={day.dt || ""}
+                                min={
+                                  dayIndex > 0
+                                    ? packageData.days[dayIndex - 1]?.dt || packageData.days[0]?.dt || undefined
+                                    : undefined
+                                }
                                 onChange={(e) => handleDayChange(dayIndex, "dt", e.target.value)}
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               />
@@ -1167,7 +1276,32 @@ export default function CreatePackagePage() {
               </div>
 
               {/* ช่วงเวลาเปิดรับจอง (Booking Period) */}
+              {/* Booking Window & Travel Dates Card */}
               <div className="mt-5 border-t border-slate-100 pt-4">
+                {/* Real Travel Dates Display synced from Dayplans */}
+                {(packageData.start_date || packageData.days[0]?.dt) && (
+                  <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50/70 p-3 text-xs">
+                    <div className="flex items-center justify-between font-bold text-indigo-900 mb-1">
+                      <span className="flex items-center gap-1.5">
+                        <Plane className="h-4 w-4 text-indigo-600" />
+                        <span>วันเดินทางของแพ็กเกจ</span>
+                      </span>
+                      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] text-indigo-700">
+                        เชื่อมจากแพลนอัตโนมัติ
+                      </span>
+                    </div>
+                    <p className="font-extrabold text-slate-900 text-sm">
+                      ✈️ {formatThaiDateRange(
+                        packageData.start_date || packageData.days[0]?.dt,
+                        packageData.end_date || [...packageData.days].reverse().find((d) => d.dt)?.dt
+                      )}
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      วันเปิดรับจองจะถูกล็อคให้เลือกได้เฉพาะวันที่ยังไม่ถึงวันเริ่มเดินทาง ({packageData.days[0]?.dt})
+                    </p>
+                  </div>
+                )}
+
                 <div className="mb-2.5 flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-indigo-600" />
@@ -1189,25 +1323,41 @@ export default function CreatePackagePage() {
 
                 <div className="space-y-3">
                   <div>
-                    <span className="mb-1 block text-[11px] font-medium text-slate-500">
-                      เปิดให้จองตั้งแต่วันที่
-                    </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="block text-[11px] font-medium text-slate-500">
+                        เปิดให้จองตั้งแต่วันที่
+                      </span>
+                      {(packageData.start_date || packageData.days[0]?.dt) && (
+                        <span className="text-[10px] text-indigo-600 font-semibold">
+                          ต้องก่อนวันเดินทาง
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="date"
                       value={packageData.booking_start_date || ""}
+                      max={packageData.booking_end_date || packageData.days[0]?.dt || undefined}
                       onChange={(e) => handlePackageChange("booking_start_date", e.target.value)}
                       className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-medium text-slate-800 shadow-2xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
 
                   <div>
-                    <span className="mb-1 block text-[11px] font-medium text-slate-500">
-                      เปิดให้จองถึงวันที่ (สิ้นสุดการจอง)
-                    </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="block text-[11px] font-medium text-slate-500">
+                        เปิดให้จองถึงวันที่ (สิ้นสุดการจอง)
+                      </span>
+                      {(packageData.start_date || packageData.days[0]?.dt) && (
+                        <span className="text-[10px] text-amber-700 font-semibold">
+                          ล็อคไม่เกินวันเริ่มเดินทาง
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="date"
                       value={packageData.booking_end_date || ""}
                       min={packageData.booking_start_date || undefined}
+                      max={packageData.days[0]?.dt || undefined}
                       onChange={(e) => handlePackageChange("booking_end_date", e.target.value)}
                       className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-medium text-slate-800 shadow-2xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                     />
@@ -1244,7 +1394,7 @@ export default function CreatePackagePage() {
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500">
-                        ระบบจะเปิดรับจองเฉพาะช่วงวันที่ที่ระบุไว้
+                        ระบบล็อคให้จองได้เฉพาะก่อนถึงวันออกเดินทาง
                       </p>
                     </div>
                   )}
@@ -1284,10 +1434,21 @@ export default function CreatePackagePage() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <span className="text-sm font-medium text-slate-600">วันเดินทาง</span>
+                  <span className="text-xs font-bold text-indigo-900 text-right">
+                    {packageData.days[0]?.dt
+                      ? formatThaiDateRange(
+                          packageData.days[0]?.dt,
+                          [...packageData.days].reverse().find((d) => d.dt)?.dt
+                        )
+                      : "ระบุในแพลนวันแรก"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <span className="text-sm font-medium text-slate-600">ช่วงเวลาเปิดจอง</span>
                   <span className="text-xs font-semibold text-slate-800 text-right">
                     {packageData.booking_start_date || packageData.booking_end_date
-                      ? `${packageData.booking_start_date ? new Date(packageData.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "เริ่มต้น"} - ${packageData.booking_end_date ? new Date(packageData.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "ตลอดไป"}`
+                      ? formatThaiDateRange(packageData.booking_start_date, packageData.booking_end_date, { shortMonth: true })
                       : "เปิดจองตลอด"}
                   </span>
                 </div>

@@ -30,10 +30,12 @@ import {
   UserCheck,
   Crown,
   Search,
-  UserPlus
+  UserPlus,
+  Plane
 } from "lucide-react";
 import PackageGallery from "@/components/package/PackageGallery";
 import CollaboratorBox, { UserAvatar } from "@/components/package/CollaboratorBox";
+import { formatThaiDateRange } from "@/lib/date";
 import {
   getAuth,
   subscribeAuth,
@@ -84,7 +86,15 @@ export default function CustomerPackageViewPage({ params }) {
   const handleBookingClick = () => {
     const addonIds = Object.keys(selectedAddons).join(",");
     const collabParam = collaborators.length > 0 ? `&collabs=${collaborators.map((c) => c.id).join(",")}` : "";
-    router.push(`/package/${id}/booking?adults=${adults}${addonIds ? `&addons=${addonIds}` : ""}${collabParam}`);
+    const bookingPath = `/package/${id}/booking?adults=${adults}${addonIds ? `&addons=${addonIds}` : ""}${collabParam}`;
+
+    // ถ้ายังไม่ได้เข้าสู่ระบบ ให้พาไปหน้า login / register ทันที
+    if (!currentUser) {
+      router.push(`/auth/sign-in?redirect=${encodeURIComponent(bookingPath)}`);
+      return;
+    }
+
+    router.push(bookingPath);
   };
 
   useEffect(() => {
@@ -188,6 +198,11 @@ export default function CustomerPackageViewPage({ params }) {
   const basePrice = unitPrice * adults;
   const addonsTotal = Object.values(selectedAddons).reduce((sum, item) => sum + (item.price || 0), 0);
   const totalPrice = basePrice + addonsTotal;
+
+  const travelStartDate = packageData.start_date || packageData.dayplans?.[0]?.dt;
+  const travelEndDate = packageData.end_date || packageData.dayplans?.[packageData.dayplans.length - 1]?.dt;
+  const travelDateText = formatThaiDateRange(travelStartDate, travelEndDate);
+  const bookingPeriodText = formatThaiDateRange(packageData.booking_start_date, packageData.booking_end_date, { shortMonth: true });
 
   const now = new Date();
   const isBeforeBookingStart = packageData.booking_start_date && new Date(packageData.booking_start_date) > now;
@@ -371,6 +386,41 @@ export default function CustomerPackageViewPage({ params }) {
                     </span>
                   )}
                 </span>
+              )}
+            </div>
+          )}
+
+          {/* Travel Dates & Booking Period Banner */}
+          {travelDateText && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-sky-50/60 to-amber-50/50 border border-indigo-100 shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
+                  <Plane className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">
+                    วันเดินทางตามตาราง
+                  </span>
+                  <span className="text-sm sm:text-base font-extrabold text-slate-900">
+                    {travelDateText}
+                  </span>
+                </div>
+              </div>
+
+              {bookingPeriodText && (
+                <div className="sm:border-l sm:border-slate-200/80 sm:pl-4 flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
+                      เปิดรับจอง
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800">
+                      {bookingPeriodText}
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -687,15 +737,25 @@ export default function CustomerPackageViewPage({ params }) {
                     </span>
                   </div>
                 )}
+                {/* Fixed Travel Dates from DB */}
+                {travelDateText && (
+                  <div className="flex justify-between items-start text-slate-600 pt-1">
+                    <span className="flex items-center gap-2 text-slate-500 shrink-0">
+                      <Plane className="h-4 w-4 text-indigo-600" /> วันเดินทาง
+                    </span>
+                    <span className="font-bold text-indigo-950 text-xs text-right">
+                      {travelDateText}
+                    </span>
+                  </div>
+                )}
+                {/* Booking Open Period */}
                 {(packageData.booking_start_date || packageData.booking_end_date) && (
-                  <div className="flex justify-between items-center text-slate-600 pt-1">
-                    <span className="flex items-center gap-2 text-slate-500">
+                  <div className="flex justify-between items-start text-slate-600 pt-1">
+                    <span className="flex items-center gap-2 text-slate-500 shrink-0">
                       <Calendar className="h-4 w-4 text-amber-500" /> ช่วงเวลาเปิดจอง
                     </span>
-                    <span className="font-semibold text-slate-900 text-xs">
-                      {packageData.booking_start_date ? new Date(packageData.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "วันนี้"}
-                      {" - "}
-                      {packageData.booking_end_date ? new Date(packageData.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "ตลอดไป"}
+                    <span className="font-semibold text-slate-900 text-xs text-right">
+                      {bookingPeriodText || "เปิดรับจองตลอด"}
                     </span>
                   </div>
                 )}

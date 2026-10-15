@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Eye,
   EyeOff,
@@ -27,6 +27,8 @@ export default function AuthForm({
   const [mode, setMode] = useState(initialMode);
   const isSignIn = mode === "sign-in";
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams?.get("redirect");
 
   // Form State
   const [formData, setFormData] = useState({
@@ -115,7 +117,7 @@ export default function AuthForm({
           ? "เข้าสู่ระบบสำเร็จ กำลังพาคุณเข้าสู่ระบบ..."
           : "สร้างบัญชีสำเร็จแล้ว! กำลังเตรียมข้อมูลของคุณ..."
       );
-      router.push("/feed");
+      router.push(redirectUrl || "/feed");
     } catch (err) {
       setErrorMessage(err?.response?.data?.message || err?.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {
@@ -220,6 +222,16 @@ export default function AuthForm({
                     : "เริ่มต้นใช้งานและสัมผัสประสบการณ์แพ็กเกจทัวร์ที่ดีที่สุด"}
                 </p>
               </div>
+
+              {/* Redirect Notice */}
+              {redirectUrl && (
+                <div className="mb-6 flex items-start gap-3 rounded-xl border border-indigo-200 bg-indigo-50/90 p-3.5 text-xs sm:text-sm text-indigo-900 shadow-xs">
+                  <Compass className="mt-0.5 h-4.5 w-4.5 shrink-0 text-indigo-600" />
+                  <div className="leading-relaxed">
+                    กรุณาเข้าสู่ระบบหรือสมัครสมาชิกเพื่อดำเนินการจองแพ็กเกจทัวร์ต่อ
+                  </div>
+                </div>
+              )}
 
               {/* Alerts */}
               {errorMessage && (
