@@ -229,32 +229,6 @@ export default function BackofficeBookingPage() {
         </div>
       )}
 
-      {/* Header bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            ระบบจัดการการจองทัวร์
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            ตรวจสอบรายการจอง ตรวจสอบข้อมูลผู้เดินทาง และจัดการสถานะการจองทั้งหมดในระบบ
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => fetchBookings(pagination.page, search, statusFilter)}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`h-4 w-4 text-slate-500 ${refreshing ? "animate-spin" : ""}`}
-            />
-            รีเฟรชข้อมูล
-          </button>
-        </div>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Bookings */}

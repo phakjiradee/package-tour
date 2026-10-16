@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { clearBackofficeAuth } from "@/lib/backoffice-auth";
 import {
   BarChart3,
+  Bus,
   BriefcaseBusiness,
   Boxes,
   CalendarCheck,
@@ -44,6 +45,11 @@ const navItems = [
     label: "พาร์ทเนอร์",
     href: "/backoffice/partner",
     icon: Handshake,
+  },
+  {
+    label: "รถบัส",
+    href: "/backoffice/bus",
+    icon: Bus,
   },
 ];
 
@@ -173,21 +179,6 @@ export default function Sidebar() {
           ))}
           <SettingsDropdown />
         </nav>
-      </div>
-
-      <div className="mt-auto rounded-lg border border-slate-800 bg-slate-900 p-4">
-        <p className="text-sm font-semibold">Admin session</p>
-        <p className="mt-1 text-xs leading-5 text-slate-400">
-          Manage tours, packages, and customer operations from one place.
-        </p>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-slate-800 text-sm font-medium text-slate-100 transition hover:bg-slate-700 cursor-pointer"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </button>
       </div>
     </aside>
   );

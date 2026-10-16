@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Bell, Menu } from "lucide-react";
+import { Bell, Menu, Plus } from "lucide-react";
 import Dropdown from "@/components/ui/Dropdown";
 
 const titles = [
@@ -36,6 +36,11 @@ const titles = [
     description: "จัดการข้อมูลคู่ค้า พาร์ทเนอร์ทางธุรกิจ โรงแรม ยานพาหนะ และประเภทพาร์ทเนอร์",
   },
   {
+    href: "/backoffice/bus",
+    title: "รถบัส",
+    description: "จัดการรถและผังที่นั่ง",
+  },
+  {
     href: "/backoffice/dashboard",
     title: "Dashboard",
     description: "Monitor operations, bookings, and revenue signals.",
@@ -63,6 +68,16 @@ export default function BackofficeNavbar() {
             {current.description}
           </p>
         </div>
+
+        {pathname.startsWith("/backoffice/bus") && (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("bus:create"))}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            <Plus className="h-4 w-4" /> เพิ่มรถ
+          </button>
+        )}
 
         <button className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50">
           <Bell className="h-4 w-4" />
