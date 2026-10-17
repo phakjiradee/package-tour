@@ -1,13 +1,20 @@
 "use client";
 
-import React, { useState, useEffect, useSyncExternalStore } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
   Check,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Clock,
   Heart,
@@ -31,22 +38,23 @@ import {
   Crown,
   Search,
   UserPlus,
-  Plane
+  Plane,
+  Coins,
 } from "lucide-react";
 import PackageGallery from "@/components/package/PackageGallery";
-import CollaboratorBox, { UserAvatar } from "@/components/package/CollaboratorBox";
+import { UserAvatar } from "@/components/package/CollaboratorBox";
 import { formatThaiDateRange } from "@/lib/date";
 import {
   getAuth,
   subscribeAuth,
-  getAuthServerSnapshot
+  getAuthServerSnapshot,
 } from "@/lib/auth-client";
 
 export default function CustomerPackageViewPage({ params }) {
   const currentUser = useSyncExternalStore(
     subscribeAuth,
     getAuth,
-    getAuthServerSnapshot
+    getAuthServerSnapshot,
   );
   const [packageData, setPackageData] = useState(null);
   const [expandedDays, setExpandedDays] = useState({});
@@ -85,7 +93,10 @@ export default function CustomerPackageViewPage({ params }) {
 
   const handleBookingClick = () => {
     const addonIds = Object.keys(selectedAddons).join(",");
-    const collabParam = collaborators.length > 0 ? `&collabs=${collaborators.map((c) => c.id).join(",")}` : "";
+    const collabParam =
+      collaborators.length > 0
+        ? `&collabs=${collaborators.map((c) => c.id).join(",")}`
+        : "";
     const bookingPath = `/package/${id}/booking?adults=${adults}${addonIds ? `&addons=${addonIds}` : ""}${collabParam}`;
 
     // ถ้ายังไม่ได้เข้าสู่ระบบ ให้พาไปหน้า login / register ทันที
@@ -129,7 +140,7 @@ export default function CustomerPackageViewPage({ params }) {
   }, [id]);
 
   const toggleDay = (index) => {
-    setExpandedDays(prev => ({ ...prev, [index]: !prev[index] }));
+    setExpandedDays((prev) => ({ ...prev, [index]: !prev[index] }));
   };
 
   const handleShare = () => {
@@ -156,8 +167,12 @@ export default function CustomerPackageViewPage({ params }) {
           <Compass className="h-8 w-8" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-800">ไม่พบข้อมูลแพ็กเกจ</h2>
-          <p className="text-sm text-slate-500 mt-1">แพ็กเกจนี้อาจถูกลบหรือไม่มีอยู่ในระบบ</p>
+          <h2 className="text-xl font-bold text-slate-800">
+            ไม่พบข้อมูลแพ็กเกจ
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            แพ็กเกจนี้อาจถูกลบหรือไม่มีอยู่ในระบบ
+          </p>
         </div>
         <Link
           href="/package"
@@ -191,49 +206,73 @@ export default function CustomerPackageViewPage({ params }) {
   // Calculate actual statistics from stored database records
   const dayplans = packageData.dayplans || [];
   const totalDays = dayplans.length;
-  const totalActivities = dayplans.reduce((sum, d) => sum + (d.activities?.length || 0), 0);
-  const totalMeals = dayplans.reduce((sum, d) => sum + (d.meals?.length || 0), 0);
-  const hotels = Array.from(new Set(dayplans.map(d => d.hotel).filter(Boolean)));
+  const totalActivities = dayplans.reduce(
+    (sum, d) => sum + (d.activities?.length || 0),
+    0,
+  );
+  const totalMeals = dayplans.reduce(
+    (sum, d) => sum + (d.meals?.length || 0),
+    0,
+  );
+  const hotels = Array.from(
+    new Set(dayplans.map((d) => d.hotel).filter(Boolean)),
+  );
   const unitPrice = packageData.price || 0;
   const basePrice = unitPrice * adults;
-  const addonsTotal = Object.values(selectedAddons).reduce((sum, item) => sum + (item.price || 0), 0);
+  const addonsTotal = Object.values(selectedAddons).reduce(
+    (sum, item) => sum + (item.price || 0),
+    0,
+  );
   const totalPrice = basePrice + addonsTotal;
 
-  const travelStartDate = packageData.start_date || packageData.dayplans?.[0]?.dt;
-  const travelEndDate = packageData.end_date || packageData.dayplans?.[packageData.dayplans.length - 1]?.dt;
+  const travelStartDate =
+    packageData.start_date || packageData.dayplans?.[0]?.dt;
+  const travelEndDate =
+    packageData.end_date ||
+    packageData.dayplans?.[packageData.dayplans.length - 1]?.dt;
   const travelDateText = formatThaiDateRange(travelStartDate, travelEndDate);
-  const bookingPeriodText = formatThaiDateRange(packageData.booking_start_date, packageData.booking_end_date, { shortMonth: true });
+  const bookingPeriodText = formatThaiDateRange(
+    packageData.booking_start_date,
+    packageData.booking_end_date,
+    { shortMonth: true },
+  );
 
   const now = new Date();
-  const isBeforeBookingStart = packageData.booking_start_date && new Date(packageData.booking_start_date) > now;
-  const isAfterBookingEnd = packageData.booking_end_date && new Date(new Date(packageData.booking_end_date).setHours(23, 59, 59, 999)) < now;
+  const isBeforeBookingStart =
+    packageData.booking_start_date &&
+    new Date(packageData.booking_start_date) > now;
+  const isAfterBookingEnd =
+    packageData.booking_end_date &&
+    new Date(new Date(packageData.booking_end_date).setHours(23, 59, 59, 999)) <
+      now;
   const isBookingPeriodValid = !isBeforeBookingStart && !isAfterBookingEnd;
-  const isBookingOpen = (packageData.status === "Published" || !packageData.status) && isBookingPeriodValid;
+  const isBookingOpen =
+    (packageData.status === "Published" || !packageData.status) &&
+    isBookingPeriodValid;
 
   const closedReason = !isBookingPeriodValid
-    ? (isBeforeBookingStart
-        ? `ยังไม่เปิดรับจอง (เปิด ${new Date(packageData.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })})`
-        : `หมดเขตรับจองแล้ว (สิ้นสุด ${new Date(packageData.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })})`)
-    : (packageData.status === "Closed"
-        ? "ปิดรับจองแล้ว / ที่นั่งเต็ม"
-        : packageData.status === "Draft"
+    ? isBeforeBookingStart
+      ? `ยังไม่เปิดรับจอง (เปิด ${new Date(packageData.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })})`
+      : `หมดเขตรับจองแล้ว (สิ้นสุด ${new Date(packageData.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })})`
+    : packageData.status === "Closed"
+      ? "ปิดรับจองแล้ว / ที่นั่งเต็ม"
+      : packageData.status === "Draft"
         ? "ยังไม่เปิดให้จอง (ฉบับร่าง)"
-        : "ปิดรับจองแล้ว");
+        : "ปิดรับจองแล้ว";
 
   return (
-    <div className="min-h-screen bg-white pb-36 lg:pb-12">
-      
+    <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8 min-h-screen bg-white pb-36 lg:pb-12">
       {/* Top Navigation & Actions */}
       <div className="flex items-center justify-between py-4 border-b border-slate-100 mb-6">
-        <Link 
-          href="/package" 
+        <Link
+          href="/package"
           className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
           <span>ย้อนกลับหน้ารายการ</span>
         </Link>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={handleShare}
             className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
             title="แชร์ลิงก์"
@@ -245,11 +284,11 @@ export default function CustomerPackageViewPage({ params }) {
               </span>
             )}
           </button>
-          <button 
+          <button
             onClick={() => setIsLiked(!isLiked)}
             className={`flex h-9 w-9 items-center justify-center rounded-full border transition-colors ${
-              isLiked 
-                ? "border-rose-200 bg-rose-50 text-rose-500" 
+              isLiked
+                ? "border-rose-200 bg-rose-50 text-rose-500"
                 : "border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
             title="บันทึกที่ชอบ"
@@ -265,9 +304,13 @@ export default function CustomerPackageViewPage({ params }) {
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm">
             <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-bold text-sm text-amber-900">แพ็กเกจนี้อยู่ในสถานะฉบับร่าง (Draft Preview)</h4>
+              <h4 className="font-bold text-sm text-amber-900">
+                แพ็กเกจนี้อยู่ในสถานะฉบับร่าง (Draft Preview)
+              </h4>
               <p className="text-xs text-amber-800 mt-1 leading-relaxed">
-                ทัวร์นี้ยังไม่เปิดเผยแพร่ให้ลูกค้าทั่วไปเข้าชมหรือค้นหาบนเว็บไซต์ ระบบการจองจึงถูกระงับไว้ชั่วคราว ข้อมูลและราคาอาจมีการเปลี่ยนแปลง
+                ทัวร์นี้ยังไม่เปิดเผยแพร่ให้ลูกค้าทั่วไปเข้าชมหรือค้นหาบนเว็บไซต์
+                ระบบการจองจึงถูกระงับไว้ชั่วคราว
+                ข้อมูลและราคาอาจมีการเปลี่ยนแปลง
               </p>
             </div>
           </div>
@@ -277,9 +320,13 @@ export default function CustomerPackageViewPage({ params }) {
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-950 shadow-sm">
             <Ban className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-bold text-sm text-rose-900">ปิดรับจองแล้ว / ที่นั่งเต็ม (Closed)</h4>
+              <h4 className="font-bold text-sm text-rose-900">
+                ปิดรับจองแล้ว / ที่นั่งเต็ม (Closed)
+              </h4>
               <p className="text-xs text-rose-800 mt-1 leading-relaxed">
-                ขออภัยในความไม่สะดวก แพ็กเกจท่องเที่ยวนี้ปิดรับการจองแล้ว หรือมีผู้เดินทางครบจำนวนที่กำหนดแล้ว ท่านสามารถเลือกดูทริปอื่นๆ ที่เปิดให้จองได้
+                ขออภัยในความไม่สะดวก แพ็กเกจท่องเที่ยวนี้ปิดรับการจองแล้ว
+                หรือมีผู้เดินทางครบจำนวนที่กำหนดแล้ว ท่านสามารถเลือกดูทริปอื่นๆ
+                ที่เปิดให้จองได้
               </p>
             </div>
           </div>
@@ -289,9 +336,12 @@ export default function CustomerPackageViewPage({ params }) {
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-slate-300 bg-slate-100 p-4 text-slate-800 shadow-sm">
             <Archive className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-bold text-sm text-slate-900">แพ็กเกจนี้ถูกเก็บถาวร (Archived)</h4>
+              <h4 className="font-bold text-sm text-slate-900">
+                แพ็กเกจนี้ถูกเก็บถาวร (Archived)
+              </h4>
               <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                ทัวร์นี้ยุติการให้บริการหรือสิ้นสุดฤดูกาลแล้ว ไม่สามารถทำการจองได้
+                ทัวร์นี้ยุติการให้บริการหรือสิ้นสุดฤดูกาลแล้ว
+                ไม่สามารถทำการจองได้
               </p>
             </div>
           </div>
@@ -329,37 +379,15 @@ export default function CustomerPackageViewPage({ params }) {
                 <span>{totalMeals} มื้ออาหาร</span>
               </div>
             )}
-            {packageData.status === "Published" && (
-              <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>เปิดให้จอง (Available)</span>
-              </div>
-            )}
-            {packageData.status === "Draft" && (
-              <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
-                <EyeOff className="h-3.5 w-3.5 text-amber-600" />
-                <span>ฉบับร่าง (ยังไม่เปิดเผยแพร่)</span>
-              </div>
-            )}
-            {packageData.status === "Closed" && (
-              <div className="flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 border border-rose-200">
-                <Ban className="h-3.5 w-3.5 text-rose-600" />
-                <span>ปิดรับจองแล้ว / ที่นั่งเต็ม</span>
-              </div>
-            )}
-            {packageData.status === "Archived" && (
-              <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 border border-slate-200">
-                <Archive className="h-3.5 w-3.5 text-slate-500" />
-                <span>เก็บถาวร</span>
-              </div>
-            )}
           </div>
 
           {/* Stored Partners Information */}
-          {((packageData.partners && packageData.partners.length > 0) || packageData.partner) && (
+          {((packageData.partners && packageData.partners.length > 0) ||
+            packageData.partner) && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                <Handshake className="h-3.5 w-3.5 text-indigo-600" /> พาร์ทเนอร์ร่วมบริการ:
+                <Handshake className="h-3.5 w-3.5 text-indigo-600" />{" "}
+                พาร์ทเนอร์ร่วมบริการ:
               </span>
               {packageData.partners && packageData.partners.length > 0 ? (
                 packageData.partners.map((p) => (
@@ -389,41 +417,6 @@ export default function CustomerPackageViewPage({ params }) {
               )}
             </div>
           )}
-
-          {/* Travel Dates & Booking Period Banner */}
-          {travelDateText && (
-            <div className="mt-4 flex flex-wrap items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-sky-50/60 to-amber-50/50 border border-indigo-100 shadow-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
-                  <Plane className="h-4 w-4" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">
-                    วันเดินทางตามตาราง
-                  </span>
-                  <span className="text-sm sm:text-base font-extrabold text-slate-900">
-                    {travelDateText}
-                  </span>
-                </div>
-              </div>
-
-              {bookingPeriodText && (
-                <div className="sm:border-l sm:border-slate-200/80 sm:pl-4 flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
-                    <Calendar className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
-                      เปิดรับจอง
-                    </span>
-                    <span className="text-xs sm:text-sm font-bold text-slate-800">
-                      {bookingPeriodText}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Photo Gallery (Airbnb / Agoda Mosaic + Fullscreen Lightbox) */}
@@ -436,14 +429,14 @@ export default function CustomerPackageViewPage({ params }) {
         </div>
 
         <div className="flex flex-col lg:flex-row lg:gap-10">
-          
           {/* Left Content */}
           <div className="flex-1 lg:max-w-[65%]">
-            
             {/* Overview Section */}
             {packageData.description && (
               <section className="mb-10">
-                <h2 className="text-xl font-bold text-slate-900 mb-3">รายละเอียดแพ็กเกจ</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-3">
+                  รายละเอียดแพ็กเกจ
+                </h2>
                 <div className="text-slate-600 leading-relaxed text-base whitespace-pre-line bg-slate-50/70 p-5 rounded-2xl border border-slate-100">
                   {packageData.description}
                 </div>
@@ -453,10 +446,15 @@ export default function CustomerPackageViewPage({ params }) {
             {/* Accommodation summary if stored in DB */}
             {hotels.length > 0 && (
               <section className="mb-8">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">ที่พัก / โรงแรม</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">
+                  ที่พัก / โรงแรม
+                </h3>
                 <div className="flex flex-wrap gap-2">
                   {hotels.map((hotel, idx) => (
-                    <div key={idx} className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/60 px-3.5 py-2 text-sm font-medium text-blue-800">
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/60 px-3.5 py-2 text-sm font-medium text-blue-800"
+                    >
                       <Hotel className="h-4 w-4 text-blue-600" />
                       <span>{hotel}</span>
                     </div>
@@ -469,11 +467,15 @@ export default function CustomerPackageViewPage({ params }) {
             <section className="mt-8">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">กำหนดการเดินทาง</h2>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">รวมทั้งสิ้น {totalDays} วัน {totalActivities} กิจกรรม</p>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    กำหนดการเดินทาง
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                    รวมทั้งสิ้น {totalDays} วัน {totalActivities} กิจกรรม
+                  </p>
                 </div>
               </div>
-              
+
               {dayplans.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-500">
                   ยังไม่มีกำหนดการเดินทางสำหรับแพ็กเกจนี้
@@ -481,12 +483,12 @@ export default function CustomerPackageViewPage({ params }) {
               ) : (
                 <div className="space-y-4">
                   {dayplans.map((day, index) => (
-                    <div 
-                      key={day.id || index} 
+                    <div
+                      key={day.id || index}
                       className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm transition-all hover:border-slate-300"
                     >
                       {/* Day Header */}
-                      <div 
+                      <div
                         className="flex items-center justify-between p-4 sm:p-5 cursor-pointer select-none bg-slate-50/60 hover:bg-slate-50 transition-colors"
                         onClick={() => toggleDay(index)}
                       >
@@ -507,7 +509,11 @@ export default function CustomerPackageViewPage({ params }) {
                           </div>
                         </div>
                         <div className="text-slate-400 pl-2">
-                          {expandedDays[index] ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                          {expandedDays[index] ? (
+                            <ChevronUp className="h-5 w-5" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5" />
+                          )}
                         </div>
                       </div>
 
@@ -522,7 +528,9 @@ export default function CustomerPackageViewPage({ params }) {
                           )}
 
                           {/* Day Logistics: Location, Hotel & Meals (From DB) */}
-                          {(day.location?.name || day.hotel || (day.meals && day.meals.length > 0)) && (
+                          {(day.location?.name ||
+                            day.hotel ||
+                            (day.meals && day.meals.length > 0)) && (
                             <div className="flex flex-wrap gap-2.5 pt-1">
                               {day.location?.name && (
                                 <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs sm:text-sm font-medium text-emerald-700 border border-emerald-100">
@@ -540,7 +548,10 @@ export default function CustomerPackageViewPage({ params }) {
                                 <div className="flex items-center gap-2 rounded-lg bg-orange-50 px-3 py-1.5 text-xs sm:text-sm font-medium text-orange-700 border border-orange-100">
                                   <Utensils className="h-3.5 w-3.5" />
                                   <span>
-                                    {day.meals.map(m => m.meal?.type_name).filter(Boolean).join(", ")}
+                                    {day.meals
+                                      .map((m) => m.meal?.type_name)
+                                      .filter(Boolean)
+                                      .join(", ")}
                                   </span>
                                 </div>
                               )}
@@ -556,18 +567,23 @@ export default function CustomerPackageViewPage({ params }) {
                               <div className="relative space-y-4">
                                 {/* Perfectly centered connecting line */}
                                 <div className="absolute left-3 -translate-x-1/2 top-4 bottom-4 w-0.5 bg-slate-200"></div>
-                                
+
                                 {day.activities.map((act) => (
-                                  <div key={act.id} className="relative flex items-start gap-2.5">
+                                  <div
+                                    key={act.id}
+                                    className="relative flex items-start gap-2.5"
+                                  >
                                     {/* Fixed 24px column with dot centered horizontally at 12px */}
                                     <div className="flex w-6 shrink-0 justify-center pt-3.5">
-                                      <div className={`relative z-1 h-3 w-3 rounded-full border-2 ring-4 ring-white ${
-                                        act.status === "optional" 
-                                          ? "border-amber-400 bg-white" 
-                                          : "border-indigo-600 bg-indigo-600"
-                                      }`}></div>
+                                      <div
+                                        className={`relative z-1 h-3 w-3 rounded-full border-2 ring-4 ring-white ${
+                                          act.status === "optional"
+                                            ? "border-amber-400 bg-white"
+                                            : "border-indigo-600 bg-indigo-600"
+                                        }`}
+                                      ></div>
                                     </div>
-                                    
+
                                     <div className="flex-1 rounded-xl bg-slate-50/70 p-3 sm:p-3.5 border border-slate-100">
                                       <div className="flex flex-wrap items-center gap-2">
                                         <span className="font-semibold text-slate-900 text-sm sm:text-base">
@@ -579,16 +595,18 @@ export default function CustomerPackageViewPage({ params }) {
                                           </span>
                                         )}
                                       </div>
-                                      
+
                                       <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
                                         {act.time && (
                                           <span className="flex items-center gap-1 font-medium text-slate-700">
-                                            <Clock className="h-3 w-3 text-slate-400" /> {act.time}
+                                            <Clock className="h-3 w-3 text-slate-400" />{" "}
+                                            {act.time}
                                           </span>
                                         )}
                                         {act.landmark && (
                                           <span className="flex items-center gap-1 text-slate-600">
-                                            <MapPin className="h-3 w-3 text-indigo-500" /> {act.landmark}
+                                            <MapPin className="h-3 w-3 text-indigo-500" />{" "}
+                                            {act.landmark}
                                           </span>
                                         )}
                                       </div>
@@ -598,7 +616,6 @@ export default function CustomerPackageViewPage({ params }) {
                               </div>
                             </div>
                           )}
-
                         </div>
                       )}
                     </div>
@@ -607,169 +624,108 @@ export default function CustomerPackageViewPage({ params }) {
               )}
             </section>
 
-            {/* Add-on Packages Section */}
-            {packageData.addons && packageData.addons.length > 0 && (
-              <section className="mt-12">
-                <div className="mb-6">
-                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-indigo-600" />
-                    บริการเสริมพิเศษ (Add-on Services)
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                    เลือกบริการเสริมที่ต้องการเพื่อความสะดวกสบายและประสบการณ์ที่พิเศษยิ่งขึ้น
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {packageData.addons.map((addon) => {
-                    const isSelected = Boolean(selectedAddons[addon.id]);
-                    const isAvailable = addon.status === 1;
-
-                    return (
-                      <div
-                        key={addon.id}
-                        onClick={() => isAvailable && handleToggleAddon(addon)}
-                        className={`p-4 rounded-2xl border transition-all select-none ${
-                          !isAvailable
-                            ? "border-slate-200 bg-slate-50/60 opacity-60 cursor-not-allowed"
-                            : isSelected
-                            ? "border-indigo-600 bg-indigo-50/50 shadow-sm ring-1 ring-indigo-600 cursor-pointer"
-                            : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-900 text-sm sm:text-base">
-                                {addon.addon_name}
-                              </span>
-                              {!isAvailable && (
-                                <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                                  ซื้อไม่ได้
-                                </span>
-                              )}
-                            </div>
-                            {addon.max_limit && isAvailable && (
-                              <span className="text-[11px] text-slate-500 mt-0.5 block">
-                                จำกัดสูงสุด {addon.max_limit} ชุด
-                              </span>
-                            )}
-                            <p className="text-sm font-extrabold text-indigo-600 mt-2">
-                              +฿{addon.price?.toLocaleString()}
-                            </p>
-                          </div>
-
-                          <div
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all mt-0.5 ${
-                              !isAvailable
-                                ? "border-slate-200 bg-slate-100"
-                                : isSelected
-                                ? "border-indigo-600 bg-indigo-600 text-white"
-                                : "border-slate-300 bg-white"
-                            }`}
-                          >
-                            {isSelected && <Check className="h-3.5 w-3.5" />}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
             {/* Tour Guides & Staff Section */}
-            {packageData.packageGuides && packageData.packageGuides.length > 0 && (
-              <section className="mt-12">
-                <div className="mb-6">
-                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <UserCheck className="h-5 w-5 text-indigo-600" />
-                    ไกด์และทีมงานประจำทริป (Tour Guides & Staff)
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                    ทีมงานมืออาชีพที่จะคอยดูแล อำนวยความสะดวก และมอบความประทับใจตลอดการเดินทาง
-                  </p>
-                </div>
+            {packageData.packageGuides &&
+              packageData.packageGuides.length > 0 && (
+                <section className="mt-12">
+                  <div className="mb-6">
+                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <UserCheck className="h-5 w-5 text-indigo-600" />
+                      ไกด์และทีมงานประจำทริป (Tour Guides & Staff)
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                      ทีมงานมืออาชีพที่จะคอยดูแล อำนวยความสะดวก
+                      และมอบความประทับใจตลอดการเดินทาง
+                    </p>
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {packageData.packageGuides.map((guide) => {
-                    const isLead = guide.role === "LEAD_GUIDE";
-                    return (
-                      <div
-                        key={guide.id}
-                        className={`p-4 rounded-2xl border transition-all ${
-                          isLead 
-                            ? "bg-gradient-to-br from-amber-50/50 via-white to-amber-50/30 border-amber-200 shadow-xs" 
-                            : "bg-white border-slate-200"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3.5">
-                          <div className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-base shrink-0 ${
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {packageData.packageGuides.map((guide) => {
+                      const isLead = guide.role === "LEAD_GUIDE";
+                      return (
+                        <div
+                          key={guide.id}
+                          className={`p-4 rounded-2xl border transition-all ${
                             isLead
-                              ? "bg-amber-100 text-amber-800 border-2 border-amber-300 shadow-xs"
-                              : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                          }`}>
-                            {guide.emp?.name ? guide.emp.name.slice(0, 2) : "ไกด์"}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-900 text-sm sm:text-base truncate">
-                                {guide.emp?.name || "ไกด์นำเที่ยว"}
-                              </span>
-                              {isLead && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                                  <Crown className="h-3 w-3 text-amber-600 shrink-0" />
-                                  <span>ไกด์หลัก</span>
-                                </span>
-                              )}
-                              {guide.role === "ASSISTANT_GUIDE" && (
-                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                                  ไกด์ผู้ช่วย
-                                </span>
-                              )}
-                              {guide.role === "COORDINATOR" && (
-                                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                                  ผู้ประสานงาน
-                                </span>
-                              )}
+                              ? "bg-gradient-to-br from-amber-50/50 via-white to-amber-50/30 border-amber-200 shadow-xs"
+                              : "bg-white border-slate-200"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3.5">
+                            <div
+                              className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-base shrink-0 ${
+                                isLead
+                                  ? "bg-amber-100 text-amber-800 border-2 border-amber-300 shadow-xs"
+                                  : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              }`}
+                            >
+                              {guide.emp?.name
+                                ? guide.emp.name.slice(0, 2)
+                                : "ไกด์"}
                             </div>
 
-                            {guide.note && (
-                              <p className="text-xs text-slate-600 mt-1 line-clamp-2">
-                                {guide.note}
-                              </p>
-                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 text-sm sm:text-base truncate">
+                                  {guide.emp?.name || "ไกด์นำเที่ยว"}
+                                </span>
+                                {isLead && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                    <Crown className="h-3 w-3 text-amber-600 shrink-0" />
+                                    <span>ไกด์หลัก</span>
+                                  </span>
+                                )}
+                                {guide.role === "ASSISTANT_GUIDE" && (
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                                    ไกด์ผู้ช่วย
+                                  </span>
+                                )}
+                                {guide.role === "COORDINATOR" && (
+                                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                    ผู้ประสานงาน
+                                  </span>
+                                )}
+                              </div>
 
-                            {guide.emp?.phone && (
-                              <p className="text-[11px] text-slate-500 mt-2 flex items-center gap-1">
-                                <span>ติดต่อผู้ประสานงาน:</span>
-                                <span className="font-semibold text-slate-700">{guide.emp.phone}</span>
-                              </p>
-                            )}
+                              {guide.note && (
+                                <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+                                  {guide.note}
+                                </p>
+                              )}
+
+                              {guide.emp?.phone && (
+                                <p className="text-[11px] text-slate-500 mt-2 flex items-center gap-1">
+                                  <span>ติดต่อผู้ประสานงาน:</span>
+                                  <span className="font-semibold text-slate-700">
+                                    {guide.emp.phone}
+                                  </span>
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-            
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
           </div>
 
           {/* Right Content: Stored Details & Booking Widget (Desktop) */}
           <div className="hidden lg:block lg:w-[35%] relative">
             <div className="sticky top-24 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-100">
-              
               {/* Stored Price */}
               <div className="mb-6 pb-5 border-b border-slate-100">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">ราคาเริ่มต้น</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                  ราคาเริ่มต้น
+                </p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-3xl font-extrabold text-slate-900">
                     ฿{unitPrice.toLocaleString()}
                   </p>
-                  <span className="text-sm font-medium text-slate-500">/ ท่าน</span>
+                  <span className="text-sm font-medium text-slate-500">
+                    / ท่าน
+                  </span>
                 </div>
               </div>
 
@@ -779,22 +735,29 @@ export default function CustomerPackageViewPage({ params }) {
                   <span className="flex items-center gap-2 text-slate-500">
                     <Clock className="h-4 w-4 text-slate-400" /> ระยะเวลา
                   </span>
-                  <span className="font-semibold text-slate-900">{totalDays} วัน</span>
+                  <span className="font-semibold text-slate-900">
+                    {totalDays} วัน
+                  </span>
                 </div>
                 {packageData.location?.name && (
                   <div className="flex justify-between items-center text-slate-600">
                     <span className="flex items-center gap-2 text-slate-500">
                       <MapPin className="h-4 w-4 text-indigo-500" /> สถานที่
                     </span>
-                    <span className="font-semibold text-slate-900 truncate max-w-37.5">{packageData.location.name}</span>
+                    <span className="font-semibold text-slate-900 truncate max-w-37.5">
+                      {packageData.location.name}
+                    </span>
                   </div>
                 )}
                 {totalActivities > 0 && (
                   <div className="flex justify-between items-center text-slate-600">
                     <span className="flex items-center gap-2 text-slate-500">
-                      <Compass className="h-4 w-4 text-slate-400" /> กิจกรรมทั้งหมด
+                      <Compass className="h-4 w-4 text-slate-400" />{" "}
+                      กิจกรรมทั้งหมด
                     </span>
-                    <span className="font-semibold text-slate-900">{totalActivities} จุด</span>
+                    <span className="font-semibold text-slate-900">
+                      {totalActivities} จุด
+                    </span>
                   </div>
                 )}
                 {totalMeals > 0 && (
@@ -802,16 +765,23 @@ export default function CustomerPackageViewPage({ params }) {
                     <span className="flex items-center gap-2 text-slate-500">
                       <Utensils className="h-4 w-4 text-slate-400" /> มื้ออาหาร
                     </span>
-                    <span className="font-semibold text-slate-900">{totalMeals} มื้อ</span>
+                    <span className="font-semibold text-slate-900">
+                      {totalMeals} มื้อ
+                    </span>
                   </div>
                 )}
-                {((packageData.partners && packageData.partners.length > 0) || packageData.partner) && (
+                {((packageData.partners && packageData.partners.length > 0) ||
+                  packageData.partner) && (
                   <div className="flex justify-between items-center text-slate-600">
                     <span className="flex items-center gap-2 text-slate-500">
-                      <Handshake className="h-4 w-4 text-indigo-500" /> พาร์ทเนอร์
+                      <Handshake className="h-4 w-4 text-indigo-500" />{" "}
+                      พาร์ทเนอร์
                     </span>
                     <span className="font-semibold text-slate-900 truncate max-w-37.5">
-                      {packageData.partners?.map((p) => p.partner?.name).filter(Boolean).join(", ") || packageData.partner?.name}
+                      {packageData.partners
+                        ?.map((p) => p.partner?.name)
+                        .filter(Boolean)
+                        .join(", ") || packageData.partner?.name}
                     </span>
                   </div>
                 )}
@@ -827,10 +797,12 @@ export default function CustomerPackageViewPage({ params }) {
                   </div>
                 )}
                 {/* Booking Open Period */}
-                {(packageData.booking_start_date || packageData.booking_end_date) && (
+                {(packageData.booking_start_date ||
+                  packageData.booking_end_date) && (
                   <div className="flex justify-between items-start text-slate-600 pt-1">
                     <span className="flex items-center gap-2 text-slate-500 shrink-0">
-                      <Calendar className="h-4 w-4 text-amber-500" /> ช่วงเวลาเปิดจอง
+                      <Calendar className="h-4 w-4 text-amber-500" />{" "}
+                      ช่วงเวลาเปิดจอง
                     </span>
                     <span className="font-semibold text-slate-900 text-xs text-right">
                       {bookingPeriodText || "เปิดรับจองตลอด"}
@@ -839,64 +811,17 @@ export default function CustomerPackageViewPage({ params }) {
                 )}
               </div>
 
-              {/* Number of Travelers Counter */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                    จำนวนผู้เดินทาง
-                  </label>
-                  {collaborators.length > 0 && (
-                    <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                      คุณ + {collaborators.length} Collab
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-slate-200 p-2.5 px-3 bg-white">
-                  <div className="flex items-center gap-2 text-slate-700">
-                    <Users className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm font-semibold">{adults} คน</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setAdults(prev => Math.max(1 + collaborators.length, prev - 1))}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      disabled={adults <= 1 + collaborators.length}
-                    >
-                      -
-                    </button>
-                    <span className="w-8 text-center text-sm font-bold text-slate-900">{adults}</span>
-                    <button
-                      type="button"
-                      onClick={() => setAdults(prev => prev + 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Collaborator Search & Widget (Sidebar - GitHub style) */}
-              <CollaboratorBox
-                currentUser={currentUser}
-                collaborators={collaborators}
-                onAddCollaborator={handleAddCollaborator}
-                onRemoveCollaborator={handleRemoveCollaborator}
-                variant="sidebar"
-                isOpen={isCollabModalOpen}
-                onOpenChange={setIsCollabModalOpen}
-              />
-
               {/* Itemized Price Breakdown */}
               {addonsTotal > 0 && (
                 <div className="pt-3 pb-1 space-y-1.5 border-t border-slate-100 text-xs">
                   <div className="flex justify-between text-slate-500">
-                    <span>ราคาหลัก ({adults} ท่าน{collaborators.length > 0 ? ` รวม Collab ${collaborators.length} คน` : ""}):</span>
+                    <span>ราคาหลัก:</span>
                     <span>฿{basePrice.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-indigo-600 font-medium">
-                    <span>บริการเสริม ({Object.keys(selectedAddons).length} รายการ):</span>
+                    <span>
+                      บริการเสริม ({Object.keys(selectedAddons).length} รายการ):
+                    </span>
                     <span>+฿{addonsTotal.toLocaleString()}</span>
                   </div>
                 </div>
@@ -904,25 +829,28 @@ export default function CustomerPackageViewPage({ params }) {
 
               {/* Total Calculation */}
               <div className="flex justify-between items-baseline mb-4 pt-3 border-t border-slate-100">
-                <span className="text-sm font-medium text-slate-600">ยอดรวมทั้งสิ้น:</span>
+                <span className="text-sm font-medium text-slate-600">
+                  ยอดรวมทั้งสิ้น:
+                </span>
                 <span className="text-2xl font-extrabold text-indigo-600">
                   ฿{totalPrice.toLocaleString()}
                 </span>
               </div>
 
               {/* Loyalty Reward Points Preview */}
-              <div className="mb-6 flex items-center justify-between rounded-xl bg-amber-50/90 border border-amber-200 px-3.5 py-2.5 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white font-black text-xs shadow-xs">
-                    🪙
-                  </span>
+              <div className="mb-5 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
                   <div>
-                    <span className="font-bold text-amber-950">รับแต้มสะสมสมาชิก</span>
-                    <p className="text-[10px] text-amber-700">คำนวณ 100 บาท = 1 แต้ม</p>
+                    <span className="font-bold text-slate-800">
+                      รับแต้มสะสมสมาชิก
+                    </span>
+                    <p className="text-[10px] text-slate-400">
+                      คำนวณ 100 บาท = 1 แต้ม
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="font-extrabold text-amber-700 text-sm">
+                  <span className="font-extrabold text-amber-600 text-sm">
                     +{Math.floor(totalPrice / 100)} แต้ม
                   </span>
                 </div>
@@ -955,7 +883,6 @@ export default function CustomerPackageViewPage({ params }) {
               )}
             </div>
           </div>
-
         </div>
       </main>
 
@@ -996,7 +923,11 @@ export default function CustomerPackageViewPage({ params }) {
             <button
               type="button"
               onClick={() => setIsCollabModalOpen(true)}
-              title={collaborators.length > 0 ? "จัดการ / ชวนเพิ่ม" : "ชวนเพื่อน (Collab)"}
+              title={
+                collaborators.length > 0
+                  ? "จัดการ / ชวนเพิ่ม"
+                  : "ชวนเพื่อน (Collab)"
+              }
               className="flex h-9 w-9 items-center justify-center rounded-full border-1 border-dashed border-indigo-300 bg-white text-indigo-600 hover:border-indigo-600 hover:bg-indigo-50 shadow-2xs active:scale-95 transition-all cursor-pointer"
             >
               <UserPlus className="h-4.5 w-4.5" />
@@ -1008,9 +939,15 @@ export default function CustomerPackageViewPage({ params }) {
         <div className="flex items-center justify-between px-5 py-3">
           <div>
             <p className="text-xs font-medium text-slate-500">
-              ราคารวม ({adults} ท่าน{collaborators.length > 0 ? ` • ${collaborators.length} Collab` : ""})
+              ราคารวม ({adults} ท่าน
+              {collaborators.length > 0
+                ? ` • ${collaborators.length} Collab`
+                : ""}
+              )
             </p>
-            <p className="text-xl font-bold text-indigo-600">฿{totalPrice.toLocaleString()}</p>
+            <p className="text-xl font-bold text-indigo-600">
+              ฿{totalPrice.toLocaleString()}
+            </p>
           </div>
           {isBookingOpen ? (
             <button
@@ -1041,9 +978,12 @@ export default function CustomerPackageViewPage({ params }) {
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 mb-4 animate-bounce">
                   <UserCheck className="h-9 w-9" />
                 </div>
-                <h3 className="text-xl font-extrabold text-slate-900">จองแพ็กเกจและส่งคำเชิญสำเร็จ!</h3>
+                <h3 className="text-xl font-extrabold text-slate-900">
+                  จองแพ็กเกจและส่งคำเชิญสำเร็จ!
+                </h3>
                 <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto">
-                  ระบบได้บันทึกคำขอจองแพ็กเกจ {packageData.name} และส่งคำเชิญไปยังผู้ร่วมทริปทุกคนแล้ว
+                  ระบบได้บันทึกคำขอจองแพ็กเกจ {packageData.name}{" "}
+                  และส่งคำเชิญไปยังผู้ร่วมทริปทุกคนแล้ว
                 </p>
                 <div className="mt-6 flex flex-col gap-2">
                   <button
@@ -1065,7 +1005,9 @@ export default function CustomerPackageViewPage({ params }) {
                     <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
                       <Sparkles className="h-4 w-4" />
                     </span>
-                    <h3 className="text-lg font-bold text-slate-900">ยืนยันข้อมูลการจองทริป</h3>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      ยืนยันข้อมูลการจองทริป
+                    </h3>
                   </div>
                   <button
                     type="button"
@@ -1079,14 +1021,19 @@ export default function CustomerPackageViewPage({ params }) {
                 <div className="space-y-4">
                   {/* Tour details summary */}
                   <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
-                    <p className="text-xs font-semibold uppercase text-slate-400">แพ็กเกจทัวร์</p>
-                    <h4 className="text-base font-bold text-slate-900 mt-0.5">{packageData.name}</h4>
+                    <p className="text-xs font-semibold uppercase text-slate-400">
+                      แพ็กเกจทัวร์
+                    </p>
+                    <h4 className="text-base font-bold text-slate-900 mt-0.5">
+                      {packageData.name}
+                    </h4>
                     <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
                       <Clock className="h-3.5 w-3.5" /> ระยะเวลา {totalDays} วัน
                       {packageData.location?.name && (
                         <>
                           <span>•</span>
-                          <MapPin className="h-3.5 w-3.5" /> {packageData.location.name}
+                          <MapPin className="h-3.5 w-3.5" />{" "}
+                          {packageData.location.name}
                         </>
                       )}
                     </p>
@@ -1099,7 +1046,9 @@ export default function CustomerPackageViewPage({ params }) {
                         ผู้ร่วมเดินทางทั้งหมด ({adults} ท่าน)
                       </span>
                       <span className="text-xs font-medium text-indigo-600">
-                        {collaborators.length > 0 ? `ผู้จอง 1 + Collab ${collaborators.length} คน` : "ผู้จอง 1 คน"}
+                        {collaborators.length > 0
+                          ? `ผู้จอง 1 + Collab ${collaborators.length} คน`
+                          : "ผู้จอง 1 คน"}
                       </span>
                     </div>
 
@@ -1147,18 +1096,30 @@ export default function CustomerPackageViewPage({ params }) {
                   {/* Pricing summary */}
                   <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 space-y-2 text-xs">
                     <div className="flex justify-between text-slate-600">
-                      <span>ค่าแพ็กเกจ ({adults} ท่าน × ฿{unitPrice.toLocaleString()}):</span>
-                      <span className="font-semibold text-slate-900">฿{basePrice.toLocaleString()}</span>
+                      <span>
+                        ค่าแพ็กเกจ ({adults} ท่าน × ฿
+                        {unitPrice.toLocaleString()}):
+                      </span>
+                      <span className="font-semibold text-slate-900">
+                        ฿{basePrice.toLocaleString()}
+                      </span>
                     </div>
                     {addonsTotal > 0 && (
                       <div className="flex justify-between text-indigo-600">
-                        <span>บริการเสริม ({Object.keys(selectedAddons).length} รายการ):</span>
-                        <span className="font-semibold">+฿{addonsTotal.toLocaleString()}</span>
+                        <span>
+                          บริการเสริม ({Object.keys(selectedAddons).length}{" "}
+                          รายการ):
+                        </span>
+                        <span className="font-semibold">
+                          +฿{addonsTotal.toLocaleString()}
+                        </span>
                       </div>
                     )}
                     <div className="flex justify-between items-baseline pt-2 border-t border-slate-200 text-sm font-bold">
                       <span className="text-slate-800">ยอดชำระสุทธิ:</span>
-                      <span className="text-xl font-extrabold text-indigo-600">฿{totalPrice.toLocaleString()}</span>
+                      <span className="text-xl font-extrabold text-indigo-600">
+                        ฿{totalPrice.toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1184,7 +1145,6 @@ export default function CustomerPackageViewPage({ params }) {
           </div>
         </div>
       )}
-
     </div>
   );
 }

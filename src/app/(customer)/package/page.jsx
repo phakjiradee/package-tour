@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import PackageCard from "@/components/package/PackageCard";
 import {
   Search,
   MapPin,
   Calendar,
   Utensils,
-  Sparkles,
   ArrowRight,
   Handshake,
   Compass,
@@ -108,12 +109,22 @@ export default function CustomerPackageListPage() {
   }, [packages, searchQuery, sortBy, filterDuration, filterAddonOnly]);
 
   return (
-    <div className="pb-16 space-y-8">
+    <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8 pb-16 space-y-8">
       {/* Hero Banner */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-sky-700 px-6 py-12 text-white shadow-xl shadow-blue-500/15 sm:px-12 sm:py-16">
-        {/* Decorative Background Elements */}
-        <div className="absolute -right-16 -top-16 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -bottom-16 -left-16 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
+      <section className="relative overflow-hidden rounded-3xl min-h-[380px] sm:min-h-[420px] px-6 py-12 text-white shadow-xl shadow-slate-900/10 sm:px-12 sm:py-16 flex flex-col justify-center">
+        {/* Background Image & Overlay */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="/package-hero-bg.jpg"
+            alt="Zentura Travel Destinations"
+            fill
+            priority
+            className="object-cover object-center sm:object-[center_35%]"
+          />
+          {/* Gradient Overlay so text and search bar are perfectly readable while letting the tropical scene shine through */}
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/60 to-transparent sm:w-4/5" />
+          <div className="absolute inset-0 bg-blue-950/20 mix-blend-multiply" />
+        </div>
         
         <div className="relative z-10 max-w-2xl space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3.5 py-1 text-xs font-semibold backdrop-blur-md">
@@ -220,17 +231,6 @@ export default function CustomerPackageListPage() {
           >
             3 วันขึ้นไป
           </button>
-
-          <button
-            onClick={() => setFilterAddonOnly(!filterAddonOnly)}
-            className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all flex items-center gap-1.5 ${
-              filterAddonOnly
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <Sparkles className="h-3 w-3" /> มีบริการเสริม Add-on
-          </button>
         </div>
 
         {/* Counter */}
@@ -287,206 +287,9 @@ export default function CustomerPackageListPage() {
       {/* Package Grid */}
       {!isLoading && filteredPackages.length > 0 && (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredPackages.map((pkg) => {
-            const dayplans = pkg.dayplans || [];
-            const daysCount = dayplans.length;
-            const nightsCount = daysCount > 1 ? daysCount - 1 : 0;
-            const durationLabel = daysCount > 0
-              ? `${daysCount} วัน ${nightsCount > 0 ? `${nightsCount} คืน` : ""}`
-              : "ทริปพิเศษ";
-
-            const totalActivities = dayplans.reduce(
-              (sum, d) => sum + (d.activities?.length || 0),
-              0
-            );
-            const totalMeals = dayplans.reduce(
-              (sum, d) => sum + (d.meals?.length || 0),
-              0
-            );
-
-            // Partner name
-            const partnerName =
-              pkg.partner?.name ||
-              pkg.partners?.[0]?.partner?.name ||
-              null;
-
-            const hasAddons = pkg.addons && pkg.addons.length > 0;
-
-            const now = new Date();
-            const isBeforeStart = pkg.booking_start_date && new Date(pkg.booking_start_date) > now;
-            const isAfterEnd = pkg.booking_end_date && new Date(new Date(pkg.booking_end_date).setHours(23, 59, 59, 999)) < now;
-            const isClosed = pkg.status === "Closed" || isAfterEnd;
-            const isUpcoming = isBeforeStart && !isClosed;
-
-            return (
-              <div
-                key={pkg.id}
-                className={`group relative flex flex-col rounded-3xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl ${
-                  isAfterEnd ? "opacity-90" : ""
-                }`}
-              >
-                {/* Image & Badges Container */}
-                <div className="relative h-56 w-full overflow-hidden rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200">
-                  {pkg.image ? (
-                    <img
-                      src={pkg.image}
-                      alt={pkg.name}
-                      className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${
-                        isAfterEnd ? "grayscale-[25%]" : ""
-                      }`}
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 text-blue-300">
-                      <Compass className="h-12 w-12 stroke-[1.5]" />
-                    </div>
-                  )}
-
-                  {/* Duration & Status Badges */}
-                  {isAfterEnd ? (
-                    <div className="absolute top-3 left-3 rounded-full bg-slate-900/90 px-3 py-1 text-xs font-bold text-white backdrop-blur-md shadow-md flex items-center gap-1.5 border border-white/10">
-                      <Ban className="h-3.5 w-3.5 text-rose-400" />
-                      <span>หมดเขตรับจองแล้ว</span>
-                    </div>
-                  ) : pkg.status === "Closed" ? (
-                    <div className="absolute top-3 left-3 rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white backdrop-blur-md shadow-md flex items-center gap-1.5">
-                      <Ban className="h-3.5 w-3.5" />
-                      <span>ปิดรับจองแล้ว</span>
-                    </div>
-                  ) : isUpcoming ? (
-                    <div className="absolute top-3 left-3 rounded-full bg-amber-600/95 px-3 py-1 text-xs font-bold text-white backdrop-blur-md shadow-md flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span>เปิดจอง {new Date(pkg.booking_start_date).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}</span>
-                    </div>
-                  ) : (
-                    <div className="absolute top-3 left-3 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md shadow-sm flex items-center gap-1.5">
-                      <Clock className="h-3 w-3 text-sky-400" />
-                      <span>{durationLabel}</span>
-                    </div>
-                  )}
-
-                  {/* Add-on tag */}
-                  {hasAddons && (
-                    <div className="absolute top-3 right-3 rounded-full bg-emerald-600/90 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md shadow-sm flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      <span>{pkg.addons.length} Add-on</span>
-                    </div>
-                  )}
-
-                  {/* Destination / Location Tag at bottom of image */}
-                  {pkg.location?.name && (
-                    <div className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold text-slate-800 backdrop-blur-md shadow-sm flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-red-500" />
-                      <span className="truncate max-w-[180px]">{pkg.location.name}</span>
-                    </div>
-                  )}
-
-                  {/* Multi-photo count badge */}
-                  {pkg.images && pkg.images.length > 1 && (
-                    <div className="absolute bottom-3 right-3 rounded-full bg-slate-900/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md shadow-sm flex items-center gap-1">
-                      <Camera className="h-3 w-3 text-sky-400" />
-                      <span>{pkg.images.length} รูป</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex flex-1 flex-col justify-between pt-4 px-1.5">
-                  <div className="space-y-2.5">
-                    {/* Partner & Booking Period Badges */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {partnerName && (
-                        <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 px-2.5 py-0.5 rounded-md border border-indigo-100/60">
-                          <Handshake className="h-3 w-3 text-indigo-600" />
-                          <span className="truncate max-w-[170px]">{partnerName}</span>
-                        </div>
-                      )}
-                      {pkg.booking_end_date && !isClosed && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-                          <Calendar className="h-2.5 w-2.5 text-amber-600" />
-                          จองได้ถึง {new Date(pkg.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Title */}
-                    <h3 className="text-base font-bold text-slate-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                      {pkg.name}
-                    </h3>
-
-                    {/* Description */}
-                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                      {pkg.description || "สัมผัสความงามของการท่องเที่ยวพร้อมบริการคุณภาพตลอดการเดินทาง"}
-                    </p>
-
-                    {/* Highlights Strip */}
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 text-[11px] text-slate-600">
-                      <div className="flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                        <span>{totalActivities > 0 ? `${totalActivities} กิจกรรม` : "กิจกรรมตามแผน"}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Utensils className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                        <span>{totalMeals > 0 ? `${totalMeals} มื้ออาหาร` : "รวมมื้ออาหาร"}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Price & Action */}
-                  <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                    <div>
-                      <span className="block text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                        ราคาเริ่มต้น
-                      </span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-black text-slate-900">
-                          ฿{(pkg.price || 0).toLocaleString()}
-                        </span>
-                        <span className="text-[11px] font-normal text-slate-400">/ ท่าน</span>
-                      </div>
-                    </div>
-
-                    {isAfterEnd ? (
-                      <Link
-                        href={`/package/${pkg.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-500 transition-all hover:bg-slate-200"
-                      >
-                        <span>ดูข้อมูล (หมดเขต)</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
-                    ) : pkg.status === "Closed" ? (
-                      <Link
-                        href={`/package/${pkg.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-500 transition-all hover:bg-slate-200"
-                      >
-                        <span>ดูข้อมูล (ปิดรับจอง)</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
-                    ) : isUpcoming ? (
-                      <Link
-                        href={`/package/${pkg.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs font-semibold text-amber-800 transition-all hover:bg-amber-100"
-                      >
-                        <span>ดูข้อมูล (เปิดจองเร็วๆ นี้)</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
-                    ) : (
-                      <Link
-                        href={`/package/${pkg.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:bg-blue-700 hover:gap-2 active:scale-95"
-                      >
-                        <span>ดูรายละเอียด & จอง</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {filteredPackages.map((pkg) => (
+            <PackageCard key={pkg.id} pkg={pkg} />
+          ))}
         </div>
       )}
     </div>

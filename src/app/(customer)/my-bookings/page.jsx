@@ -126,7 +126,7 @@ export default function MyBookingsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50/60 pb-20 pt-8">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+      <div className="container mx-auto px-4 sm:px-6">
         
         {/* Header */}
         <div className="mb-8">

@@ -26,23 +26,28 @@ import {
   UserCheck,
   Lock,
   Plane,
+  Pencil,
+  UserPlus,
 } from "lucide-react";
 import bookingService from "@/service/booking";
 import authService from "@/service/auth";
-import CollaboratorBox from "@/components/package/CollaboratorBox";
+import TravelerModal from "@/components/booking/TravelerModal";
+import AddParticipantModal from "@/components/booking/AddParticipantModal";
+import { UserAvatar } from "@/components/package/CollaboratorBox";
 import { formatThaiDateRange } from "@/lib/date";
 import {
   getAuth,
   subscribeAuth,
   getAuthServerSnapshot,
 } from "@/lib/auth-client";
+import Image from "next/image";
 
 // Helper ฟังก์ชันจัดรูปแบบเบอร์โทรศัพท์ (0xx-xxx-xxxx) และจำกัดเฉพาะตัวเลข 10 หลัก
 const formatPhoneNumber = (value) => {
   if (!value) return "";
   // 1. ตัดตัวอักษรที่ไม่ใช่ตัวเลขออกทั้งหมด และจำกัดสูงสุด 10 หลัก
   const cleaned = value.replace(/\D/g, "").slice(0, 10);
-  
+
   // 2. เติมเครื่องหมายขีด (-) ตามตำแหน่ง
   if (cleaned.length <= 3) {
     return cleaned;
@@ -52,6 +57,84 @@ const formatPhoneNumber = (value) => {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
   }
 };
+
+// Fallback avatars for travelers: /adult-man.png, /adult-woman.png, /boy.png, /girl.png
+function getTravelerFallbackAvatar(traveler) {
+  const isChild = traveler?.passenger_type === "child";
+  const title = (traveler?.title || "").trim();
+
+  if (isChild) {
+    if (title === "เด็กหญิง" || title === "ด.ญ." || title === "Miss") {
+      return "/girl.png";
+    }
+    return "/boy.png";
+  }
+
+  // Adult
+  if (
+    title === "นาง" ||
+    title === "นางสาว" ||
+    title === "น.ส." ||
+    title === "Mrs." ||
+    title === "Ms." ||
+    title === "Miss"
+  ) {
+    return "/adult-woman.png";
+  }
+
+  return "/adult-man.png";
+}
+
+function TravelerAvatar({ traveler, isFirst, displayName }) {
+  const fallbackSrc = getTravelerFallbackAvatar(traveler);
+
+  // If user is from collab and has an image, use it
+  const collabUser = traveler?.collab_user;
+  let customSrc = null;
+  if (collabUser) {
+    if (collabUser.avatar && collabUser.avatar !== "/no-image-user-v1.jpg") {
+      customSrc = collabUser.avatar;
+    } else if (collabUser.image) {
+      customSrc = collabUser.image;
+    } else if (collabUser.profile_image) {
+      customSrc = collabUser.profile_image;
+    } else {
+      const nameKey = collabUser.name?.toLowerCase().trim();
+      const presets = {
+        muping: "/image 1.png",
+        pooh01: "/image 3.png",
+        pooh02: "/image 4.png",
+        ormsin: "/image 5.png",
+      };
+      if (nameKey && presets[nameKey]) {
+        customSrc = presets[nameKey];
+      }
+    }
+  }
+
+  const [hasError, setHasError] = useState(false);
+  const src = !hasError && customSrc ? customSrc : fallbackSrc;
+
+  return (
+    <div className="relative shrink-0">
+      <div className="relative h-11 w-10 sm:h-13 sm:w-12  bg-white shadow-2xs flex items-center justify-center">
+        <Image
+          src={src}
+          alt={displayName || "ผู้เดินทาง"}
+          width={44}
+          height={44}
+          onError={() => setHasError(true)}
+          className="h-full w-full object-cover"
+        />
+      </div>
+      {isFirst && (
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white shadow-xs z-10">
+          <Crown className="h-2.5 w-2.5" />
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function PackageBookingPage({ params }) {
   const router = useRouter();
@@ -93,27 +176,30 @@ export default function PackageBookingPage({ params }) {
 
   // ตรวจสอบสถานะการเข้าสู่ระบบ หากยังไม่ได้ล็อกอิน ให้พาไปหน้า sign-in ทันที
   useEffect(() => {
-    const token = typeof window !== "undefined" ? window.localStorage.getItem("pt_token") : null;
+    const token =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("pt_token")
+        : null;
     const auth = getAuth();
     if (!token && !auth && !currentUser) {
-      const currentPath = typeof window !== "undefined" ? window.location.pathname + window.location.search : `/package/${packageId}/booking`;
-      router.replace(`/auth/sign-in?redirect=${encodeURIComponent(currentPath)}`);
+      const currentPath =
+        typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : `/package/${packageId}/booking`;
+      router.replace(
+        `/auth/sign-in?redirect=${encodeURIComponent(currentPath)}`,
+      );
     } else {
       setIsCheckingAuth(false);
     }
   }, [currentUser, packageId, router]);
 
-  // Collab System State
-  const [isCollabEnabled, setIsCollabEnabled] = useState(
-    initialCollabIds.length > 0,
-  );
-  const [collaborators, setCollaborators] = useState([]);
-  const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
+  // Collab & Participant Modals State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingTravelerIndex, setEditingTravelerIndex] = useState(null);
 
   // Form State
   const [travelDate, setTravelDate] = useState("");
-  const [adultCount, setAdultCount] = useState(initialAdults);
-  const [childCount, setChildCount] = useState(0);
 
   // Contact Info
   const [contactName, setContactName] = useState("");
@@ -131,10 +217,45 @@ export default function PackageBookingPage({ params }) {
     return init;
   });
 
-  // Travelers array (dynamically sync with adultCount + childCount)
-  const [travelers, setTravelers] = useState([
-    { title: "นาย", full_name: "", id_card_or_passport: "", phone: "" },
-  ]);
+  // Travelers array (Lead traveler is index 0)
+  const [travelers, setTravelers] = useState(() => {
+    const list = [
+      {
+        passenger_type: "adult",
+        title: "นาย",
+        full_name: "",
+        id_card_or_passport: "",
+        phone: "",
+        collab_user: null,
+      },
+    ];
+    for (let i = 1; i < initialAdults; i++) {
+      list.push({
+        passenger_type: "adult",
+        title: "นาย",
+        full_name: "",
+        id_card_or_passport: "",
+        phone: "",
+        collab_user: null,
+      });
+    }
+    return list;
+  });
+
+  // Derived adult and child counts dynamically from travelers
+  const adultCount = Math.max(
+    1,
+    travelers.filter((t) => t.passenger_type !== "child").length,
+  );
+  const childCount = travelers.filter(
+    (t) => t.passenger_type === "child",
+  ).length;
+  const totalPeople = adultCount + childCount;
+
+  // Derived collaborators from travelers list
+  const collaborators = travelers
+    .filter((t) => t.collab_user)
+    .map((t) => t.collab_user);
 
   // Load Package Details
   useEffect(() => {
@@ -168,9 +289,20 @@ export default function PackageBookingPage({ params }) {
         try {
           const res = await authService.searchUsers(initialCollabIds.join(","));
           if (!ignore && res?.users) {
-            setCollaborators(res.users);
-            setIsCollabEnabled(true);
-            setAdultCount((prev) => Math.max(prev, 1 + res.users.length));
+            const users = res.users.filter((u) =>
+              initialCollabIds.includes(u.id),
+            );
+            if (users.length > 0) {
+              const newTravelers = users.map((u) => ({
+                passenger_type: "adult",
+                title: "นาย",
+                full_name: u.name,
+                id_card_or_passport: "",
+                phone: u.phone || "",
+                collab_user: u,
+              }));
+              setTravelers((prev) => [...prev, ...newTravelers]);
+            }
           }
         } catch (err) {
           console.error("Error loading initial collabs:", err);
@@ -183,7 +315,7 @@ export default function PackageBookingPage({ params }) {
     }
   }, []);
 
-  // Autofill contact info from logged in user if available
+  // Autofill contact info and lead traveler from logged in user if available
   useEffect(() => {
     if (currentUser) {
       if (!contactName && currentUser.name) setContactName(currentUser.name);
@@ -191,88 +323,68 @@ export default function PackageBookingPage({ params }) {
         setContactEmail(currentUser.email);
       if (!contactPhone && currentUser.phone)
         setContactPhone(formatPhoneNumber(currentUser.phone));
+
+      setTravelers((prev) => {
+        if (prev.length === 0) return prev;
+        const first = prev[0];
+        if (!first.full_name && currentUser.name) {
+          const updated = [...prev];
+          updated[0] = {
+            ...first,
+            full_name: currentUser.name,
+            phone: first.phone || currentUser.phone || "",
+          };
+          return updated;
+        }
+        return prev;
+      });
     }
   }, [currentUser]);
 
-  const handlePhoneChange = (e) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setContactPhone(formatted);
-  };
-
   // วันที่เดินทางของแพ็กเกจ และช่วงเวลาเปิดรับจอง
-  const travelStartDate = packageData?.start_date || packageData?.dayplans?.[0]?.dt;
-  const travelEndDate = packageData?.end_date || packageData?.dayplans?.[packageData?.dayplans?.length - 1]?.dt;
-  const travelDateRangeText = formatThaiDateRange(travelStartDate, travelEndDate);
-  const bookingPeriodText = formatThaiDateRange(packageData?.booking_start_date, packageData?.booking_end_date, { shortMonth: true });
+  const travelStartDate =
+    packageData?.start_date || packageData?.dayplans?.[0]?.dt;
+  const travelEndDate =
+    packageData?.end_date ||
+    packageData?.dayplans?.[packageData?.dayplans?.length - 1]?.dt;
+  const travelDateRangeText = formatThaiDateRange(
+    travelStartDate,
+    travelEndDate,
+  );
+  const bookingPeriodText = formatThaiDateRange(
+    packageData?.booking_start_date,
+    packageData?.booking_end_date,
+    { shortMonth: true },
+  );
 
-  // Collaborator handlers
-  const handleAddCollaborator = (user) => {
-    setCollaborators((prev) => {
-      if (prev.some((c) => c.id === user.id)) return prev;
-      const next = [...prev, user];
-      setAdultCount((cur) => Math.max(cur, 1 + next.length));
-      return next;
-    });
+  // Participant handlers
+  const handleAddManual = (data) => {
+    setTravelers((prev) => [
+      ...prev,
+      {
+        ...data,
+        passenger_type: data.passenger_type || "adult",
+        collab_user: null,
+      },
+    ]);
   };
 
-  const handleRemoveCollaborator = (user) => {
-    setCollaborators((prev) => {
-      const next = prev.filter((c) => c.id !== user.id);
-      return next;
-    });
+  const handleAddCollabs = (users) => {
+    const newTravelers = users.map((u) => ({
+      passenger_type: "adult",
+      title: "นาย",
+      full_name: u.name,
+      id_card_or_passport: "",
+      phone: u.phone || "",
+      collab_user: u,
+    }));
+    setTravelers((prev) => [...prev, ...newTravelers]);
   };
 
-  const handleToggleCollab = () => {
-    const nextState = !isCollabEnabled;
-    setIsCollabEnabled(nextState);
-    if (nextState) {
-      setAdultCount((cur) => Math.max(cur, 1 + collaborators.length));
-    }
+  const handleDeleteTraveler = (indexToDelete) => {
+    if (indexToDelete === 0) return;
+    setTravelers((prev) => prev.filter((_, idx) => idx !== indexToDelete));
   };
-
-  // Sync travelers count with total people and Collab mode
-  const totalPeople = adultCount + childCount;
-  useEffect(() => {
-    setTravelers((prev) => {
-      const next = [];
-      for (let i = 0; i < totalPeople; i++) {
-        const existing = prev[i] || {
-          title: i >= adultCount ? "เด็กชาย" : "นาย",
-          full_name: "",
-          id_card_or_passport: "",
-          phone: "",
-        };
-
-        if (isCollabEnabled) {
-          if (i === 0) {
-            next.push({
-              ...existing,
-              full_name: currentUser?.name || contactName || existing.full_name,
-            });
-          } else if (i <= collaborators.length) {
-            const cUser = collaborators[i - 1];
-            next.push({
-              ...existing,
-              full_name: cUser?.name || existing.full_name,
-            });
-          } else {
-            next.push(existing);
-          }
-        } else {
-          next.push(existing);
-        }
-      }
-      return next;
-    });
-  }, [
-    adultCount,
-    childCount,
-    totalPeople,
-    isCollabEnabled,
-    collaborators,
-    currentUser,
-    contactName,
-  ]);
 
   // If traveler field is changed in manual mode
   const handleTravelerChange = (index, field, value) => {
@@ -289,9 +401,6 @@ export default function PackageBookingPage({ params }) {
       [addonId]: !prev[addonId],
     }));
   };
-
-  // Minimum adults count based on Collab
-  const minAdults = isCollabEnabled ? 1 + collaborators.length : 1;
 
   // Calculations (1 set per booking for addons)
   const unitPrice = packageData?.price || 0;
@@ -312,25 +421,50 @@ export default function PackageBookingPage({ params }) {
     setErrorMessage("");
 
     // Travel date กำหนดตามรอบเดินทางของแพ็กเกจ ไม่ต้องให้ผู้ใช้เลือกเอง
-    const finalTravelDate = travelDate || travelStartDate || new Date().toISOString();
+    const finalTravelDate =
+      travelDate || travelStartDate || new Date().toISOString();
 
-    if (!contactName.trim() || !contactPhone.trim() || !contactEmail.trim()) {
+    const activeContactName = (contactName || currentUser?.name || "").trim();
+    const activeContactPhone = (
+      contactPhone ||
+      currentUser?.phone ||
+      ""
+    ).trim();
+    const activeContactEmail = (
+      contactEmail ||
+      currentUser?.email ||
+      ""
+    ).trim();
+    const activeContactLineId = (
+      contactLineId ||
+      currentUser?.lineId ||
+      ""
+    ).trim();
+
+    if (!activeContactName || !activeContactPhone || !activeContactEmail) {
       setErrorMessage(
-        "กรุณากรอกข้อมูลผู้ติดต่อให้ครบถ้วน (ชื่อ, เบอร์โทร, อีเมล)",
+        "กรุณากรอกข้อมูลผู้ติดต่อให้ครบถ้วนในบัญชีโปรไฟล์ (ชื่อ, เบอร์โทร, อีเมล)",
       );
       return;
     }
 
-    const cleanPhoneDigits = contactPhone.replace(/\D/g, "");
+    const cleanPhoneDigits = activeContactPhone.replace(/\D/g, "");
     if (cleanPhoneDigits.length !== 10) {
-      setErrorMessage("กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (เช่น 095-809-2434)");
+      setErrorMessage(
+        "กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (เช่น 095-809-2434)",
+      );
       return;
     }
 
     // ตรวจสอบความปลอดภัย: หากยังไม่ได้ล็อกอิน ให้เด้งไปหน้า sign-in ทันที
     if (!currentUser) {
-      const currentPath = typeof window !== "undefined" ? window.location.pathname + window.location.search : `/package/${packageId}/booking`;
-      router.replace(`/auth/sign-in?redirect=${encodeURIComponent(currentPath)}`);
+      const currentPath =
+        typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : `/package/${packageId}/booking`;
+      router.replace(
+        `/auth/sign-in?redirect=${encodeURIComponent(currentPath)}`,
+      );
       return;
     }
 
@@ -345,7 +479,7 @@ export default function PackageBookingPage({ params }) {
       ...t,
       full_name:
         t.full_name?.trim() ||
-        (idx === 0 ? contactName.trim() : `ผู้ร่วมเดินทางท่านที่ ${idx + 1}`),
+        (idx === 0 ? activeContactName : `ผู้ร่วมเดินทางท่านที่ ${idx + 1}`),
     }));
 
     const payload = {
@@ -353,14 +487,14 @@ export default function PackageBookingPage({ params }) {
       travel_date: new Date(finalTravelDate).toISOString(),
       adult_count: adultCount,
       child_count: childCount,
-      contact_name: contactName.trim(),
-      contact_phone: contactPhone.trim(),
-      contact_email: contactEmail.trim(),
-      contact_line_id: contactLineId.trim() || null,
+      contact_name: activeContactName,
+      contact_phone: activeContactPhone,
+      contact_email: activeContactEmail,
+      contact_line_id: activeContactLineId || null,
       special_requests: specialRequests.trim() || null,
       travelers: finalTravelers,
       selected_addons: formattedAddons,
-      collab_ids: isCollabEnabled ? collaborators.map((c) => c.id) : [],
+      collab_ids: collaborators.map((c) => c.id),
     };
 
     try {
@@ -389,7 +523,9 @@ export default function PackageBookingPage({ params }) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-slate-500">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-        <p className="text-sm font-medium">กำลังตรวจสอบสิทธิ์การเข้าสู่ระบบ...</p>
+        <p className="text-sm font-medium">
+          กำลังตรวจสอบสิทธิ์การเข้าสู่ระบบ...
+        </p>
       </div>
     );
   }
@@ -422,7 +558,7 @@ export default function PackageBookingPage({ params }) {
 
   return (
     <div className="min-h-screen bg-slate-50/60 pb-20 pt-6">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="container mx-auto px-4 sm:px-6">
         {/* Top Back Link */}
         <div className="mb-6 flex items-center justify-between">
           <Link
@@ -451,20 +587,10 @@ export default function PackageBookingPage({ params }) {
           </div>
         </div>
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            ยืนยันการจองแพ็กเกจท่องเที่ยว
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            กรุณากรอกข้อมูลผู้เดินทางเพื่อสำรองที่นั่งและรับใบยืนยันการจองทัวร์
-          </p>
-        </div>
-
         {/* Error Banner */}
         {errorMessage && (
           <div className="mb-6 flex items-center gap-3 rounded-2xl bg-rose-50 border border-rose-200 p-4 text-sm text-rose-800">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-rose-600" />
+            <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
             <span>{errorMessage}</span>
           </div>
         )}
@@ -473,460 +599,304 @@ export default function PackageBookingPage({ params }) {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Column: Form Details (8 Cols) */}
             <div className="lg:col-span-8 space-y-6">
-              {/* Card 1: วันที่และจำนวนคน */}
-              <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/80">
-                <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100 mb-5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                    <Calendar className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-slate-900">
-                      กำหนดการเดินทาง
-                    </h2>
-                    <p className="text-xs text-slate-500">
-                      รอบการเดินทางถูกกำหนดตามตารางแพ็กเกจ และสามารถระบุจำนวนผู้เดินทางได้ทันที
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* กล่องแสดงวันเดินทางคงที่ และช่วงเวลาเปิดรับจอง */}
-                  <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 via-white to-sky-50/40 p-4 shadow-2xs flex flex-col justify-between">
+              {/* Card 1: ข้อมูลผู้ติดต่อหลัก (Profile Account Card) */}
+              <div className="rounded-2xl border border-slate-200/90 bg-linear-to-br from-slate-50/70 via-white to-indigo-50/30 p-5 shadow-sm">
+                {/* Profile Header Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/70">
+                  <div className="flex items-center gap-3.5">
+                    <div className="relative shrink-0">
+                      <UserAvatar
+                        user={currentUser || { name: contactName || "คุณ" }}
+                        size="lg"
+                      />
+                      <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white shadow-2xs">
+                        <Crown className="h-2.5 w-2.5" />
+                      </span>
+                    </div>
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-900">
-                          <Plane className="h-4 w-4 text-indigo-600" /> วันเดินทางของแพ็กเกจ
-                        </span>
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200/50">
-                          กำหนดตามรอบ
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base font-extrabold text-slate-900">
+                          {currentUser?.name || contactName || "ผู้ใช้งาน"}
+                        </h3>
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 uppercase">
+                          {currentUser?.role?.name ||
+                            currentUser?.role ||
+                            "ผู้จองหลัก"}
                         </span>
                       </div>
-                      <p className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
-                        ✈️ {travelDateRangeText || "กำลังโหลดข้อมูลตารางเดินทาง..."}
-                      </p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        ทริปนี้เดินทางตามวันที่กำหนดข้างต้น ไม่ต้องเลือกวันเดินทาง
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        เจ้าของบัญชีผู้ทำรายการจอง (Lead Traveler)
                       </p>
                     </div>
-
-                    {/* แสดงช่วงเวลาเปิดรับจอง */}
-                    {(packageData?.booking_start_date || packageData?.booking_end_date) && (
-                      <div className="mt-3 pt-2.5 border-t border-indigo-100/80 flex items-center justify-between text-xs">
-                        <span className="text-slate-500 flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5 text-amber-500" /> ช่วงเวลาเปิดรับจอง:
-                        </span>
-                        <span className="font-bold text-amber-800">
-                          {bookingPeriodText || "เปิดรับจองตามรอบ"}
-                        </span>
-                      </div>
-                    )}
                   </div>
 
-                  {/* กล่องปรับจำนวนผู้เดินทาง */}
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs flex flex-col justify-between">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-xs font-semibold text-slate-700">
-                        จำนวนผู้เดินทาง
-                      </label>
-                      {isCollabEnabled && collaborators.length > 0 && (
-                        <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                          คุณ + {collaborators.length} Collab
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 rounded-xl border border-slate-200 px-3 py-2 flex items-center justify-between">
-                        <span className="text-xs font-medium text-slate-600">
-                          ผู้ใหญ่
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAdultCount(Math.max(minAdults, adultCount - 1))
-                            }
-                            disabled={adultCount <= minAdults}
-                            className="h-6 w-6 rounded-md bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            -
-                          </button>
-                          <span className="text-sm font-bold text-slate-800 w-4 text-center">
-                            {adultCount}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setAdultCount(adultCount + 1)}
-                            className="h-6 w-6 rounded-md bg-slate-100 text-slate-600 font-bold hover:bg-slate-200"
-                          >
-                            +
-                          </button>
-                        </div>
+                  <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                    {currentUser?.points !== undefined && (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50/90 border border-amber-200/80 text-amber-900 text-xs font-bold shadow-2xs">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                        <span>{currentUser.points.toLocaleString()} คะแนน</span>
                       </div>
+                    )}
 
-                      <div className="flex-1 rounded-xl border border-slate-200 px-3 py-2 flex items-center justify-between">
-                        <span className="text-xs font-medium text-slate-600">
-                          เด็ก
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setChildCount(Math.max(0, childCount - 1))
-                            }
-                            className="h-6 w-6 rounded-md bg-slate-100 text-slate-600 font-bold hover:bg-slate-200"
-                          >
-                            -
-                          </button>
-                          <span className="text-sm font-bold text-slate-800 w-4 text-center">
-                            {childCount}
+                    <button
+                      type="button"
+                      onClick={() => router.push("/profile")}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 active:scale-[0.98] transition-all cursor-pointer"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      <span>ยืนยันตัวตน</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Contact Details Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 text-xs">
+                  {/* เบอร์โทรศัพท์ */}
+                  <div className="rounded-xl bg-white border border-slate-200/80 p-3.5 flex items-center gap-3 shadow-2xs">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                      <Phone className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[11px] font-medium text-slate-400">
+                        เบอร์โทรศัพท์
+                      </span>
+                      <span className="font-bold text-slate-800 text-xs sm:text-sm truncate block">
+                        {contactPhone || currentUser?.phone ? (
+                          formatPhoneNumber(contactPhone || currentUser?.phone)
+                        ) : (
+                          <span className="text-amber-600 font-sans italic text-xs">
+                            ยังไม่ได้ระบุ
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => setChildCount(childCount + 1)}
-                            className="h-6 w-6 rounded-md bg-slate-100 text-slate-600 font-bold hover:bg-slate-200"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* อีเมล */}
+                  <div className="rounded-xl bg-white border border-slate-200/80 p-3.5 flex items-center gap-3 shadow-2xs">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                      <Mail className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[11px] font-medium text-slate-400">
+                        อีเมล
+                      </span>
+                      <span className="font-bold text-slate-800 truncate block text-xs sm:text-sm">
+                        {currentUser?.email || contactEmail || "-"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* LINE ID */}
+                  <div className="rounded-xl bg-white border border-slate-200/80 p-3.5 flex items-center gap-3 shadow-2xs">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                      <MessageSquare className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[11px] font-medium text-slate-400">
+                        LINE ID
+                      </span>
+                      <span className="font-bold text-slate-800 truncate block text-xs sm:text-sm">
+                        {currentUser?.lineId || contactLineId || (
+                          <span className="text-slate-400 font-normal">
+                            ไม่ได้ระบุ
+                          </span>
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Card 2: ข้อมูลผู้ติดต่อหลัก */}
+              {/* Card 2: ข้อมูลผู้ร่วมเดินทาง (Travelers) */}
               <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/80">
-                <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100 mb-5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                    <User className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-slate-900">
-                      ข้อมูลผู้ติดต่อหลัก
-                    </h2>
-                    <p className="text-xs text-slate-500">
-                      สำหรับรับเอกสารยืนยันและติดต่อในวันเดินทาง
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      ชื่อ-นามสกุล ผู้ติดต่อ{" "}
-                      <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="เช่น สมชาย ใจดี"
-                        value={contactName}
-                        onChange={(e) => setContactName(e.target.value)}
-                        required
-                        className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex justify-between items-center">
-                      <span>เบอร์โทรศัพท์ <span className="text-rose-500">*</span></span>
-                      {contactPhone && (
-                        <span className={`text-[10px] font-medium ${
-                          contactPhone.replace(/\D/g, "").length === 10
-                            ? "text-emerald-600 font-semibold"
-                            : "text-slate-400"
-                        }`}>
-                          {contactPhone.replace(/\D/g, "").length}/10 หลัก
-                        </span>
-                      )}
-                    </label>
-                    <div className="relative">
-                      <Phone className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                      <input
-                        type="tel"
-                        inputMode="numeric"
-                        placeholder="095-809-2434"
-                        value={contactPhone}
-                        onChange={handlePhoneChange}
-                        maxLength={12}
-                        required
-                        className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 font-mono tracking-wide"
-                      />
-                    </div>
-                    {contactPhone && contactPhone.replace(/\D/g, "").length > 0 && contactPhone.replace(/\D/g, "").length < 10 && (
-                      <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
-                        * ต้องกรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (เช่น 095-809-2434)
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      อีเมล <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                      <input
-                        type="email"
-                        placeholder="example@mail.com"
-                        value={contactEmail}
-                        onChange={(e) => setContactEmail(e.target.value)}
-                        required
-                        className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      LINE ID (ถ้ามี)
-                    </label>
-                    <div className="relative">
-                      <MessageSquare className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="เช่น somchai_line"
-                        value={contactLineId}
-                        onChange={(e) => setContactLineId(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 3: ข้อมูลผู้ร่วมเดินทาง (Travelers) */}
-              <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/80">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
                       <Users className="h-4 w-4" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-slate-900">
-                        รายชื่อผู้ร่วมเดินทาง ({travelers.length} ท่าน)
+                      <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <span>รายชื่อผู้ร่วมเดินทาง</span>
                       </h2>
                       <p className="text-xs text-slate-500">
-                        {isCollabEnabled
-                          ? "ใช้รายชื่อผู้ร่วมทริปจากระบบ Collab (ระบบกรอกชื่อ Manual จะถูก Disable)"
-                          : "ข้อมูลสำหรับทำประกันอุบัติเหตุและรายชื่อขึ้นยานพาหนะ (โหมดกรอกข้อมูลด้วยตนเอง)"}
+                        ข้อมูลสำหรับทำประกันอุบัติเหตุและรายชื่อขึ้นยานพาหนะ
                       </p>
                     </div>
-                  </div>
-
-                  {/* Toggle Switch: เปิดใช้ Collab / ชวนเพื่อนร่วมทริป */}
-                  <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2 shrink-0">
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 justify-end">
-                        <span>ชวนเพื่อน (Collab)</span>
-                        {isCollabEnabled && (
-                          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        )}
-                      </div>
-                      <p className="text-[10px] text-slate-400">
-                        {isCollabEnabled
-                          ? "ระบบ Collab เปิดใช้งาน"
-                          : "ระบบ Manual (ปิด Collab)"}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={isCollabEnabled}
-                      onClick={handleToggleCollab}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 ${
-                        isCollabEnabled ? "bg-indigo-600" : "bg-slate-300"
-                      }`}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                          isCollabEnabled ? "translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
                   </div>
                 </div>
 
-                {/* Collab Management Box (when Collab is enabled) */}
-                {isCollabEnabled ? (
-                  <div className="mb-5 space-y-3">
-                    <CollaboratorBox
-                      currentUser={
-                        currentUser || { name: contactName || "คุณ" }
-                      }
-                      collaborators={collaborators}
-                      onAddCollaborator={handleAddCollaborator}
-                      onRemoveCollaborator={handleRemoveCollaborator}
-                      variant="sidebar"
-                      isOpen={isCollabModalOpen}
-                      onOpenChange={setIsCollabModalOpen}
-                    />
-
-                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-3.5 flex items-start gap-3">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-600 text-white shrink-0 mt-0.5">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="text-xs text-indigo-950">
-                        <p className="font-bold">
-                          โหมด Collab เปิดใช้งานอยู่ (ระบบกรอกชื่อ Manual
-                          ปิดการใช้งาน)
-                        </p>
-                        <p className="text-indigo-700 mt-0.5">
-                          รายชื่อผู้ร่วมเดินทางจะถูกดึงจากบัญชีผู้ใช้ในระบบอัตโนมัติ
-                          ช่องกรอกชื่อแบบ Manual จะถูก Disable
-                          ตามบัญชีของคุณและเพื่อน Collab
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 flex items-center justify-between text-xs text-slate-600">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-slate-400" />
-                      <span>
-                        โหมดปัจจุบัน:{" "}
-                        <strong>รายชื่อคนที่ไปด้วยแบบ Manual</strong> (ปิด
-                        Switch Collab อยู่ - กรอกชื่อและเอกสารด้วยตนเอง)
-                      </span>
-                    </div>
-                    <span className="text-[11px] font-semibold text-slate-400 bg-white px-2 py-0.5 rounded-md border border-slate-200">
-                      Manual Active
-                    </span>
-                  </div>
-                )}
-
                 {/* Travelers List */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {travelers.map((traveler, index) => {
-                    const isCollabPassenger =
-                      isCollabEnabled &&
-                      (index === 0 || index <= collaborators.length);
-                    const collabUser =
-                      index === 0
-                        ? currentUser || { name: contactName || "คุณ" }
-                        : collaborators[index - 1];
+                    const isFirst = index === 0;
+                    const isCollab = Boolean(traveler.collab_user);
+                    const displayName = isFirst
+                      ? currentUser?.name || contactName || traveler.full_name
+                      : traveler.collab_user
+                        ? traveler.collab_user.name
+                        : traveler.full_name;
+
+                    const isNameFilled = Boolean(displayName?.trim());
+                    const isIdFilled = Boolean(
+                      traveler.id_card_or_passport?.trim(),
+                    );
+                    const isComplete = isNameFilled && isIdFilled;
 
                     return (
                       <div
                         key={index}
-                        className={`rounded-xl border p-4 transition-all ${
-                          isCollabPassenger
-                            ? "border-indigo-200 bg-indigo-50/30"
-                            : "border-slate-200/70 bg-slate-50/50"
+                        onClick={() => {
+                          setEditingTravelerIndex(index);
+                        }}
+                        className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 rounded-2xl border p-4 transition-all cursor-pointer ${
+                          isComplete
+                            ? "border-sky-200/90 bg-white hover:border-sky-400 hover:shadow-xs"
+                            : "border-dashed border-sky-300 bg-sky-50/40 hover:border-sky-400 hover:bg-sky-50/60"
                         }`}
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                              ผู้เดินทางท่านที่ {index + 1}{" "}
-                              {index === 0 && "(ผู้ติดต่อหลัก)"}
-                            </span>
+                        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                          {/* Traveler Avatar (Fallback illustration or Collab user photo) */}
+                          <TravelerAvatar
+                            traveler={traveler}
+                            isFirst={isFirst}
+                            displayName={displayName}
+                          />
 
-                            {isCollabPassenger ? (
-                              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
-                                {index === 0 ? (
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                  traveler.passenger_type === "child"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                }`}
+                              >
+                                {traveler.passenger_type === "child"
+                                  ? "เด็ก (Child)"
+                                  : "ผู้ใหญ่ (Adult)"}
+                              </span>
+
+                              {isFirst ? (
+                                <span className="text-[11px] font-semibold text-slate-600 bg-slate-100/90 px-2 py-0.5 rounded-md border border-slate-200 flex items-center gap-1 shadow-2xs">
+                                  <Crown className="h-3 w-3 text-slate-400" />
+                                  <span>บัญชีผู้จอง</span>
+                                </span>
+                              ) : isCollab ? (
+                                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                                  <UserCheck className="h-3 w-3 text-emerald-600" />
+                                  <span>
+                                    Collab: @{traveler.collab_user.name}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                  ข้อมูลทั่วไป (Manual)
+                                </span>
+                              )}
+
+                              {isComplete ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  ข้อมูลครบแล้ว
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100/90 px-2 py-0.5 rounded-md border border-slate-200">
+                                  รอกรอกข้อมูล
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Details Row */}
+                            {isNameFilled ? (
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                                <span className="font-bold text-slate-900 text-sm">
+                                  {traveler.title} {displayName}
+                                </span>
+                                <span className="text-slate-300">|</span>
+                                <span className="inline-flex items-center gap-1">
+                                  <CreditCard className="h-3 w-3 text-slate-400" />
+                                  <span className="font-medium text-slate-700">
+                                    {traveler.id_card_or_passport || (
+                                      <span className="text-slate-400 font-sans italic">
+                                        ยังไม่ได้ระบุเลขบัตร / Passport
+                                      </span>
+                                    )}
+                                  </span>
+                                </span>
+                                {traveler.phone && (
                                   <>
-                                    <Crown className="h-3 w-3 text-amber-500" />
-                                    <span>
-                                      {currentUser?.name ||
-                                        contactName ||
-                                        "คุณ"}{" "}
-                                      (บัญชีผู้จอง)
+                                    <span className="text-slate-300">|</span>
+                                    <span className="text-slate-500">
+                                      โทร: {traveler.phone}
                                     </span>
                                   </>
-                                ) : (
-                                  <>
-                                    <UserCheck className="h-3 w-3 text-emerald-600" />
-                                    <span>Collab: @{collabUser?.name}</span>
-                                  </>
                                 )}
-                              </span>
+                              </div>
                             ) : (
-                              <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                                กรอกแบบ Manual
-                              </span>
+                              <p className="text-xs text-slate-400 italic">
+                                ยังไม่ได้ระบุชื่อและเลขบัตร
+                                คลิกที่นี่เพื่อกรอกข้อมูล
+                              </p>
                             )}
                           </div>
-
-                          {isCollabPassenger && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
-                              <Lock className="h-3 w-3 text-slate-400" />
-                              <span>
-                                ล็อกชื่อจากระบบ Collab (Manual Disabled)
-                              </span>
-                            </span>
-                          )}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                          <div className="sm:col-span-3">
-                            <select
-                              value={traveler.title}
-                              onChange={(e) =>
-                                handleTravelerChange(
-                                  index,
-                                  "title",
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-500"
+                        {/* Action CTA Buttons */}
+                        <div className="flex items-center gap-2 sm:self-center shrink-0">
+                          {isComplete && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingTravelerIndex(index);
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 group-hover:border-indigo-300 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all shadow-2xs cursor-pointer"
                             >
-                              <option value="นาย">นาย</option>
-                              <option value="นาง">นาง</option>
-                              <option value="นางสาว">นางสาว</option>
-                              <option value="เด็กชาย">เด็กชาย</option>
-                              <option value="เด็กหญิง">เด็กหญิง</option>
-                            </select>
-                          </div>
+                              <Pencil className="h-3.5 w-3.5" />
+                              <span>แก้ไข</span>
+                            </button>
+                          )}
 
-                          <div className="sm:col-span-5">
-                            <input
-                              type="text"
-                              placeholder="ชื่อ - นามสกุล"
-                              value={
-                                isCollabPassenger
-                                  ? collabUser?.name || traveler.full_name
-                                  : traveler.full_name
-                              }
-                              onChange={(e) =>
-                                handleTravelerChange(
-                                  index,
-                                  "full_name",
-                                  e.target.value,
-                                )
-                              }
-                              disabled={isCollabPassenger}
-                              className={`w-full rounded-lg border px-3 py-2 text-xs font-medium focus:outline-none ${
-                                isCollabPassenger
-                                  ? "bg-slate-100/90 text-slate-600 border-dashed border-slate-300 cursor-not-allowed select-none font-semibold"
-                                  : "bg-white text-slate-800 border-slate-200 focus:border-indigo-500"
-                              }`}
-                            />
-                          </div>
-
-                          <div className="sm:col-span-4">
-                            <input
-                              type="text"
-                              placeholder="เลขบัตร ปชช. / Passport"
-                              value={traveler.id_card_or_passport}
-                              onChange={(e) =>
-                                handleTravelerChange(
-                                  index,
-                                  "id_card_or_passport",
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-500"
-                            />
-                          </div>
+                          {!isFirst && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (
+                                  window.confirm(
+                                    `คุณต้องการลบผู้เดินทางท่านที่ ${
+                                      index + 1
+                                    } ออกจากทริปหรือไม่?`,
+                                  )
+                                ) {
+                                  handleDeleteTraveler(index);
+                                }
+                              }}
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-2xs"
+                              title="ลบผู้เดินทางนี้"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Dashed Add Participant Button */}
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-indigo-50/60 hover:border-indigo-300 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-all cursor-pointer"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span>
+                      + เพิ่มผู้เข้าร่วมทัวร์ (เลือกแบบทั่วไป หรือ Collab)
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -1014,6 +984,48 @@ export default function PackageBookingPage({ params }) {
 
             {/* Right Column: Order Summary (4 Cols Sticky) */}
             <div className="lg:col-span-4 sticky top-24 space-y-4">
+              {/* การ์ดกำหนดการเดินทาง (มีภาพ Illustration พื้นหลัง) */}
+              <div className="relative overflow-hidden rounded-2xl border border-indigo-100 bg-white p-4.5 shadow-2xs flex flex-col justify-between">
+                {/* ภาพพื้นหลังสไตล์ Illustration พร้อม Gradient Overlay */}
+                <div className="absolute inset-0 pointer-events-none">
+                  <Image
+                    width={400}
+                    height={600}
+                    src="/travel-schedule-bg.jpg"
+                    alt="Travel Schedule Illustration"
+                    className="h-full w-full object-cover "
+                  />
+                  <div className="absolute inset-0 bg-linear-to-r from-white/95 via-white/55 to-transparent backdrop-blur-[0.5px]" />
+                </div>
+
+                <div className="relative z-10">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-900">
+                    <Plane className="h-4 w-4 text-indigo-600" />{" "}
+                    วันเดินทางของแพ็กเกจ
+                  </span>
+                  <p className="text-sm font-extrabold text-slate-900 tracking-tight drop-shadow-2xs">
+                    {travelDateRangeText || "กำลังโหลดข้อมูลตารางเดินทาง..."}
+                  </p>
+                  <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
+                    ทริปนี้เดินทางตามวันที่กำหนดข้างต้น ไม่ต้องเลือกวันเดินทาง
+                  </p>
+                </div>
+
+                {/* แสดงช่วงเวลาเปิดรับจอง */}
+                {(packageData?.booking_start_date ||
+                  packageData?.booking_end_date) && (
+                  <div className="relative z-10 mt-3 pt-2.5 border-t border-indigo-50/80 flex items-center justify-between text-xs">
+                    <span className="text-slate-600 font-medium flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-amber-500" />{" "}
+                      ช่วงเวลาเปิดรับจอง:
+                    </span>
+                    <span className=" text-black text-xs">
+                      {bookingPeriodText || "เปิดรับจองตามรอบ"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/80">
                 <h3 className="text-base font-bold text-slate-900 mb-4 pb-3 border-b border-slate-100">
                   สรุปรายละเอียดการจอง
@@ -1022,10 +1034,12 @@ export default function PackageBookingPage({ params }) {
                 {/* Package Thumbnail & Name */}
                 <div className="flex gap-3.5 mb-5 pb-5 border-b border-slate-100">
                   {packageData.image ? (
-                    <img
+                    <Image
+                      width={100}
+                      height={100}
                       src={packageData.image}
                       alt={packageData.name}
-                      className="h-16 w-16 rounded-xl object-cover flex-shrink-0"
+                      className="h-16 w-16 rounded-xl object-cover shrink-0"
                     />
                   ) : (
                     <div className="h-16 w-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
@@ -1042,19 +1056,16 @@ export default function PackageBookingPage({ params }) {
                         <span>วันเดินทาง: {travelDateRangeText}</span>
                       </p>
                     )}
-                    {bookingPeriodText && (
-                      <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-amber-500 shrink-0" />
-                        <span>เปิดจอง: {bookingPeriodText}</span>
-                      </p>
-                    )}
                   </div>
                 </div>
 
                 {/* Price Breakdown */}
                 <div className="space-y-2.5 text-xs text-slate-600 mb-5">
                   <div className="flex justify-between">
-                    <span>ค่าแพ็กเกจ ({adultCount} ท่าน)</span>
+                    <span>
+                      ค่าแพ็กเกจ ({adultCount} ผู้ใหญ่
+                      {childCount > 0 ? ` + ${childCount} เด็ก` : ""})
+                    </span>
                     <span className="font-semibold text-slate-900">
                       ฿{baseTotal.toLocaleString()}
                     </span>
@@ -1113,6 +1124,35 @@ export default function PackageBookingPage({ params }) {
           </div>
         </form>
       </div>
+
+      {/* Add Participant Modal (Choice between Manual & Collab Multi-select) */}
+      <AddParticipantModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAddManual={handleAddManual}
+        onAddCollabs={handleAddCollabs}
+        existingTravelers={travelers}
+        currentUser={currentUser}
+      />
+
+      {/* Traveler Info Modal Form */}
+      <TravelerModal
+        isOpen={editingTravelerIndex !== null}
+        onClose={() => setEditingTravelerIndex(null)}
+        travelerIndex={editingTravelerIndex}
+        travelers={travelers}
+        currentUser={currentUser}
+        contactName={contactName}
+        onSaveTraveler={(idx, updatedData) => {
+          setTravelers((prev) => {
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...updatedData };
+            return next;
+          });
+        }}
+        onDeleteTraveler={handleDeleteTraveler}
+        onSelectTravelerIndex={(idx) => setEditingTravelerIndex(idx)}
+      />
     </div>
   );
 }

@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, Package, UserRound, Ticket, LayoutDashboard } from "lucide-react";
+import {
+  ChevronDown,
+  LogOut,
+  Package,
+  UserRound,
+  Ticket,
+  LayoutDashboard,
+} from "lucide-react";
 import {
   getAuth,
   clearAuth,
@@ -15,7 +22,7 @@ import authService, { serviceAuth } from "@/service/auth";
 
 const auth = authService || serviceAuth;
 
-export default function AuthButton({ fullWidth = false }) {
+export default function AuthButton({ fullWidth = false, isHero = false }) {
   const user = useSyncExternalStore(
     subscribeAuth,
     getAuth,
@@ -89,6 +96,24 @@ export default function AuthButton({ fullWidth = false }) {
 
   // Condition 1: not logged in -> show sign in / sign up actions.
   if (!user) {
+    if (isHero && !fullWidth) {
+      return (
+        <div className="flex items-center gap-2">
+          <Link
+            href="/auth/sign-in"
+            className="inline-flex h-9 items-center justify-center rounded-full px-4 text-sm font-semibold text-white/90 transition-colors hover:text-white hover:bg-white/10"
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/auth/sign-up"
+            className="inline-flex h-9 items-center justify-center rounded-full bg-white px-4 text-sm font-bold text-slate-900 shadow-sm transition-transform duration-200 hover:scale-[1.03] active:scale-95"
+          >
+            Sign Up
+          </Link>
+        </div>
+      );
+    }
     return (
       <div
         className={
@@ -125,42 +150,93 @@ export default function AuthButton({ fullWidth = false }) {
     user.email?.split("@")[0] ||
     "ผู้ใช้";
 
+  const username =
+    user.username ||
+    user.name?.toLowerCase().replace(/\s+/g, "_") ||
+    user.email?.split("@")[0] ||
+    "user";
+
+  const email = user.email || "";
+
   const initials = (label || "U").slice(0, 2).toUpperCase();
 
   const roleName =
     typeof user.role === "object" && user.role !== null
       ? user.role.name
       : typeof user.role === "string"
-      ? user.role
-      : null;
+        ? user.role
+        : null;
 
   return (
     <div className={`relative ${fullWidth ? "w-full" : ""}`} ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className={`inline-flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white pl-1 pr-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:shadow ${
-          fullWidth ? "w-full justify-between" : ""
-        }`}
-      >
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-linear-to-br from-blue-500 to-blue-700 text-xs font-bold text-white uppercase">
-          {initials}
-        </span>
-        <span
-          className={
-            fullWidth
-              ? "max-w-40 truncate"
-              : "hidden max-w-32 truncate sm:inline"
-          }
+      {fullWidth ? (
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
         >
-          {label}
-        </span>
-        <ChevronDown
-          className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-linear-to-br from-blue-500 to-blue-700 text-xs font-bold text-white uppercase">
+              {initials}
+            </span>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-slate-900 leading-tight">
+                Hi, @{username}
+              </p>
+              {email ? (
+                <p className="text-xs text-slate-500 truncate max-w-44 leading-tight">
+                  {email}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <ChevronDown
+            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="group flex items-center gap-3 text-left transition focus:outline-none cursor-pointer"
+        >
+          <div className="hidden text-right sm:block">
+            <p
+              className={`text-sm font-bold leading-tight transition-colors ${
+                isHero ? "text-white" : "text-slate-900"
+              }`}
+            >
+              Hi, @{username}
+            </p>
+            {email ? (
+              <p
+                className={`text-xs leading-tight transition-colors truncate max-w-44 mt-0.5 ${
+                  isHero ? "text-white/75" : "text-slate-500"
+                }`}
+              >
+                {email}
+              </p>
+            ) : null}
+          </div>
+
+          {/* Avatar without border or check badge */}
+          <div className="relative shrink-0">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-linear-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white uppercase overflow-hidden shadow-sm transition-transform duration-200 group-hover:scale-105">
+              {user.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={label}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span>{initials}</span>
+              )}
+            </div>
+          </div>
+        </button>
+      )}
 
       {open ? (
         <div className="animate-menu-in absolute right-0 z-30 mt-2 w-56 origin-top-right rounded-2xl border border-slate-200/70 bg-white/95 p-1.5 shadow-xl shadow-slate-900/10 backdrop-blur-xl">
@@ -176,7 +252,9 @@ export default function AuthButton({ fullWidth = false }) {
               ) : null}
             </div>
             {user.email ? (
-              <p className="truncate text-xs text-slate-500 mt-0.5">{user.email}</p>
+              <p className="truncate text-xs text-slate-500 mt-0.5">
+                {user.email}
+              </p>
             ) : null}
           </div>
           <div className="my-1 h-px bg-slate-100" />
@@ -196,7 +274,9 @@ export default function AuthButton({ fullWidth = false }) {
             <UserRound className="h-4 w-4 text-blue-500" />
             โปรไฟล์
           </Link>
-          {(roleName?.toLowerCase() === "admin" || roleName?.toLowerCase() === "staff" || user?.isEmployee) && (
+          {(roleName?.toLowerCase() === "admin" ||
+            roleName?.toLowerCase() === "staff" ||
+            user?.isEmployee) && (
             <Link
               href="/backoffice/dashboard"
               onClick={() => setOpen(false)}

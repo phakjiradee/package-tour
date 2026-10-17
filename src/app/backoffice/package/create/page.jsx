@@ -34,7 +34,7 @@ import {
   MessageSquare,
   ShieldCheck,
   AlertCircle,
-  Archive
+  Archive,
 } from "lucide-react";
 import PartnerModal from "@/components/partner/PartnerModal";
 import { partnerService, partnerTypeService } from "@/service/partner";
@@ -183,7 +183,9 @@ export default function CreatePackagePage() {
     setPackageData((prev) => {
       const currentIds = prev.partner_ids || [];
       const exists = currentIds.includes(pId);
-      const newIds = exists ? currentIds.filter((id) => id !== pId) : [...currentIds, pId];
+      const newIds = exists
+        ? currentIds.filter((id) => id !== pId)
+        : [...currentIds, pId];
       return {
         ...prev,
         partner_ids: newIds,
@@ -214,7 +216,9 @@ export default function CreatePackagePage() {
       showFeedback({
         type: "error",
         title: "สร้างพาร์ทเนอร์ไม่สำเร็จ",
-        message: error.response?.data?.message || "ไม่สามารถสร้างพาร์ทเนอร์ได้ โปรดตรวจสอบข้อมูล",
+        message:
+          error.response?.data?.message ||
+          "ไม่สามารถสร้างพาร์ทเนอร์ได้ โปรดตรวจสอบข้อมูล",
       });
     }
   };
@@ -254,7 +258,10 @@ export default function CreatePackagePage() {
   const checkGuideConflict = (emp) => {
     if (!emp || !emp.assignments || emp.assignments.length === 0) return null;
     const travelStart = packageData.start_date || packageData.days[0]?.dt;
-    const travelEnd = packageData.end_date || [...packageData.days].reverse().find((d) => d.dt)?.dt || travelStart;
+    const travelEnd =
+      packageData.end_date ||
+      [...packageData.days].reverse().find((d) => d.dt)?.dt ||
+      travelStart;
     if (!travelStart) return null;
 
     const sA = new Date(travelStart.split("T")[0]).getTime();
@@ -264,7 +271,9 @@ export default function CreatePackagePage() {
       if (!assign.start_date) continue;
 
       const sB = new Date(String(assign.start_date).split("T")[0]).getTime();
-      const eB = new Date(String(assign.end_date || assign.start_date).split("T")[0]).getTime();
+      const eB = new Date(
+        String(assign.end_date || assign.start_date).split("T")[0],
+      ).getTime();
 
       // ช่วงวันทับซ้อนกัน: sA <= eB && eA >= sB
       if (sA <= eB && eA >= sB) {
@@ -275,11 +284,19 @@ export default function CreatePackagePage() {
   };
 
   const addGuide = () => {
-    const guidesOnly = employeesList.filter((e) => e.role === "ไกด์" || e.position === "ไกด์");
-    const assignedIds = new Set((packageData.guides || []).map((g) => parseInt(g.emp_id)));
+    const guidesOnly = employeesList.filter(
+      (e) => e.role === "ไกด์" || e.position === "ไกด์",
+    );
+    const assignedIds = new Set(
+      (packageData.guides || []).map((g) => parseInt(g.emp_id)),
+    );
     // เลือกไกด์ที่ยังไม่ถูกมอบหมายในทริปนี้ และไม่มีงานซ้อน
-    const available = guidesOnly.find((e) => !assignedIds.has(e.id) && !checkGuideConflict(e));
-    const defaultEmpId = available ? available.id : (guidesOnly.find((e) => !assignedIds.has(e.id))?.id || "");
+    const available = guidesOnly.find(
+      (e) => !assignedIds.has(e.id) && !checkGuideConflict(e),
+    );
+    const defaultEmpId = available
+      ? available.id
+      : guidesOnly.find((e) => !assignedIds.has(e.id))?.id || "";
 
     setPackageData((prev) => ({
       ...prev,
@@ -287,7 +304,10 @@ export default function CreatePackagePage() {
         ...(prev.guides || []),
         {
           emp_id: defaultEmpId ? String(defaultEmpId) : "",
-          role: (!prev.guides || prev.guides.length === 0) ? "LEAD_GUIDE" : "ASSISTANT_GUIDE",
+          role:
+            !prev.guides || prev.guides.length === 0
+              ? "LEAD_GUIDE"
+              : "ASSISTANT_GUIDE",
           note: "",
         },
       ],
@@ -327,7 +347,8 @@ export default function CreatePackagePage() {
         // วันเริ่มเดินทาง = วันที่ของ Day 1
         const firstDayDt = newDays[0]?.dt || "";
         // วันสิ้นสุดเดินทาง = วันที่ของวันสุดท้ายที่มีการกำหนดวันที่
-        const lastDayDt = [...newDays].reverse().find((d) => d.dt)?.dt || firstDayDt;
+        const lastDayDt =
+          [...newDays].reverse().find((d) => d.dt)?.dt || firstDayDt;
 
         let bStart = prev.booking_start_date;
         let bEnd = prev.booking_end_date;
@@ -359,7 +380,10 @@ export default function CreatePackagePage() {
   const toggleDayExpand = (dayIndex) => {
     setPackageData((prev) => {
       const newDays = [...prev.days];
-      newDays[dayIndex] = { ...newDays[dayIndex], isExpanded: !newDays[dayIndex].isExpanded };
+      newDays[dayIndex] = {
+        ...newDays[dayIndex],
+        isExpanded: !newDays[dayIndex].isExpanded,
+      };
       return { ...prev, days: newDays };
     });
   };
@@ -393,7 +417,8 @@ export default function CreatePackagePage() {
       ];
 
       const firstDayDt = newDays[0]?.dt || "";
-      const lastDayDt = [...newDays].reverse().find((d) => d.dt)?.dt || firstDayDt;
+      const lastDayDt =
+        [...newDays].reverse().find((d) => d.dt)?.dt || firstDayDt;
 
       return {
         ...prev,
@@ -409,7 +434,8 @@ export default function CreatePackagePage() {
       const newDays = prev.days.filter((_, i) => i !== indexToRemove);
       const updatedDays = newDays.map((day, i) => ({ ...day, day_num: i + 1 }));
       const firstDayDt = updatedDays[0]?.dt || "";
-      const lastDayDt = [...updatedDays].reverse().find((d) => d.dt)?.dt || firstDayDt;
+      const lastDayDt =
+        [...updatedDays].reverse().find((d) => d.dt)?.dt || firstDayDt;
       return {
         ...prev,
         days: updatedDays,
@@ -432,7 +458,11 @@ export default function CreatePackagePage() {
           landmark: "",
         },
       ];
-      newDays[dayIndex] = { ...newDays[dayIndex], activities: newActivities, isExpanded: true };
+      newDays[dayIndex] = {
+        ...newDays[dayIndex],
+        activities: newActivities,
+        isExpanded: true,
+      };
       return { ...prev, days: newDays };
     });
   };
@@ -450,7 +480,9 @@ export default function CreatePackagePage() {
   const removeActivity = (dayIndex, actIndex) => {
     setPackageData((prev) => {
       const newDays = [...prev.days];
-      const newActivities = newDays[dayIndex].activities.filter((_, i) => i !== actIndex);
+      const newActivities = newDays[dayIndex].activities.filter(
+        (_, i) => i !== actIndex,
+      );
       newDays[dayIndex] = { ...newDays[dayIndex], activities: newActivities };
       return { ...prev, days: newDays };
     });
@@ -461,9 +493,15 @@ export default function CreatePackagePage() {
       const newDays = [...prev.days];
       const meals = [...newDays[dayIndex].meals];
       if (meals.includes(mealType)) {
-        newDays[dayIndex] = { ...newDays[dayIndex], meals: meals.filter((m) => m !== mealType) };
+        newDays[dayIndex] = {
+          ...newDays[dayIndex],
+          meals: meals.filter((m) => m !== mealType),
+        };
       } else {
-        newDays[dayIndex] = { ...newDays[dayIndex], meals: [...meals, mealType] };
+        newDays[dayIndex] = {
+          ...newDays[dayIndex],
+          meals: [...meals, mealType],
+        };
       }
       return { ...prev, days: newDays };
     });
@@ -474,20 +512,24 @@ export default function CreatePackagePage() {
       showFeedback({
         type: "warning",
         title: "กรุณาระบุชื่อแพ็กเกจ",
-        message: "กรุณากรอกชื่อแพ็กเกจท่องเที่ยว (Package Title) ก่อนทำการบันทึก",
+        message:
+          "กรุณากรอกชื่อแพ็กเกจท่องเที่ยว (Package Title) ก่อนทำการบันทึก",
       });
       return;
     }
 
     // ตรวจสอบบุคลากร: ต้องเป็น role 'ไกด์' เท่านั้น และไม่มีงานซ้อนในวันเวลาเดียวกัน
     if (Array.isArray(packageData.guides) && packageData.guides.length > 0) {
-      const selectedEmpIds = packageData.guides.map((g) => g.emp_id).filter(Boolean);
+      const selectedEmpIds = packageData.guides
+        .map((g) => g.emp_id)
+        .filter(Boolean);
       const uniqueIds = new Set(selectedEmpIds);
       if (uniqueIds.size !== selectedEmpIds.length) {
         showFeedback({
           type: "warning",
           title: "มีรายชื่อไกด์ซ้ำกัน",
-          message: "คุณได้เลือกไกด์คนเดียวกันซ้ำในรายการ กรุณาเลือกไกด์ที่ไม่ซ้ำกันก่อนบันทึก",
+          message:
+            "คุณได้เลือกไกด์คนเดียวกันซ้ำในรายการ กรุณาเลือกไกด์ที่ไม่ซ้ำกันก่อนบันทึก",
         });
         return;
       }
@@ -497,12 +539,15 @@ export default function CreatePackagePage() {
           showFeedback({
             type: "warning",
             title: "กรุณาเลือกไกด์ให้ครบถ้วน",
-            message: "มีรายการมอบหมายงานที่ยังไม่ได้เลือกไกด์ กรุณาเลือกไกด์หรือลบรายการที่ไม่ใช้ออก",
+            message:
+              "มีรายการมอบหมายงานที่ยังไม่ได้เลือกไกด์ กรุณาเลือกไกด์หรือลบรายการที่ไม่ใช้ออก",
           });
           return;
         }
 
-        const emp = employeesList.find((e) => String(e.id) === String(g.emp_id));
+        const emp = employeesList.find(
+          (e) => String(e.id) === String(g.emp_id),
+        );
         if (emp && emp.role !== "ไกด์" && emp.position !== "ไกด์") {
           showFeedback({
             type: "error",
@@ -536,7 +581,8 @@ export default function CreatePackagePage() {
         showFeedback({
           type: "success",
           title: "สร้างแพ็กเกจสำเร็จเรียบร้อยแล้ว!",
-          message: "แพ็กเกจใหม่ถูกบันทึกเข้าสู่ระบบเรียบร้อยแล้ว พร้อมสำหรับการเผยแพร่",
+          message:
+            "แพ็กเกจใหม่ถูกบันทึกเข้าสู่ระบบเรียบร้อยแล้ว พร้อมสำหรับการเผยแพร่",
           confirmText: "ไปยังหน้ารายการ",
           onConfirm: () => router.push("/backoffice/package"),
         });
@@ -544,7 +590,10 @@ export default function CreatePackagePage() {
         showFeedback({
           type: "error",
           title: "บันทึกไม่สำเร็จ",
-          message: data.message || data.error || "เกิดข้อผิดพลาดในการสร้างแพ็กเกจ กรุณาลองใหม่อีกครั้ง",
+          message:
+            data.message ||
+            data.error ||
+            "เกิดข้อผิดพลาดในการสร้างแพ็กเกจ กรุณาลองใหม่อีกครั้ง",
         });
       }
     } catch (error) {
@@ -563,7 +612,8 @@ export default function CreatePackagePage() {
     showFeedback({
       type: "warning",
       title: "ยืนยันการยกเลิกการสร้างแพ็กเกจ",
-      message: "ข้อมูลที่คุณกรอกอาจไม่ได้รับการบันทึก คุณแน่ใจหรือไม่ว่าต้องการยกเลิกและกลับไปยังหน้ารายการ?",
+      message:
+        "ข้อมูลที่คุณกรอกอาจไม่ได้รับการบันทึก คุณแน่ใจหรือไม่ว่าต้องการยกเลิกและกลับไปยังหน้ารายการ?",
       confirmText: "ใช่, ยกเลิกและออก",
       cancelText: "กลับไปแก้ไขต่อ",
       onConfirm: () => {
@@ -576,7 +626,7 @@ export default function CreatePackagePage() {
   const totalDays = packageData.days.length;
   const totalActivities = packageData.days.reduce(
     (sum, day) => sum + day.activities.length,
-    0
+    0,
   );
 
   return (
@@ -645,53 +695,74 @@ export default function CreatePackagePage() {
 
       {/* Quick Navigation Anchor Bar */}
       <div className="sticky top-32 z-20 bg-white/95 backdrop-blur-xs border-b border-slate-200 px-6 py-2 flex items-center gap-2 overflow-x-auto text-xs font-semibold shadow-xs">
-        <a href="#overview" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+        <a
+          href="#overview"
+          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
           1. ข้อมูลพื้นฐาน
         </a>
-        <a href="#gallery" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+        <a
+          href="#gallery"
+          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
           2. รูปภาพ ({packageData.images?.length || 0})
         </a>
-        <a href="#partners" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+        <a
+          href="#partners"
+          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
           3. ผู้ให้บริการร่วม ({packageData.partner_ids?.length || 0})
         </a>
-        <a href="#guides" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+        <a
+          href="#guides"
+          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
           4. ไกด์และทีมงาน ({packageData.guides?.length || 0})
         </a>
-        <a href="#addons" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+        <a
+          href="#addons"
+          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
           5. บริการเสริมพิเศษ ({packageData.addons?.length || 0})
         </a>
-        <a href="#itinerary" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+        <a
+          href="#itinerary"
+          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
           6. แผนการเดินทาง ({packageData.days?.length || 0} วัน)
         </a>
       </div>
 
       {/* Main Layout Workspace */}
       <div className="mx-auto max-w-7xl p-6 lg:flex lg:gap-8 lg:p-8">
-        
         {/* Left Column: Canvas (Overview + Partners + Timeline Builder) */}
         <div className="flex-1 space-y-8 pb-20">
-          
           {/* SECTION: Overview */}
           <section id="overview" className="scroll-mt-44">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">ข้อมูลพื้นฐานแพ็กเกจ</h2>
+                <h2 className="text-xl font-bold text-slate-900">
+                  ข้อมูลพื้นฐานแพ็กเกจ
+                </h2>
                 <p className="text-sm text-slate-500 mt-0.5">
                   ระบุชื่อ รายละเอียด และจุดหมายปลายทางหลักของโปรแกรมทัวร์
                 </p>
               </div>
             </div>
-            
+
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
               <div className="space-y-6">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                    ชื่อแพ็กเกจท่องเที่ยว <span className="text-red-500">*</span>
+                    ชื่อแพ็กเกจท่องเที่ยว{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={packageData.name}
-                    onChange={(e) => handlePackageChange("name", e.target.value)}
+                    onChange={(e) =>
+                      handlePackageChange("name", e.target.value)
+                    }
                     placeholder="เช่น ทริป 3 วัน 2 คืน: มนต์เสน่ห์ทะเลกระบี่ & ดำน้ำ 4 เกาะ ทะเลแหวก"
                     className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-base text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                   />
@@ -704,7 +775,9 @@ export default function CreatePackagePage() {
                   <textarea
                     rows={4}
                     value={packageData.description}
-                    onChange={(e) => handlePackageChange("description", e.target.value)}
+                    onChange={(e) =>
+                      handlePackageChange("description", e.target.value)
+                    }
                     placeholder="ระบุภาพรวมของโปรแกรมทัวร์ ไฮไลท์สำคัญ และประสบการณ์พิเศษที่นักท่องเที่ยวจะได้รับ..."
                     className="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                   />
@@ -721,13 +794,16 @@ export default function CreatePackagePage() {
                       </div>
                       <select
                         value={packageData.location_id}
-                        onChange={(e) => handlePackageChange("location_id", e.target.value)}
+                        onChange={(e) =>
+                          handlePackageChange("location_id", e.target.value)
+                        }
                         className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                       >
                         <option value="">เลือกจุดหมายปลายทางหลัก</option>
                         {locationsList.map((loc) => (
                           <option key={loc.id} value={loc.id}>
-                            {loc.name} {loc.lct_type?.name ? `(${loc.lct_type.name})` : ""}
+                            {loc.name}{" "}
+                            {loc.lct_type?.name ? `(${loc.lct_type.name})` : ""}
                           </option>
                         ))}
                       </select>
@@ -759,7 +835,9 @@ export default function CreatePackagePage() {
               <PackageImageUploader
                 images={packageData.images || []}
                 onChange={(updatedImages) => {
-                  const cover = updatedImages.find((img) => img.is_cover) || updatedImages[0];
+                  const cover =
+                    updatedImages.find((img) => img.is_cover) ||
+                    updatedImages[0];
                   setPackageData((prev) => ({
                     ...prev,
                     images: updatedImages,
@@ -779,7 +857,8 @@ export default function CreatePackagePage() {
                   พันธมิตรและผู้ให้บริการร่วม
                 </h2>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  เชื่อมโยงโรงแรม ที่พัก รถรับส่ง หรือบริการที่เกี่ยวข้องกับแพ็กเกจนี้
+                  เชื่อมโยงโรงแรม ที่พัก รถรับส่ง
+                  หรือบริการที่เกี่ยวข้องกับแพ็กเกจนี้
                 </p>
               </div>
               <button
@@ -800,12 +879,15 @@ export default function CreatePackagePage() {
                   </label>
                   {partnersList.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-slate-400">
-                      ยังไม่มีข้อมูลผู้ให้บริการในระบบ สามารถกดปุ่ม &quot;เพิ่มพันธมิตรใหม่&quot; ด้านบนเพื่อสร้างได้ทันที
+                      ยังไม่มีข้อมูลผู้ให้บริการในระบบ สามารถกดปุ่ม
+                      &quot;เพิ่มพันธมิตรใหม่&quot; ด้านบนเพื่อสร้างได้ทันที
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       {partnersList.map((partner) => {
-                        const isSelected = (packageData.partner_ids || []).includes(partner.id);
+                        const isSelected = (
+                          packageData.partner_ids || []
+                        ).includes(partner.id);
                         return (
                           <div
                             key={partner.id}
@@ -828,12 +910,15 @@ export default function CreatePackagePage() {
                                 </span>
                               )}
                               <div className="text-xs text-slate-500 truncate flex items-center gap-1">
-                                <Phone className="h-3 w-3 text-slate-400" /> {partner.phone}
+                                <Phone className="h-3 w-3 text-slate-400" />{" "}
+                                {partner.phone}
                               </div>
                             </div>
                             <div
                               className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
-                                isSelected ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300 bg-white"
+                                isSelected
+                                  ? "border-indigo-600 bg-indigo-600 text-white"
+                                  : "border-slate-300 bg-white"
                               }`}
                             >
                               {isSelected && <Check className="h-3.5 w-3.5" />}
@@ -849,11 +934,14 @@ export default function CreatePackagePage() {
                 {(packageData.partner_ids || []).length > 0 && (
                   <div className="pt-4 border-t border-slate-100">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                      ผู้ให้บริการที่เลือกไว้ ({packageData.partner_ids.length} ราย)
+                      ผู้ให้บริการที่เลือกไว้ ({packageData.partner_ids.length}{" "}
+                      ราย)
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {partnersList
-                        .filter((p) => (packageData.partner_ids || []).includes(p.id))
+                        .filter((p) =>
+                          (packageData.partner_ids || []).includes(p.id),
+                        )
                         .map((partner) => (
                           <span
                             key={partner.id}
@@ -894,7 +982,9 @@ export default function CreatePackagePage() {
                   <span>ทีมงานและไกด์ประจำแพ็กเกจ (Assigned Guides)</span>
                 </h2>
                 <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
-                  มอบหมายไกด์นำเที่ยวหลัก ไกด์ผู้ช่วย หรือผู้ประสานงานประจำทริป เพื่อดูแลนักท่องเที่ยวตลอดการเดินทาง (เฉพาะ Role &apos;ไกด์&apos; และไม่มีงานซ้อนในวันเวลาเดียวกัน)
+                  มอบหมายไกด์นำเที่ยวหลัก ไกด์ผู้ช่วย หรือผู้ประสานงานประจำทริป
+                  เพื่อดูแลนักท่องเที่ยวตลอดการเดินทาง (เฉพาะ Role
+                  &apos;ไกด์&apos; และไม่มีงานซ้อนในวันเวลาเดียวกัน)
                 </p>
               </div>
               <button
@@ -908,13 +998,17 @@ export default function CreatePackagePage() {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              {(!packageData.guides || packageData.guides.length === 0) ? (
+              {!packageData.guides || packageData.guides.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
                   <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
                     <UserCheck className="h-6 w-6" />
                   </div>
-                  <p className="text-sm font-medium text-slate-700 mb-1">ยังไม่มีการมอบหมายไกด์ประจำแพ็กเกจนี้</p>
-                  <p className="text-xs text-slate-500 mb-4">คุณสามารถระบุไกด์นำเที่ยวเพื่อให้นักท่องเที่ยวทราบชื่อและผู้ดูแลทริปได้</p>
+                  <p className="text-sm font-medium text-slate-700 mb-1">
+                    ยังไม่มีการมอบหมายไกด์ประจำแพ็กเกจนี้
+                  </p>
+                  <p className="text-xs text-slate-500 mb-4">
+                    คุณสามารถระบุไกด์นำเที่ยวเพื่อให้นักท่องเที่ยวทราบชื่อและผู้ดูแลทริปได้
+                  </p>
                   <button
                     type="button"
                     onClick={addGuide}
@@ -927,10 +1021,17 @@ export default function CreatePackagePage() {
               ) : (
                 <div className="space-y-4">
                   {packageData.guides.map((guide, index) => {
-                    const selectedEmp = employeesList.find((e) => e.id === parseInt(guide.emp_id));
+                    const selectedEmp = employeesList.find(
+                      (e) => e.id === parseInt(guide.emp_id),
+                    );
                     const currentConflict = checkGuideConflict(selectedEmp);
-                    const isNotGuideRole = selectedEmp && selectedEmp.role !== "ไกด์" && selectedEmp.position !== "ไกด์";
-                    const guidesList = employeesList.filter((e) => e.role === "ไกด์" || e.position === "ไกด์");
+                    const isNotGuideRole =
+                      selectedEmp &&
+                      selectedEmp.role !== "ไกด์" &&
+                      selectedEmp.position !== "ไกด์";
+                    const guidesList = employeesList.filter(
+                      (e) => e.role === "ไกด์" || e.position === "ไกด์",
+                    );
 
                     return (
                       <div
@@ -984,12 +1085,16 @@ export default function CreatePackagePage() {
                           {/* Left Profile Preview Box (4 cols) */}
                           <div className="lg:col-span-4 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 flex flex-col justify-between">
                             <div className="flex items-center gap-3.5">
-                              <div className={`h-12 w-12 rounded-xl flex items-center justify-center font-bold text-base shrink-0 shadow-xs ${
-                                guide.role === "LEAD_GUIDE" 
-                                  ? "bg-amber-100 text-amber-900 border border-amber-200"
-                                  : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                              }`}>
-                                {selectedEmp?.name ? selectedEmp.name.slice(0, 2) : "ไกด์"}
+                              <div
+                                className={`h-12 w-12 rounded-xl flex items-center justify-center font-bold text-base shrink-0 shadow-xs ${
+                                  guide.role === "LEAD_GUIDE"
+                                    ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                    : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                }`}
+                              >
+                                {selectedEmp?.name
+                                  ? selectedEmp.name.slice(0, 2)
+                                  : "ไกด์"}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="font-bold text-slate-900 text-sm truncate">
@@ -1004,7 +1109,9 @@ export default function CreatePackagePage() {
                                     <span>{selectedEmp.phone}</span>
                                   </p>
                                 ) : (
-                                  <span className="text-[11px] text-slate-400 italic">ไม่มีเบอร์โทร</span>
+                                  <span className="text-[11px] text-slate-400 italic">
+                                    ไม่มีเบอร์โทร
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -1014,9 +1121,13 @@ export default function CreatePackagePage() {
                               <div className="mt-2.5 rounded-lg bg-rose-50 border border-rose-200 p-2 text-xs text-rose-700 flex items-start gap-1.5">
                                 <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
                                 <div>
-                                  <p className="font-semibold text-rose-800">ตารางงานซ้อนทับ</p>
+                                  <p className="font-semibold text-rose-800">
+                                    ตารางงานซ้อนทับ
+                                  </p>
                                   <p className="text-[11px] text-rose-600 leading-tight mt-0.5">
-                                    ติดงานแพ็กเกจ &quot;{currentConflict.package_name}&quot; ในช่วงวันเดินทางเดียวกัน
+                                    ติดงานแพ็กเกจ &quot;
+                                    {currentConflict.package_name}&quot;
+                                    ในช่วงวันเดินทางเดียวกัน
                                   </p>
                                 </div>
                               </div>
@@ -1026,22 +1137,29 @@ export default function CreatePackagePage() {
                               <div className="mt-2.5 rounded-lg bg-amber-50 border border-amber-200 p-2 text-xs text-amber-800 flex items-start gap-1.5">
                                 <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
                                 <div>
-                                  <p className="font-semibold text-amber-900">ไม่ใช่ตำแหน่งไกด์</p>
+                                  <p className="font-semibold text-amber-900">
+                                    ไม่ใช่ตำแหน่งไกด์
+                                  </p>
                                   <p className="text-[11px] text-amber-700 leading-tight mt-0.5">
-                                    พนักงานนี้มีตำแหน่ง &quot;{selectedEmp.position || selectedEmp.role}&quot; ต้องเป็นตำแหน่ง &quot;ไกด์&quot; เท่านั้น
+                                    พนักงานนี้มีตำแหน่ง &quot;
+                                    {selectedEmp.position || selectedEmp.role}
+                                    &quot; ต้องเป็นตำแหน่ง &quot;ไกด์&quot;
+                                    เท่านั้น
                                   </p>
                                 </div>
                               </div>
                             )}
 
-                            {selectedEmp && !currentConflict && !isNotGuideRole && (
-                              <div className="mt-2.5">
-                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                                  <span>พร้อมรับงาน (ตารางว่าง)</span>
-                                </span>
-                              </div>
-                            )}
+                            {selectedEmp &&
+                              !currentConflict &&
+                              !isNotGuideRole && (
+                                <div className="mt-2.5">
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                    <span>พร้อมรับงาน (ตารางว่าง)</span>
+                                  </span>
+                                </div>
+                              )}
                           </div>
 
                           {/* Right Controls (8 cols) */}
@@ -1051,25 +1169,35 @@ export default function CreatePackagePage() {
                                 <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
                                   <span className="flex items-center gap-1">
                                     <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
-                                    <span>เลือกไกด์นำเที่ยว (Role ไกด์เท่านั้น)</span>
+                                    <span>
+                                      เลือกไกด์นำเที่ยว (Role ไกด์เท่านั้น)
+                                    </span>
                                   </span>
                                 </label>
                                 <select
                                   value={guide.emp_id}
-                                  onChange={(e) => updateGuide(index, "emp_id", e.target.value)}
+                                  onChange={(e) =>
+                                    updateGuide(index, "emp_id", e.target.value)
+                                  }
                                   className={`w-full rounded-xl border bg-white px-3.5 py-2 text-sm text-slate-800 shadow-xs outline-none transition-all focus:ring-2 ${
                                     currentConflict || isNotGuideRole
                                       ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100"
                                       : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-100"
                                   }`}
                                 >
-                                  <option value="">-- เลือกไกด์นำเที่ยว --</option>
+                                  <option value="">
+                                    -- เลือกไกด์นำเที่ยว --
+                                  </option>
                                   {guidesList.map((emp) => {
-                                    const isSelectedInOther = packageData.guides.some(
-                                      (g, gIdx) => gIdx !== index && String(g.emp_id) === String(emp.id)
-                                    );
+                                    const isSelectedInOther =
+                                      packageData.guides.some(
+                                        (g, gIdx) =>
+                                          gIdx !== index &&
+                                          String(g.emp_id) === String(emp.id),
+                                      );
                                     const conflict = checkGuideConflict(emp);
-                                    const isDisabled = isSelectedInOther || !!conflict;
+                                    const isDisabled =
+                                      isSelectedInOther || !!conflict;
 
                                     let statusLabel = "• ว่าง";
                                     if (isSelectedInOther) {
@@ -1084,14 +1212,16 @@ export default function CreatePackagePage() {
                                         value={emp.id}
                                         disabled={isDisabled}
                                       >
-                                        {emp.name} {statusLabel} {emp.phone ? `(โทร ${emp.phone})` : ""}
+                                        {emp.name} {statusLabel}{" "}
+                                        {emp.phone ? `(โทร ${emp.phone})` : ""}
                                       </option>
                                     );
                                   })}
                                 </select>
                                 {guidesList.length === 0 && (
                                   <p className="text-[11px] text-amber-600 mt-1">
-                                    ⚠️ ไม่พบพนักงานที่มีบทบาท &apos;ไกด์&apos; ในระบบ
+                                    ⚠️ ไม่พบพนักงานที่มีบทบาท &apos;ไกด์&apos;
+                                    ในระบบ
                                   </p>
                                 )}
                               </div>
@@ -1103,12 +1233,20 @@ export default function CreatePackagePage() {
                                 </label>
                                 <select
                                   value={guide.role || "LEAD_GUIDE"}
-                                  onChange={(e) => updateGuide(index, "role", e.target.value)}
+                                  onChange={(e) =>
+                                    updateGuide(index, "role", e.target.value)
+                                  }
                                   className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-800 shadow-xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                                 >
-                                  <option value="LEAD_GUIDE">ไกด์หลัก (Lead Guide)</option>
-                                  <option value="ASSISTANT_GUIDE">ไกด์ผู้ช่วย (Assistant Guide)</option>
-                                  <option value="COORDINATOR">ผู้ประสานงานทริป (Coordinator)</option>
+                                  <option value="LEAD_GUIDE">
+                                    ไกด์หลัก (Lead Guide)
+                                  </option>
+                                  <option value="ASSISTANT_GUIDE">
+                                    ไกด์ผู้ช่วย (Assistant Guide)
+                                  </option>
+                                  <option value="COORDINATOR">
+                                    ผู้ประสานงานทริป (Coordinator)
+                                  </option>
                                 </select>
                               </div>
                             </div>
@@ -1116,12 +1254,16 @@ export default function CreatePackagePage() {
                             <div>
                               <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
                                 <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
-                                <span>หมายเหตุ / ทักษะภาษา / ความเชี่ยวชาญ</span>
+                                <span>
+                                  หมายเหตุ / ทักษะภาษา / ความเชี่ยวชาญ
+                                </span>
                               </label>
                               <input
                                 type="text"
                                 value={guide.note || ""}
-                                onChange={(e) => updateGuide(index, "note", e.target.value)}
+                                onChange={(e) =>
+                                  updateGuide(index, "note", e.target.value)
+                                }
                                 placeholder="เช่น ชำนาญภาษาอังกฤษ-จีน, ดูแลกลุ่ม VIP, เชี่ยวชาญเส้นทางเดินป่า"
                                 className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 shadow-xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                               />
@@ -1145,7 +1287,8 @@ export default function CreatePackagePage() {
                   บริการเสริมและตัวเลือกพิเศษ
                 </h2>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  ระบุบริการที่ลูกค้าสามารถเลือกซื้อเพิ่มได้ระหว่างทำการจอง (เช่น ประกันภัย, อุปกรณ์พิเศษ, รถรับส่ง)
+                  ระบุบริการที่ลูกค้าสามารถเลือกซื้อเพิ่มได้ระหว่างทำการจอง
+                  (เช่น ประกันภัย, อุปกรณ์พิเศษ, รถรับส่ง)
                 </p>
               </div>
               <button
@@ -1159,9 +1302,11 @@ export default function CreatePackagePage() {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              {(!packageData.addons || packageData.addons.length === 0) ? (
+              {!packageData.addons || packageData.addons.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
-                  <p className="text-sm text-slate-500 mb-3">ยังไม่มีบริการเสริมสำหรับแพ็กเกจนี้</p>
+                  <p className="text-sm text-slate-500 mb-3">
+                    ยังไม่มีบริการเสริมสำหรับแพ็กเกจนี้
+                  </p>
                   <button
                     type="button"
                     onClick={addAddon}
@@ -1185,7 +1330,9 @@ export default function CreatePackagePage() {
                         <input
                           type="text"
                           value={addon.addon_name}
-                          onChange={(e) => updateAddon(index, "addon_name", e.target.value)}
+                          onChange={(e) =>
+                            updateAddon(index, "addon_name", e.target.value)
+                          }
                           placeholder="เช่น ประกันอุบัติเหตุการเดินทาง, รถตู้รับ-ส่งสนามบิน"
                           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
@@ -1197,12 +1344,16 @@ export default function CreatePackagePage() {
                         </label>
                         <div className="relative">
                           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <span className="text-xs text-slate-400 font-semibold">฿</span>
+                            <span className="text-xs text-slate-400 font-semibold">
+                              ฿
+                            </span>
                           </div>
                           <input
                             type="number"
                             value={addon.price}
-                            onChange={(e) => updateAddon(index, "price", e.target.value)}
+                            onChange={(e) =>
+                              updateAddon(index, "price", e.target.value)
+                            }
                             placeholder="0.00"
                             className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-7 pr-3 text-sm text-slate-900 outline-none focus:border-indigo-500"
                           />
@@ -1216,7 +1367,9 @@ export default function CreatePackagePage() {
                         <input
                           type="number"
                           value={addon.max_limit}
-                          onChange={(e) => updateAddon(index, "max_limit", e.target.value)}
+                          onChange={(e) =>
+                            updateAddon(index, "max_limit", e.target.value)
+                          }
                           placeholder="20"
                           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500"
                         />
@@ -1228,7 +1381,9 @@ export default function CreatePackagePage() {
                         </label>
                         <select
                           value={addon.status}
-                          onChange={(e) => updateAddon(index, "status", Number(e.target.value))}
+                          onChange={(e) =>
+                            updateAddon(index, "status", Number(e.target.value))
+                          }
                           className="w-full rounded-lg border border-slate-300 bg-white py-2 px-2.5 text-xs text-slate-900 outline-none focus:border-indigo-500 font-medium"
                         >
                           <option value={1}>เปิดให้เลือกซื้อ</option>
@@ -1257,8 +1412,13 @@ export default function CreatePackagePage() {
           <section id="itinerary" className="scroll-mt-44">
             <div className="flex items-center justify-between mb-4 mt-8">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">แผนการเดินทางและกิจกรรม</h2>
-                <p className="text-sm text-slate-500 mt-1">กำหนดรายละเอียด กิจกรรม ที่พัก และมื้ออาหารในแต่ละวันอย่างเป็นลำดับ</p>
+                <h2 className="text-xl font-bold text-slate-900">
+                  แผนการเดินทางและกิจกรรม
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  กำหนดรายละเอียด กิจกรรม ที่พัก
+                  และมื้ออาหารในแต่ละวันอย่างเป็นลำดับ
+                </p>
               </div>
             </div>
 
@@ -1282,7 +1442,9 @@ export default function CreatePackagePage() {
                       >
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 sm:hidden">
-                            <span className="text-xs font-bold">D{day.day_num}</span>
+                            <span className="text-xs font-bold">
+                              D{day.day_num}
+                            </span>
                           </div>
                           <div>
                             <h3 className="font-semibold text-slate-900 text-base">
@@ -1315,7 +1477,11 @@ export default function CreatePackagePage() {
                             <Trash2 className="h-4 w-4" />
                           </button>
                           <div className="rounded-lg p-2 text-slate-400">
-                            {day.isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                            {day.isExpanded ? (
+                              <ChevronUp className="h-5 w-5" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5" />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1331,7 +1497,13 @@ export default function CreatePackagePage() {
                               <input
                                 type="text"
                                 value={day.title}
-                                onChange={(e) => handleDayChange(dayIndex, "title", e.target.value)}
+                                onChange={(e) =>
+                                  handleDayChange(
+                                    dayIndex,
+                                    "title",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="เช่น ออกเดินทางสู่กระบี่ • ล่องเรือหางยาวชมทะเลแหวก"
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               />
@@ -1339,23 +1511,38 @@ export default function CreatePackagePage() {
                             <div>
                               <div className="flex items-center justify-between mb-1">
                                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                  วันที่เดินทาง {dayIndex === 0 ? "(วันแรก / วันเริ่มเดินทาง)" : ""}
+                                  วันที่เดินทาง{" "}
+                                  {dayIndex === 0
+                                    ? "(วันแรก / วันเริ่มเดินทาง)"
+                                    : ""}
                                 </label>
-                                {dayIndex > 0 && (packageData.days[dayIndex - 1]?.dt || packageData.days[0]?.dt) && (
-                                  <span className="text-[10px] text-indigo-600 font-semibold">
-                                    ล็อคไม่ต่ำกว่า {packageData.days[dayIndex - 1]?.dt || packageData.days[0]?.dt}
-                                  </span>
-                                )}
+                                {dayIndex > 0 &&
+                                  (packageData.days[dayIndex - 1]?.dt ||
+                                    packageData.days[0]?.dt) && (
+                                    <span className="text-[10px] text-indigo-600 font-semibold">
+                                      ล็อคไม่ต่ำกว่า{" "}
+                                      {packageData.days[dayIndex - 1]?.dt ||
+                                        packageData.days[0]?.dt}
+                                    </span>
+                                  )}
                               </div>
                               <input
                                 type="date"
                                 value={day.dt || ""}
                                 min={
                                   dayIndex > 0
-                                    ? packageData.days[dayIndex - 1]?.dt || packageData.days[0]?.dt || undefined
+                                    ? packageData.days[dayIndex - 1]?.dt ||
+                                      packageData.days[0]?.dt ||
+                                      undefined
                                     : undefined
                                 }
-                                onChange={(e) => handleDayChange(dayIndex, "dt", e.target.value)}
+                                onChange={(e) =>
+                                  handleDayChange(
+                                    dayIndex,
+                                    "dt",
+                                    e.target.value,
+                                  )
+                                }
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               />
                             </div>
@@ -1366,7 +1553,13 @@ export default function CreatePackagePage() {
                               <textarea
                                 rows={2}
                                 value={day.description}
-                                onChange={(e) => handleDayChange(dayIndex, "description", e.target.value)}
+                                onChange={(e) =>
+                                  handleDayChange(
+                                    dayIndex,
+                                    "description",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="ระบุกำหนดการและกิจกรรมสำคัญในวันนี้อย่างกระชับ..."
                                 className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               />
@@ -1379,14 +1572,23 @@ export default function CreatePackagePage() {
                           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                             <div>
                               <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                <Map className="h-3.5 w-3.5" /> จุดท่องเที่ยว / ปลายทางของวันนี้
+                                <Map className="h-3.5 w-3.5" /> จุดท่องเที่ยว /
+                                ปลายทางของวันนี้
                               </label>
                               <select
                                 value={day.id_location || day.location_id || ""}
-                                onChange={(e) => handleDayChange(dayIndex, "id_location", e.target.value)}
+                                onChange={(e) =>
+                                  handleDayChange(
+                                    dayIndex,
+                                    "id_location",
+                                    e.target.value,
+                                  )
+                                }
                                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               >
-                                <option value="">ตามจุดหมายหลักของแพ็กเกจ</option>
+                                <option value="">
+                                  ตามจุดหมายหลักของแพ็กเกจ
+                                </option>
                                 {locationsList.map((loc) => (
                                   <option key={loc.id} value={loc.id}>
                                     {loc.name}
@@ -1396,19 +1598,27 @@ export default function CreatePackagePage() {
                             </div>
                             <div>
                               <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                <Hotel className="h-3.5 w-3.5" /> โรงแรม / ที่พัก
+                                <Hotel className="h-3.5 w-3.5" /> โรงแรม /
+                                ที่พัก
                               </label>
                               <input
                                 type="text"
                                 value={day.hotel}
-                                onChange={(e) => handleDayChange(dayIndex, "hotel", e.target.value)}
+                                onChange={(e) =>
+                                  handleDayChange(
+                                    dayIndex,
+                                    "hotel",
+                                    e.target.value,
+                                  )
+                                }
                                 placeholder="เช่น อ่าวนาง คลิฟฟ์ บีช รีสอร์ท หรือระบุชื่อที่พัก"
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                               />
                             </div>
                             <div>
                               <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                <Utensils className="h-3.5 w-3.5" /> มื้ออาหารที่รวมในทริป
+                                <Utensils className="h-3.5 w-3.5" />{" "}
+                                มื้ออาหารที่รวมในทริป
                               </label>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {[
@@ -1428,7 +1638,9 @@ export default function CreatePackagePage() {
                                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                                       }`}
                                     >
-                                      {isSelected && <Check className="h-3 w-3" />}
+                                      {isSelected && (
+                                        <Check className="h-3 w-3" />
+                                      )}
                                       {label}
                                     </button>
                                   );
@@ -1441,7 +1653,8 @@ export default function CreatePackagePage() {
                           <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50/50 p-1">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border-b border-slate-200/60">
                               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                                <Clock className="h-3.5 w-3.5" /> กำหนดการและกิจกรรม ({day.activities.length})
+                                <Clock className="h-3.5 w-3.5" />{" "}
+                                กำหนดการและกิจกรรม ({day.activities.length})
                               </h4>
                               <button
                                 type="button"
@@ -1454,7 +1667,11 @@ export default function CreatePackagePage() {
 
                             <div className="p-3 space-y-3">
                               {day.activities.length === 0 ? (
-                                <p className="text-center py-4 text-xs text-slate-400">ยังไม่มีกิจกรรมในวันนี้ กด &quot;เพิ่มกิจกรรม&quot; ด้านบนเพื่อระบุกิจกรรม</p>
+                                <p className="text-center py-4 text-xs text-slate-400">
+                                  ยังไม่มีกิจกรรมในวันนี้ กด
+                                  &quot;เพิ่มกิจกรรม&quot;
+                                  ด้านบนเพื่อระบุกิจกรรม
+                                </p>
                               ) : (
                                 day.activities.map((act, actIndex) => (
                                   <div
@@ -1465,7 +1682,14 @@ export default function CreatePackagePage() {
                                       <input
                                         type="text"
                                         value={act.time}
-                                        onChange={(e) => updateActivity(dayIndex, actIndex, "time", e.target.value)}
+                                        onChange={(e) =>
+                                          updateActivity(
+                                            dayIndex,
+                                            actIndex,
+                                            "time",
+                                            e.target.value,
+                                          )
+                                        }
                                         placeholder="09:00 - 10:30"
                                         className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs outline-none focus:border-indigo-500"
                                       />
@@ -1474,7 +1698,14 @@ export default function CreatePackagePage() {
                                       <input
                                         type="text"
                                         value={act.activity}
-                                        onChange={(e) => updateActivity(dayIndex, actIndex, "activity", e.target.value)}
+                                        onChange={(e) =>
+                                          updateActivity(
+                                            dayIndex,
+                                            actIndex,
+                                            "activity",
+                                            e.target.value,
+                                          )
+                                        }
                                         placeholder="รายละเอียดกิจกรรม เช่น ดำน้ำตื้นชมปะการังเกาะไก่"
                                         className="w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs outline-none focus:border-indigo-500"
                                       />
@@ -1483,7 +1714,14 @@ export default function CreatePackagePage() {
                                       <input
                                         type="text"
                                         value={act.landmark}
-                                        onChange={(e) => updateActivity(dayIndex, actIndex, "landmark", e.target.value)}
+                                        onChange={(e) =>
+                                          updateActivity(
+                                            dayIndex,
+                                            actIndex,
+                                            "landmark",
+                                            e.target.value,
+                                          )
+                                        }
                                         placeholder="สถานที่ / จุดแวะพัก"
                                         className="w-full rounded-md border border-slate-300 px-2.5 py-1.5 text-xs outline-none focus:border-indigo-500"
                                       />
@@ -1491,15 +1729,28 @@ export default function CreatePackagePage() {
                                     <div className="flex items-center gap-2">
                                       <select
                                         value={act.status}
-                                        onChange={(e) => updateActivity(dayIndex, actIndex, "status", e.target.value)}
+                                        onChange={(e) =>
+                                          updateActivity(
+                                            dayIndex,
+                                            actIndex,
+                                            "status",
+                                            e.target.value,
+                                          )
+                                        }
                                         className="rounded-md border border-slate-300 py-1.5 px-2 text-xs outline-none focus:border-indigo-500 bg-white"
                                       >
-                                        <option value="include">รวมในรายการทัวร์</option>
-                                        <option value="optional">กิจกรรมทางเลือก (Optional)</option>
+                                        <option value="include">
+                                          รวมในรายการทัวร์
+                                        </option>
+                                        <option value="optional">
+                                          กิจกรรมทางเลือก (Optional)
+                                        </option>
                                       </select>
                                       <button
                                         type="button"
-                                        onClick={() => removeActivity(dayIndex, actIndex)}
+                                        onClick={() =>
+                                          removeActivity(dayIndex, actIndex)
+                                        }
                                         className="p-1.5 text-slate-400 hover:text-red-600 rounded-md hover:bg-slate-100"
                                         title="ลบกิจกรรม"
                                       >
@@ -1527,7 +1778,9 @@ export default function CreatePackagePage() {
                       <Plus className="h-5 w-5" />
                     </div>
                     <span className="font-semibold">เพิ่มวันเดินทางถัดไป</span>
-                    <span className="text-xs text-indigo-400 mt-1">ขยายโปรแกรมการเดินทางสำหรับวันต่อไป</span>
+                    <span className="text-xs text-indigo-400 mt-1">
+                      ขยายโปรแกรมการเดินทางสำหรับวันต่อไป
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1538,7 +1791,6 @@ export default function CreatePackagePage() {
         {/* Right Column: Sticky Summary Panel */}
         <aside className="w-full lg:w-80 shrink-0">
           <div className="sticky top-24 space-y-6">
-            
             {/* Pricing Card */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-800">
@@ -1555,7 +1807,9 @@ export default function CreatePackagePage() {
                   <input
                     type="number"
                     value={packageData.price}
-                    onChange={(e) => handlePackageChange("price", e.target.value)}
+                    onChange={(e) =>
+                      handlePackageChange("price", e.target.value)
+                    }
                     placeholder="0.00"
                     className="w-full rounded-xl border border-slate-300 bg-slate-50 py-3 pl-9 pr-4 text-lg font-bold text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
                   />
@@ -1568,13 +1822,23 @@ export default function CreatePackagePage() {
                 </label>
                 <select
                   value={packageData.status}
-                  onChange={(e) => handlePackageChange("status", e.target.value)}
+                  onChange={(e) =>
+                    handlePackageChange("status", e.target.value)
+                  }
                   className="w-full rounded-xl border border-slate-300 bg-white py-2.5 px-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 shadow-sm"
                 >
-                  <option value="Published">Published (เปิดขาย & ให้จองบนเว็บไซต์)</option>
-                  <option value="Draft">Draft (ฉบับร่าง — ซ่อนไม่ให้ลูกค้าเห็น)</option>
-                  <option value="Closed">Closed (ปิดรับจองชั่วคราว / เต็ม)</option>
-                  <option value="Archived">Archived (เก็บถาวร — ซ่อนออกจากเว็บไซต์)</option>
+                  <option value="Published">
+                    Published (เปิดขาย & ให้จองบนเว็บไซต์)
+                  </option>
+                  <option value="Draft">
+                    Draft (ฉบับร่าง — ซ่อนไม่ให้ลูกค้าเห็น)
+                  </option>
+                  <option value="Closed">
+                    Closed (ปิดรับจองชั่วคราว / เต็ม)
+                  </option>
+                  <option value="Archived">
+                    Archived (เก็บถาวร — ซ่อนออกจากเว็บไซต์)
+                  </option>
                 </select>
 
                 {/* Status Meaning / Impact Helper Box */}
@@ -1583,10 +1847,10 @@ export default function CreatePackagePage() {
                     packageData.status === "Published"
                       ? "border-emerald-200 bg-emerald-50/90 text-emerald-950"
                       : packageData.status === "Draft"
-                      ? "border-amber-200 bg-amber-50/90 text-amber-950"
-                      : packageData.status === "Closed"
-                      ? "border-rose-200 bg-rose-50/90 text-rose-950"
-                      : "border-slate-200 bg-slate-100/90 text-slate-900"
+                        ? "border-amber-200 bg-amber-50/90 text-amber-950"
+                        : packageData.status === "Closed"
+                          ? "border-rose-200 bg-rose-50/90 text-rose-950"
+                          : "border-slate-200 bg-slate-100/90 text-slate-900"
                   }`}
                 >
                   {packageData.status === "Published" && (
@@ -1596,8 +1860,10 @@ export default function CreatePackagePage() {
                         <span>เปิดขาย & เปิดให้จองบนเว็บไซต์</span>
                       </div>
                       <p className="text-[11px] leading-relaxed text-emerald-700">
-                        • <strong>หน้ารวมทัวร์:</strong> ลูกค้าค้นหาและเห็นแพ็กเกจนี้ได้ตามปกติ<br />
-                        • <strong>ระบบการจอง:</strong> ปุ่ม "จองแพ็กเกจนี้" เปิดใช้งาน สามารถส่งคำขอจองได้
+                        • <strong>หน้ารวมทัวร์:</strong>{" "}
+                        ลูกค้าค้นหาและเห็นแพ็กเกจนี้ได้ตามปกติ
+                        <br />• <strong>ระบบการจอง:</strong> ปุ่ม
+                        "จองแพ็กเกจนี้" เปิดใช้งาน สามารถส่งคำขอจองได้
                       </p>
                     </div>
                   )}
@@ -1609,8 +1875,10 @@ export default function CreatePackagePage() {
                         <span>ฉบับร่าง — ซ่อนจากลูกค้า</span>
                       </div>
                       <p className="text-[11px] leading-relaxed text-amber-700">
-                        • <strong>หน้ารวมทัวร์:</strong> ซ่อนทันที ลูกค้าจะไม่เห็นในหน้ารายการหรือผลค้นหา<br />
-                        • <strong>ระบบการจอง:</strong> ปิดการจอง (หากเข้าผ่านลิงก์ตรงจะขึ้นเตือนว่าเป็นฉบับร่าง)
+                        • <strong>หน้ารวมทัวร์:</strong> ซ่อนทันที
+                        ลูกค้าจะไม่เห็นในหน้ารายการหรือผลค้นหา
+                        <br />• <strong>ระบบการจอง:</strong> ปิดการจอง
+                        (หากเข้าผ่านลิงก์ตรงจะขึ้นเตือนว่าเป็นฉบับร่าง)
                       </p>
                     </div>
                   )}
@@ -1622,8 +1890,10 @@ export default function CreatePackagePage() {
                         <span>ปิดรับจองชั่วคราว / ที่นั่งเต็ม</span>
                       </div>
                       <p className="text-[11px] leading-relaxed text-rose-700">
-                        • <strong>หน้ารวมทัวร์:</strong> ยังคงแสดงให้ลูกค้าชมได้ แต่ขึ้นป้าย "ปิดรับจองแล้ว"<br />
-                        • <strong>ระบบการจอง:</strong> ปุ่มจองถูกปิด (Disabled) ไม่สามารถกดส่งคำขอจองได้
+                        • <strong>หน้ารวมทัวร์:</strong> ยังคงแสดงให้ลูกค้าชมได้
+                        แต่ขึ้นป้าย "ปิดรับจองแล้ว"
+                        <br />• <strong>ระบบการจอง:</strong> ปุ่มจองถูกปิด
+                        (Disabled) ไม่สามารถกดส่งคำขอจองได้
                       </p>
                     </div>
                   )}
@@ -1635,8 +1905,10 @@ export default function CreatePackagePage() {
                         <span>เก็บถาวร — ซ่อนออกจากเว็บไซต์</span>
                       </div>
                       <p className="text-[11px] leading-relaxed text-slate-600">
-                        • <strong>หน้ารวมทัวร์:</strong> ซ่อนออกจากเว็บไซต์ทั้งหมด<br />
-                        • <strong>ระบบการจอง:</strong> ปิดการจองถาวร เหมาะสำหรับแพ็กเกจที่ยกเลิกแล้ว
+                        • <strong>หน้ารวมทัวร์:</strong>{" "}
+                        ซ่อนออกจากเว็บไซต์ทั้งหมด
+                        <br />• <strong>ระบบการจอง:</strong> ปิดการจองถาวร
+                        เหมาะสำหรับแพ็กเกจที่ยกเลิกแล้ว
                       </p>
                     </div>
                   )}
@@ -1659,13 +1931,15 @@ export default function CreatePackagePage() {
                       </span>
                     </div>
                     <p className="font-extrabold text-slate-900 text-sm">
-                      ✈️ {formatThaiDateRange(
+                      {formatThaiDateRange(
                         packageData.start_date || packageData.days[0]?.dt,
-                        packageData.end_date || [...packageData.days].reverse().find((d) => d.dt)?.dt
+                        packageData.end_date ||
+                          [...packageData.days].reverse().find((d) => d.dt)?.dt,
                       )}
                     </p>
                     <p className="text-[10px] text-slate-500 mt-1">
-                      วันเปิดรับจองจะถูกล็อคให้เลือกได้เฉพาะวันที่ยังไม่ถึงวันเริ่มเดินทาง ({packageData.days[0]?.dt})
+                      วันเปิดรับจองจะถูกล็อคให้เลือกได้เฉพาะวันที่ยังไม่ถึงวันเริ่มเดินทาง
+                      ({packageData.days[0]?.dt})
                     </p>
                   </div>
                 )}
@@ -1675,7 +1949,8 @@ export default function CreatePackagePage() {
                     <Calendar className="h-3.5 w-3.5 text-indigo-600" />
                     <span>ช่วงเวลาเปิดรับจอง</span>
                   </label>
-                  {(packageData.booking_start_date || packageData.booking_end_date) && (
+                  {(packageData.booking_start_date ||
+                    packageData.booking_end_date) && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1704,8 +1979,17 @@ export default function CreatePackagePage() {
                     <input
                       type="date"
                       value={packageData.booking_start_date || ""}
-                      max={packageData.booking_end_date || packageData.days[0]?.dt || undefined}
-                      onChange={(e) => handlePackageChange("booking_start_date", e.target.value)}
+                      max={
+                        packageData.booking_end_date ||
+                        packageData.days[0]?.dt ||
+                        undefined
+                      }
+                      onChange={(e) =>
+                        handlePackageChange(
+                          "booking_start_date",
+                          e.target.value,
+                        )
+                      }
                       className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-medium text-slate-800 shadow-2xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
@@ -1726,7 +2010,9 @@ export default function CreatePackagePage() {
                       value={packageData.booking_end_date || ""}
                       min={packageData.booking_start_date || undefined}
                       max={packageData.days[0]?.dt || undefined}
-                      onChange={(e) => handlePackageChange("booking_end_date", e.target.value)}
+                      onChange={(e) =>
+                        handlePackageChange("booking_end_date", e.target.value)
+                      }
                       className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-medium text-slate-800 shadow-2xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                     />
                   </div>
@@ -1734,7 +2020,8 @@ export default function CreatePackagePage() {
 
                 {/* Helper / Status Summary */}
                 <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/90 p-2.5 text-xs text-slate-600">
-                  {!packageData.booking_start_date && !packageData.booking_end_date ? (
+                  {!packageData.booking_start_date &&
+                  !packageData.booking_end_date ? (
                     <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
                       <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                       <span>ไม่จำกัดช่วงเวลา (เปิดให้จองได้ตลอดเวลา)</span>
@@ -1745,7 +2032,9 @@ export default function CreatePackagePage() {
                         <Calendar className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
                         <span>
                           {packageData.booking_start_date
-                            ? new Date(packageData.booking_start_date).toLocaleDateString("th-TH", {
+                            ? new Date(
+                                packageData.booking_start_date,
+                              ).toLocaleDateString("th-TH", {
                                 day: "numeric",
                                 month: "short",
                                 year: "numeric",
@@ -1753,7 +2042,9 @@ export default function CreatePackagePage() {
                             : "เริ่มต้นทันที"}
                           {" — "}
                           {packageData.booking_end_date
-                            ? new Date(packageData.booking_end_date).toLocaleDateString("th-TH", {
+                            ? new Date(
+                                packageData.booking_end_date,
+                              ).toLocaleDateString("th-TH", {
                                 day: "numeric",
                                 month: "short",
                                 year: "numeric",
@@ -1775,58 +2066,77 @@ export default function CreatePackagePage() {
               <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-800">
                 สรุปภาพรวมโปรแกรมทัวร์
               </h3>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm font-medium text-slate-600">ระยะเวลาเดินทาง</span>
+                  <span className="text-sm font-medium text-slate-600">
+                    ระยะเวลาเดินทาง
+                  </span>
                   <span className="text-sm font-bold text-slate-900">
                     {totalDays} วัน
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm font-medium text-slate-600">กิจกรรมตลอดทริป</span>
+                  <span className="text-sm font-medium text-slate-600">
+                    กิจกรรมตลอดทริป
+                  </span>
                   <span className="text-sm font-bold text-slate-900">
                     {totalActivities} จุด
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm font-medium text-slate-600">ผู้ให้บริการร่วม</span>
+                  <span className="text-sm font-medium text-slate-600">
+                    ผู้ให้บริการร่วม
+                  </span>
                   <span className="text-sm font-bold text-indigo-600">
                     {(packageData.partner_ids || []).length} ราย
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm font-medium text-slate-600">ไกด์ประจำแพ็กเกจ</span>
+                  <span className="text-sm font-medium text-slate-600">
+                    ไกด์ประจำแพ็กเกจ
+                  </span>
                   <span className="text-sm font-bold text-indigo-600">
                     {(packageData.guides || []).length} ท่าน
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm font-medium text-slate-600">บริการเสริมพิเศษ</span>
+                  <span className="text-sm font-medium text-slate-600">
+                    บริการเสริมพิเศษ
+                  </span>
                   <span className="text-sm font-bold text-slate-900">
                     {(packageData.addons || []).length} รายการ
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm font-medium text-slate-600">วันเดินทาง</span>
+                  <span className="text-sm font-medium text-slate-600">
+                    วันเดินทาง
+                  </span>
                   <span className="text-xs font-bold text-indigo-900 text-right">
                     {packageData.days[0]?.dt
                       ? formatThaiDateRange(
                           packageData.days[0]?.dt,
-                          [...packageData.days].reverse().find((d) => d.dt)?.dt
+                          [...packageData.days].reverse().find((d) => d.dt)?.dt,
                         )
                       : "ระบุในแพลนวันแรก"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span className="text-sm font-medium text-slate-600">ช่วงเวลาเปิดจอง</span>
+                  <span className="text-sm font-medium text-slate-600">
+                    ช่วงเวลาเปิดจอง
+                  </span>
                   <span className="text-xs font-semibold text-slate-800 text-right">
-                    {packageData.booking_start_date || packageData.booking_end_date
-                      ? formatThaiDateRange(packageData.booking_start_date, packageData.booking_end_date, { shortMonth: true })
+                    {packageData.booking_start_date ||
+                    packageData.booking_end_date
+                      ? formatThaiDateRange(
+                          packageData.booking_start_date,
+                          packageData.booking_end_date,
+                          { shortMonth: true },
+                        )
                       : "เปิดจองตลอด"}
                   </span>
                 </div>
-                
+
                 {/* Mini Outline */}
                 <div className="pt-2">
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
@@ -1834,7 +2144,10 @@ export default function CreatePackagePage() {
                   </p>
                   <ul className="space-y-2.5">
                     {packageData.days.map((day) => (
-                      <li key={day.id} className="flex items-center gap-2 text-xs">
+                      <li
+                        key={day.id}
+                        className="flex items-center gap-2 text-xs"
+                      >
                         <span className="rounded bg-indigo-50 px-1.5 py-0.5 font-bold text-indigo-700">
                           D{day.day_num}
                         </span>
@@ -1847,7 +2160,6 @@ export default function CreatePackagePage() {
                 </div>
               </div>
             </div>
-
           </div>
         </aside>
       </div>
@@ -1872,7 +2184,9 @@ export default function CreatePackagePage() {
         confirmBtnClass={feedbackModal.confirmBtnClass}
         cancelBtnClass={feedbackModal.cancelBtnClass}
         onConfirm={feedbackModal.onConfirm}
-        onCancel={() => setFeedbackModal((prev) => ({ ...prev, isOpen: false }))}
+        onCancel={() =>
+          setFeedbackModal((prev) => ({ ...prev, isOpen: false }))
+        }
       />
     </div>
   );
