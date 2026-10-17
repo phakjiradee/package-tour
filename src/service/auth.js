@@ -46,6 +46,11 @@ export const authService = {
     });
     return response.data;
   },
+
+  async getMyPoints() {
+    const response = await api.get("/auth/points/my-points");
+    return response.data;
+  },
 };
 
 export const serviceAuth = authService;

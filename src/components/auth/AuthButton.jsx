@@ -33,9 +33,6 @@ export default function AuthButton({ fullWidth = false }) {
         : null;
 
     if (!token) {
-      if (getAuth()) {
-        clearAuth();
-      }
       return;
     }
 
@@ -55,10 +52,8 @@ export default function AuthButton({ fullWidth = false }) {
       })
       .catch((error) => {
         if (!isMounted) return;
-        console.error("Auth verification failed:", error);
-        if (error?.response?.status === 401 || error?.response?.status === 403) {
-          clearAuth();
-        }
+        // Don't clearAuth automatically to prevent kicking legitimate users out
+        // Just log a lightweight warning in console
       });
 
     return () => {

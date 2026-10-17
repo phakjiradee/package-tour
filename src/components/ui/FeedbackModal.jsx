@@ -3,6 +3,36 @@
 import React, { useEffect } from "react";
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 
+const formatFriendlyMessage = (rawMessage) => {
+  if (!rawMessage || typeof rawMessage !== "string") return rawMessage;
+
+  // ตรวจจับข้อความ Error จาก Prisma หรือ Database
+  if (
+    rawMessage.includes("Unique constraint failed") ||
+    rawMessage.includes("P2002")
+  ) {
+    if (rawMessage.includes("package_guides") || rawMessage.includes("emp_id")) {
+      return "ไม่สามารถมอบหมายงานซ้ำได้ มีการเลือกพนักงานหรือมัคคุเทศก์คนเดียวกันซ้ำในรายการ กรุณาตรวจสอบและเลือกรายชื่อที่ไม่ซ้ำกัน";
+    }
+    return "ไม่สามารถบันทึกข้อมูลได้ เนื่องจากมีข้อมูลที่ซ้ำกันอยู่ในระบบแล้ว กรุณาตรวจสอบข้อมูล";
+  }
+
+  if (
+    rawMessage.includes("Invalid `") ||
+    rawMessage.includes("invocation") ||
+    rawMessage.includes("PrismaClient") ||
+    rawMessage.includes("foreign key constraint")
+  ) {
+    return "เกิดข้อผิดพลาดในการประมวลผลข้อมูลลงฐานข้อมูล กรุณาตรวจสอบข้อมูลที่กรอกและลองใหม่อีกครั้ง";
+  }
+
+  if (rawMessage.includes("Network Error") || rawMessage.includes("Failed to fetch")) {
+    return "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต";
+  }
+
+  return rawMessage;
+};
+
 export default function FeedbackModal({
   isOpen,
   onClose,
@@ -16,6 +46,7 @@ export default function FeedbackModal({
   confirmBtnClass = null,
   cancelBtnClass = null,
 }) {
+  const displayMessage = formatFriendlyMessage(message);
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!isOpen) return;
@@ -109,9 +140,9 @@ export default function FeedbackModal({
         </h3>
 
         {/* Message */}
-        {message && (
+        {displayMessage && (
           <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-            {message}
+            {displayMessage}
           </p>
         )}
 

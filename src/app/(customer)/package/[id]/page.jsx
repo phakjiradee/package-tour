@@ -677,6 +677,84 @@ export default function CustomerPackageViewPage({ params }) {
                 </div>
               </section>
             )}
+
+            {/* Tour Guides & Staff Section */}
+            {packageData.packageGuides && packageData.packageGuides.length > 0 && (
+              <section className="mt-12">
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <UserCheck className="h-5 w-5 text-indigo-600" />
+                    ไกด์และทีมงานประจำทริป (Tour Guides & Staff)
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                    ทีมงานมืออาชีพที่จะคอยดูแล อำนวยความสะดวก และมอบความประทับใจตลอดการเดินทาง
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {packageData.packageGuides.map((guide) => {
+                    const isLead = guide.role === "LEAD_GUIDE";
+                    return (
+                      <div
+                        key={guide.id}
+                        className={`p-4 rounded-2xl border transition-all ${
+                          isLead 
+                            ? "bg-gradient-to-br from-amber-50/50 via-white to-amber-50/30 border-amber-200 shadow-xs" 
+                            : "bg-white border-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3.5">
+                          <div className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-base shrink-0 ${
+                            isLead
+                              ? "bg-amber-100 text-amber-800 border-2 border-amber-300 shadow-xs"
+                              : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                          }`}>
+                            {guide.emp?.name ? guide.emp.name.slice(0, 2) : "ไกด์"}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 text-sm sm:text-base truncate">
+                                {guide.emp?.name || "ไกด์นำเที่ยว"}
+                              </span>
+                              {isLead && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                  <Crown className="h-3 w-3 text-amber-600 shrink-0" />
+                                  <span>ไกด์หลัก</span>
+                                </span>
+                              )}
+                              {guide.role === "ASSISTANT_GUIDE" && (
+                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                                  ไกด์ผู้ช่วย
+                                </span>
+                              )}
+                              {guide.role === "COORDINATOR" && (
+                                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                  ผู้ประสานงาน
+                                </span>
+                              )}
+                            </div>
+
+                            {guide.note && (
+                              <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+                                {guide.note}
+                              </p>
+                            )}
+
+                            {guide.emp?.phone && (
+                              <p className="text-[11px] text-slate-500 mt-2 flex items-center gap-1">
+                                <span>ติดต่อผู้ประสานงาน:</span>
+                                <span className="font-semibold text-slate-700">{guide.emp.phone}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
             
           </div>
 
@@ -825,11 +903,29 @@ export default function CustomerPackageViewPage({ params }) {
               )}
 
               {/* Total Calculation */}
-              <div className="flex justify-between items-baseline mb-6 pt-3 border-t border-slate-100">
+              <div className="flex justify-between items-baseline mb-4 pt-3 border-t border-slate-100">
                 <span className="text-sm font-medium text-slate-600">ยอดรวมทั้งสิ้น:</span>
                 <span className="text-2xl font-extrabold text-indigo-600">
                   ฿{totalPrice.toLocaleString()}
                 </span>
+              </div>
+
+              {/* Loyalty Reward Points Preview */}
+              <div className="mb-6 flex items-center justify-between rounded-xl bg-amber-50/90 border border-amber-200 px-3.5 py-2.5 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white font-black text-xs shadow-xs">
+                    🪙
+                  </span>
+                  <div>
+                    <span className="font-bold text-amber-950">รับแต้มสะสมสมาชิก</span>
+                    <p className="text-[10px] text-amber-700">คำนวณ 100 บาท = 1 แต้ม</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="font-extrabold text-amber-700 text-sm">
+                    +{Math.floor(totalPrice / 100)} แต้ม
+                  </span>
+                </div>
               </div>
 
               {/* Booking CTA Button */}

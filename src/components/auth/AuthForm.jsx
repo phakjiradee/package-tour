@@ -107,17 +107,18 @@ export default function AuthForm({
       }
 
       // บันทึกข้อมูลและ Token
-      setAuth(response.user);
-      if (response.token) {
-        window.localStorage.setItem("pt_token", response.token);
-      }
+      setAuth(response.user, response.token);
 
       setSuccessMessage(
         isSignIn
           ? "เข้าสู่ระบบสำเร็จ กำลังพาคุณเข้าสู่ระบบ..."
           : "สร้างบัญชีสำเร็จแล้ว! กำลังเตรียมข้อมูลของคุณ..."
       );
-      router.push(redirectUrl || "/feed");
+      if (typeof window !== "undefined") {
+        window.location.href = redirectUrl || "/feed";
+      } else {
+        router.push(redirectUrl || "/feed");
+      }
     } catch (err) {
       setErrorMessage(err?.response?.data?.message || err?.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {

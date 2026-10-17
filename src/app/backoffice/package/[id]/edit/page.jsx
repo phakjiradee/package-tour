@@ -28,11 +28,17 @@ import {
   EyeOff,
   Ban,
   Archive,
-  Plane
+  Plane,
+  UserCheck,
+  Crown,
+  MessageSquare,
+  ShieldCheck,
+  AlertCircle
 } from "lucide-react";
 import PartnerModal from "@/components/partner/PartnerModal";
 import { partnerService, partnerTypeService } from "@/service/partner";
 import { locationService } from "@/service/location";
+import { employeeService } from "@/service/employee";
 import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import { formatThaiDateRange } from "@/lib/date";
@@ -56,6 +62,7 @@ export default function EditPackagePage({ params }) {
     end_date: "",
     image: "",
     images: [],
+    guides: [],
     addons: [],
     days: [],
   });
@@ -63,6 +70,7 @@ export default function EditPackagePage({ params }) {
   const [partnersList, setPartnersList] = useState([]);
   const [partnerTypes, setPartnerTypes] = useState([]);
   const [locationsList, setLocationsList] = useState([]);
+  const [employeesList, setEmployeesList] = useState([]);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,17 +114,19 @@ export default function EditPackagePage({ params }) {
     async function loadData() {
       if (!id) return;
       try {
-        const [pkgRes, partners, types, locations] = await Promise.all([
+        const [pkgRes, partners, types, locations, employees] = await Promise.all([
           fetch(`http://localhost:4000/api/packages/${id}`),
           partnerService.getAll().catch(() => []),
           partnerTypeService.getAll().catch(() => []),
           locationService.getAll().catch(() => []),
+          employeeService.getAll().catch(() => []),
         ]);
 
         if (!ignore) {
           setPartnersList(Array.isArray(partners) ? partners : []);
           setPartnerTypes(Array.isArray(types) ? types : []);
           setLocationsList(Array.isArray(locations) ? locations : []);
+          setEmployeesList(Array.isArray(employees) ? employees : []);
         }
 
         if (pkgRes.ok) {
@@ -151,6 +161,13 @@ export default function EditPackagePage({ params }) {
               booking_id: ad.booking_id || null,
             }));
 
+            const mappedGuides = (data.packageGuides || []).map((pg) => ({
+              id: pg.id,
+              emp_id: String(pg.emp_id),
+              role: pg.role || "LEAD_GUIDE",
+              note: pg.note || "",
+            }));
+
             setPackageData({
               name: data.name || "",
               description: data.description || "",
@@ -167,6 +184,7 @@ export default function EditPackagePage({ params }) {
               images: Array.isArray(data.images) && data.images.length > 0
                 ? data.images
                 : (data.image ? [{ image_url: data.image, is_cover: true, sort_order: 0, caption: "" }] : []),
+              guides: mappedGuides,
               addons: mappedAddons,
               days: mappedDays,
             });
@@ -286,6 +304,66 @@ export default function EditPackagePage({ params }) {
     setPackageData((prev) => ({
       ...prev,
       addons: (prev.addons || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  // Helper ตรวจสอบว่าไกด์มีงานซ้อนกับแพ็กเกจอื่นในวันเดินทางเดียวกันหรือไม่
+  const checkGuideConflict = (emp, currentPkgId) => {
+    if (!emp || !emp.assignments || emp.assignments.length === 0) return null;
+    const travelStart = packageData.start_date || packageData.days[0]?.dt;
+    const travelEnd = packageData.end_date || [...packageData.days].reverse().find((d) => d.dt)?.dt || travelStart;
+    if (!travelStart) return null;
+
+    const sA = new Date(travelStart.split("T")[0]).getTime();
+    const eA = new Date((travelEnd || travelStart).split("T")[0]).getTime();
+
+    for (const assign of emp.assignments) {
+      if (currentPkgId && Number(assign.package_id) === Number(currentPkgId)) continue;
+      if (!assign.start_date) continue;
+
+      const sB = new Date(String(assign.start_date).split("T")[0]).getTime();
+      const eB = new Date(String(assign.end_date || assign.start_date).split("T")[0]).getTime();
+
+      // ช่วงวันทับซ้อนกัน: sA <= eB && eA >= sB
+      if (sA <= eB && eA >= sB) {
+        return assign;
+      }
+    }
+    return null;
+  };
+
+  const addGuide = () => {
+    const guidesOnly = employeesList.filter((e) => e.role === "ไกด์" || e.position === "ไกด์");
+    const assignedIds = new Set((packageData.guides || []).map((g) => parseInt(g.emp_id)));
+    // เลือกไกด์ที่ยังไม่ถูกมอบหมายในทริปนี้ และไม่มีงานซ้อน
+    const available = guidesOnly.find((e) => !assignedIds.has(e.id) && !checkGuideConflict(e, id));
+    const defaultEmpId = available ? available.id : (guidesOnly.find((e) => !assignedIds.has(e.id))?.id || "");
+
+    setPackageData((prev) => ({
+      ...prev,
+      guides: [
+        ...(prev.guides || []),
+        {
+          emp_id: defaultEmpId ? String(defaultEmpId) : "",
+          role: (!prev.guides || prev.guides.length === 0) ? "LEAD_GUIDE" : "ASSISTANT_GUIDE",
+          note: "",
+        },
+      ],
+    }));
+  };
+
+  const updateGuide = (index, field, value) => {
+    setPackageData((prev) => {
+      const newGuides = [...(prev.guides || [])];
+      newGuides[index] = { ...newGuides[index], [field]: value };
+      return { ...prev, guides: newGuides };
+    });
+  };
+
+  const removeGuide = (index) => {
+    setPackageData((prev) => ({
+      ...prev,
+      guides: (prev.guides || []).filter((_, i) => i !== index),
     }));
   };
 
@@ -459,6 +537,51 @@ export default function EditPackagePage({ params }) {
       return;
     }
 
+    // ตรวจสอบบุคลากร: ต้องเป็น role 'ไกด์' เท่านั้น และไม่มีงานซ้อนในวันเวลาเดียวกัน
+    if (Array.isArray(packageData.guides) && packageData.guides.length > 0) {
+      const selectedEmpIds = packageData.guides.map((g) => g.emp_id).filter(Boolean);
+      const uniqueIds = new Set(selectedEmpIds);
+      if (uniqueIds.size !== selectedEmpIds.length) {
+        showFeedback({
+          type: "warning",
+          title: "มีรายชื่อไกด์ซ้ำกัน",
+          message: "คุณได้เลือกไกด์คนเดียวกันซ้ำในรายการ กรุณาเลือกไกด์ที่ไม่ซ้ำกันก่อนบันทึก",
+        });
+        return;
+      }
+
+      for (const g of packageData.guides) {
+        if (!g.emp_id) {
+          showFeedback({
+            type: "warning",
+            title: "กรุณาเลือกไกด์ให้ครบถ้วน",
+            message: "มีรายการมอบหมายงานที่ยังไม่ได้เลือกไกด์ กรุณาเลือกไกด์หรือลบรายการที่ไม่ใช้ออก",
+          });
+          return;
+        }
+
+        const emp = employeesList.find((e) => String(e.id) === String(g.emp_id));
+        if (emp && emp.role !== "ไกด์" && emp.position !== "ไกด์") {
+          showFeedback({
+            type: "error",
+            title: "บทบาทไม่ถูกต้อง",
+            message: `พนักงาน "${emp.name}" (ตำแหน่ง: ${emp.position || emp.role}) ไม่ได้อยู่ในตำแหน่งไกด์ สามารถมอบหมายได้เฉพาะผู้ที่มีตำแหน่ง 'ไกด์' เท่านั้น`,
+          });
+          return;
+        }
+
+        const conflict = checkGuideConflict(emp, id);
+        if (conflict) {
+          showFeedback({
+            type: "error",
+            title: "ตารางงานซ้อนทับ",
+            message: `ไกด์ "${emp.name}" ไม่สามารถรับงานได้ เนื่องจากมีงานซ้อนกับแพ็กเกจ "${conflict.package_name}" ในช่วงวันเดินทางเดียวกัน`,
+          });
+          return;
+        }
+      }
+    }
+
     try {
       setIsSaving(true);
       const res = await fetch(`http://localhost:4000/api/packages/${id}`, {
@@ -601,11 +724,14 @@ export default function EditPackagePage({ params }) {
         <a href="#partners" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
           3. ผู้ให้บริการร่วม ({packageData.partner_ids?.length || 0})
         </a>
+        <a href="#guides" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+          4. ไกด์ประจำแพ็กเกจ ({packageData.guides?.length || 0})
+        </a>
         <a href="#addons" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
-          4. บริการเสริมพิเศษ ({packageData.addons?.length || 0})
+          5. บริการเสริมพิเศษ ({packageData.addons?.length || 0})
         </a>
         <a href="#itinerary" className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
-          5. แผนการเดินทาง ({packageData.days?.length || 0} วัน)
+          6. แผนการเดินทาง ({packageData.days?.length || 0} วัน)
         </a>
       </div>
 
@@ -826,6 +952,257 @@ export default function EditPackagePage({ params }) {
                   </div>
                 )}
               </div>
+            </div>
+          </section>
+
+          {/* SECTION: Tour Guides & Staff Assignment */}
+          <section id="guides" className="scroll-mt-44">
+            <div className="flex items-center justify-between gap-4 mb-4 mt-8">
+              <div className="flex-1 min-w-0 pr-2">
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-indigo-600 shrink-0" />
+                  <span>ทีมงานและไกด์ประจำแพ็กเกจ (Assigned Guides)</span>
+                </h2>
+                <p className="text-sm text-slate-500 mt-0.5 leading-relaxed">
+                  มอบหมายไกด์นำเที่ยวหลัก ไกด์ผู้ช่วย หรือผู้ประสานงานประจำทริป เพื่อดูแลนักท่องเที่ยวตลอดการเดินทาง (เฉพาะ Role &apos;ไกด์&apos; และไม่มีงานซ้อนในวันเวลาเดียวกัน)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={addGuide}
+                className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-xs cursor-pointer"
+              >
+                <Plus className="h-4 w-4 shrink-0" />
+                <span>มอบหมายไกด์</span>
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              {(!packageData.guides || packageData.guides.length === 0) ? (
+                <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+                    <UserCheck className="h-6 w-6" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700 mb-1">ยังไม่มีการมอบหมายไกด์ประจำแพ็กเกจนี้</p>
+                  <p className="text-xs text-slate-500 mb-4">คุณสามารถระบุไกด์นำเที่ยวเพื่อให้นักท่องเที่ยวทราบชื่อและผู้ดูแลทริปได้</p>
+                  <button
+                    type="button"
+                    onClick={addGuide}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    มอบหมายไกด์คนแรก
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {packageData.guides.map((guide, index) => {
+                    const selectedEmp = employeesList.find((e) => e.id === parseInt(guide.emp_id));
+                    const currentConflict = checkGuideConflict(selectedEmp, id);
+                    const isNotGuideRole = selectedEmp && selectedEmp.role !== "ไกด์" && selectedEmp.position !== "ไกด์";
+                    const guidesList = employeesList.filter((e) => e.role === "ไกด์" || e.position === "ไกด์");
+
+                    return (
+                      <div
+                        key={index}
+                        className={`rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md ${
+                          currentConflict || isNotGuideRole
+                            ? "border-rose-200 bg-rose-50/20"
+                            : "border-slate-200/90 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        {/* Header: ลำดับที่, ป้ายหน้าที่, ปุ่มลบ */}
+                        <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
+                              {index + 1}
+                            </span>
+                            <span className="text-xs font-bold text-slate-700">
+                              การมอบหมายไกด์
+                            </span>
+                            {guide.role === "LEAD_GUIDE" && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+                                <Crown className="h-3 w-3 text-amber-600 shrink-0" />
+                                <span>หัวหน้าทริป (Lead Guide)</span>
+                              </span>
+                            )}
+                            {guide.role === "ASSISTANT_GUIDE" && (
+                              <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                                ไกด์ผู้ช่วย (Assistant Guide)
+                              </span>
+                            )}
+                            {guide.role === "COORDINATOR" && (
+                              <span className="inline-flex items-center rounded-md bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 text-[11px] font-semibold">
+                                ผู้ประสานงานทริป (Coordinator)
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeGuide(index)}
+                            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                            title="ลบการมอบหมายนี้"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>ลบ</span>
+                          </button>
+                        </div>
+
+                        {/* Content Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                          {/* Left Profile Preview Box (4 cols) */}
+                          <div className="lg:col-span-4 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 flex flex-col justify-between">
+                            <div className="flex items-center gap-3.5">
+                              <div className={`h-12 w-12 rounded-xl flex items-center justify-center font-bold text-base shrink-0 shadow-xs ${
+                                guide.role === "LEAD_GUIDE" 
+                                  ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                  : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              }`}>
+                                {selectedEmp?.name ? selectedEmp.name.slice(0, 2) : "ไกด์"}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-slate-900 text-sm truncate">
+                                  {selectedEmp?.name || "ยังไม่ได้เลือกไกด์"}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  {selectedEmp?.position || "ตำแหน่งไกด์"}
+                                </p>
+                                {selectedEmp?.phone ? (
+                                  <p className="text-[11px] text-slate-600 flex items-center gap-1 mt-1 font-mono">
+                                    <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                                    <span>{selectedEmp.phone}</span>
+                                  </p>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400 italic">ไม่มีเบอร์โทร</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Status indicator badge */}
+                            {currentConflict && (
+                              <div className="mt-2.5 rounded-lg bg-rose-50 border border-rose-200 p-2 text-xs text-rose-700 flex items-start gap-1.5">
+                                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                                <div>
+                                  <p className="font-semibold text-rose-800">ตารางงานซ้อนทับ</p>
+                                  <p className="text-[11px] text-rose-600 leading-tight mt-0.5">
+                                    ติดงานแพ็กเกจ &quot;{currentConflict.package_name}&quot; ในช่วงวันเดินทางเดียวกัน
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {isNotGuideRole && (
+                              <div className="mt-2.5 rounded-lg bg-amber-50 border border-amber-200 p-2 text-xs text-amber-800 flex items-start gap-1.5">
+                                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                                <div>
+                                  <p className="font-semibold text-amber-900">ไม่ใช่ตำแหน่งไกด์</p>
+                                  <p className="text-[11px] text-amber-700 leading-tight mt-0.5">
+                                    พนักงานนี้มีตำแหน่ง &quot;{selectedEmp.position || selectedEmp.role}&quot; ต้องเป็นตำแหน่ง &quot;ไกด์&quot; เท่านั้น
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {selectedEmp && !currentConflict && !isNotGuideRole && (
+                              <div className="mt-2.5">
+                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                  <span>พร้อมรับงาน (ตารางว่าง)</span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Right Controls (8 cols) */}
+                          <div className="lg:col-span-8 space-y-3.5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                              <div>
+                                <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+                                  <span className="flex items-center gap-1">
+                                    <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
+                                    <span>เลือกไกด์นำเที่ยว (Role ไกด์เท่านั้น)</span>
+                                  </span>
+                                </label>
+                                <select
+                                  value={guide.emp_id}
+                                  onChange={(e) => updateGuide(index, "emp_id", e.target.value)}
+                                  className={`w-full rounded-xl border bg-white px-3.5 py-2 text-sm text-slate-800 shadow-xs outline-none transition-all focus:ring-2 ${
+                                    currentConflict || isNotGuideRole
+                                      ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100"
+                                      : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-100"
+                                  }`}
+                                >
+                                  <option value="">-- เลือกไกด์นำเที่ยว --</option>
+                                  {guidesList.map((emp) => {
+                                    const isSelectedInOther = packageData.guides.some(
+                                      (g, gIdx) => gIdx !== index && String(g.emp_id) === String(emp.id)
+                                    );
+                                    const conflict = checkGuideConflict(emp, id);
+                                    const isDisabled = isSelectedInOther || !!conflict;
+
+                                    let statusLabel = "• ว่าง";
+                                    if (isSelectedInOther) {
+                                      statusLabel = "• (เลือกแล้วในรายการนี้)";
+                                    } else if (conflict) {
+                                      statusLabel = `• [ไม่ว่าง: ติดงาน "${conflict.package_name}"]`;
+                                    }
+
+                                    return (
+                                      <option
+                                        key={emp.id}
+                                        value={emp.id}
+                                        disabled={isDisabled}
+                                      >
+                                        {emp.name} {statusLabel} {emp.phone ? `(โทร ${emp.phone})` : ""}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                                {guidesList.length === 0 && (
+                                  <p className="text-[11px] text-amber-600 mt-1">
+                                    ⚠️ ไม่พบพนักงานที่มีบทบาท &apos;ไกด์&apos; ในระบบ
+                                  </p>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+                                  <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
+                                  <span>หน้าที่ในทริป</span>
+                                </label>
+                                <select
+                                  value={guide.role || "LEAD_GUIDE"}
+                                  onChange={(e) => updateGuide(index, "role", e.target.value)}
+                                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-800 shadow-xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                >
+                                  <option value="LEAD_GUIDE">ไกด์หลัก (Lead Guide)</option>
+                                  <option value="ASSISTANT_GUIDE">ไกด์ผู้ช่วย (Assistant Guide)</option>
+                                  <option value="COORDINATOR">ผู้ประสานงานทริป (Coordinator)</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+                                <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
+                                <span>หมายเหตุ / ทักษะภาษา / ความเชี่ยวชาญ</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={guide.note || ""}
+                                onChange={(e) => updateGuide(index, "note", e.target.value)}
+                                placeholder="เช่น ชำนาญภาษาอังกฤษ-จีน, ดูแลกลุ่ม VIP, เชี่ยวชาญเส้นทางเดินป่า"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 shadow-xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
 
@@ -1486,6 +1863,12 @@ export default function EditPackagePage({ params }) {
                   <span className="text-sm font-medium text-slate-600">ผู้ให้บริการร่วม</span>
                   <span className="text-sm font-bold text-indigo-600">
                     {(packageData.partner_ids || []).length} ราย
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <span className="text-sm font-medium text-slate-600">ไกด์ประจำแพ็กเกจ</span>
+                  <span className="text-sm font-bold text-indigo-600">
+                    {(packageData.guides || []).length} ท่าน
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
