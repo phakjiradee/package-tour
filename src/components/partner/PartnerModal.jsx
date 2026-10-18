@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { locationService } from "@/service/location";
 import {
   AlertCircle,
   Building2,
@@ -36,6 +37,14 @@ export default function PartnerModal({
   );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [locationId, setLocationId] = useState(
+    initialData?.location_id ? String(initialData.location_id) : ""
+  );
+
+  useEffect(() => {
+    locationService.getAll().then((d) => setLocations(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
 
   if (!isOpen) return null;
 
@@ -78,6 +87,7 @@ export default function PartnerModal({
         email: email.trim(),
         address: address.trim() ? address.trim() : null,
         pt_type_id: parseInt(partnerTypeId),
+        location_id: locationId ? parseInt(locationId) : null,
       });
       onClose();
     } catch (err) {
@@ -191,6 +201,28 @@ export default function PartnerModal({
                   ))}
                 </select>
               )}
+            </div>
+
+            {/* Location (ใช้ผูกกับ supplier ให้เห็นรถบัสที่มาถึงที่นี่) */}
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                <span>สถานที่ (Location) ของพาร์ทเนอร์</span>
+                <span className="text-xs font-normal text-slate-400">(ไม่บังคับ)</span>
+              </label>
+              <select
+                value={locationId}
+                onChange={(e) => setLocationId(e.target.value)}
+                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 transition focus:border-cyan-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-100"
+                disabled={loading}
+              >
+                <option value="">-- ไม่ระบุ --</option>
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Phone & Email Grid */}

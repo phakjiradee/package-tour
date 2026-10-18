@@ -19,9 +19,10 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     config.baseURL = "/api";
-    const token =
-      window.localStorage.getItem("bo_token") ||
-      window.localStorage.getItem("pt_token");
+    const token = config.url?.startsWith("/supplier/")
+      ? window.localStorage.getItem("sp_token")
+      : window.localStorage.getItem("bo_token") ||
+        window.localStorage.getItem("pt_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

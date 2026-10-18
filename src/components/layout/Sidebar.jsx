@@ -17,6 +17,7 @@ import {
   MapPin,
   PanelLeft,
   Settings,
+  Store,
   UsersRound,
 } from "lucide-react";
 import { clearBackofficeAuth } from "@/lib/backoffice-auth";
@@ -71,6 +72,12 @@ const NAV_GROUPS = [
         labelEn: "Employees",
         href: "/backoffice/employee",
         icon: UsersRound,
+      },
+      {
+        label: "บัญชี Supplier",
+        labelEn: "Suppliers",
+        href: "/backoffice/supplier",
+        icon: Store,
       },
       {
         label: "ตำแหน่ง & สิทธิ์",

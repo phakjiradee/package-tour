@@ -282,18 +282,26 @@ export default function PartnerTable({
                     </div>
                   </td>
 
-                  {/* Address */}
+                  {/* Address & Location */}
                   <td className="px-4 py-3">
-                    {item.address ? (
-                      <div className="flex items-start gap-1 max-w-[220px] text-xs text-zinc-600">
-                        <MapPin size={12} className="text-zinc-400 shrink-0 mt-0.5" />
-                        <span className="line-clamp-2 text-[11px]" title={item.address}>
-                          {item.address}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-zinc-400 italic">ไม่ระบุที่อยู่</span>
-                    )}
+                    <div className="space-y-1">
+                      {item.address ? (
+                        <div className="flex items-start gap-1 max-w-[220px] text-xs text-zinc-600">
+                          <MapPin size={12} className="text-zinc-400 shrink-0 mt-0.5" />
+                          <span className="line-clamp-2 text-[11px]" title={item.address}>
+                            {item.address}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-zinc-400 italic">ไม่ระบุที่อยู่</span>
+                      )}
+                      {item.location?.name && (
+                        <div className="flex items-center gap-1 text-[11px] text-blue-700">
+                          <MapPin size={12} className="shrink-0" />
+                          <span>{item.location.name}</span>
+                        </div>
+                      )}
+                    </div>
                   </td>
 
                   {/* Created At */}
