@@ -18,6 +18,12 @@ const titles = [
     description: "ตรวจสอบรายการจอง รายละเอียดผู้เดินทาง และอัปเดตสถานะ",
   },
   {
+    href: "/backoffice/seating",
+    title: "จัดที่นั่งผู้โดยสาร",
+    titleEn: "Seating",
+    description: "จัดที่นั่งบนรถบัสให้การจองที่ชำระเงินแล้ว",
+  },
+  {
     href: "/backoffice/package",
     title: "จัดการแพ็กเกจ",
     titleEn: "Packages",

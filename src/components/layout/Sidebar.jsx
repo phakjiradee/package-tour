@@ -39,6 +39,12 @@ const NAV_GROUPS = [
         icon: CalendarCheck,
       },
       {
+        label: "จัดที่นั่ง",
+        labelEn: "Seating",
+        href: "/backoffice/seating",
+        icon: Bus,
+      },
+      {
         label: "แพ็กเกจทัวร์",
         labelEn: "Packages",
         href: "/backoffice/package",

@@ -41,6 +41,8 @@ import PartnerModal from "@/components/partner/PartnerModal";
 import { partnerService, partnerTypeService } from "@/service/partner";
 import { locationService } from "@/service/location";
 import { employeeService } from "@/service/employee";
+import { busService } from "@/service/bus";
+import PackageBusPicker from "@/components/package/PackageBusPicker";
 import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import { formatThaiDateRange } from "@/lib/date";
@@ -56,6 +58,7 @@ export default function EditPackagePage({ params }) {
     location_id: "",
     partner_id: "",
     partner_ids: [],
+    bus_ids: [],
     price: "",
     status: "Draft",
     booking_start_date: "",
@@ -73,6 +76,7 @@ export default function EditPackagePage({ params }) {
   const [partnerTypes, setPartnerTypes] = useState([]);
   const [locationsList, setLocationsList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
+  const [busesList, setBusesList] = useState([]);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -116,13 +120,14 @@ export default function EditPackagePage({ params }) {
     async function loadData() {
       if (!id) return;
       try {
-        const [pkgRes, partners, types, locations, employees] =
+        const [pkgRes, partners, types, locations, employees, buses] =
           await Promise.all([
             fetch(`http://localhost:4000/api/packages/${id}`),
             partnerService.getAll().catch(() => []),
             partnerTypeService.getAll().catch(() => []),
             locationService.getAll().catch(() => []),
             employeeService.getAll().catch(() => []),
+            busService.getAll().catch(() => []),
           ]);
 
         if (!ignore) {
@@ -130,6 +135,7 @@ export default function EditPackagePage({ params }) {
           setPartnerTypes(Array.isArray(types) ? types : []);
           setLocationsList(Array.isArray(locations) ? locations : []);
           setEmployeesList(Array.isArray(employees) ? employees : []);
+          setBusesList(Array.isArray(buses) ? buses : []);
         }
 
         if (pkgRes.ok) {
@@ -188,6 +194,7 @@ export default function EditPackagePage({ params }) {
               location_id: data.location_id ? String(data.location_id) : "",
               partner_id: data.partner_id ? String(data.partner_id) : "",
               partner_ids: initialPartnerIds,
+              bus_ids: (data.packageBuses || []).map((item) => item.bus_id),
               price:
                 data.price !== null && data.price !== undefined
                   ? String(data.price)
@@ -820,6 +827,12 @@ export default function EditPackagePage({ params }) {
           3. ผู้ให้บริการร่วม ({packageData.partner_ids?.length || 0})
         </a>
         <a
+          href="#buses"
+          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
+          รถบัส ({packageData.bus_ids.length})
+        </a>
+        <a
           href="#guides"
           className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
         >
@@ -1079,6 +1092,8 @@ export default function EditPackagePage({ params }) {
               </div>
             </div>
           </section>
+
+          <PackageBusPicker buses={busesList} selected={packageData.bus_ids} onChange={(bus_ids) => setPackageData((prev) => ({ ...prev, bus_ids }))} />
 
           {/* SECTION: Tour Guides & Staff Assignment */}
           <section id="guides" className="scroll-mt-44">
@@ -1972,7 +1987,7 @@ export default function EditPackagePage({ params }) {
                         • <strong>หน้ารวมทัวร์:</strong>{" "}
                         ลูกค้าค้นหาและเห็นแพ็กเกจนี้ได้ตามปกติ
                         <br />• <strong>ระบบการจอง:</strong> ปุ่ม
-                        "จองแพ็กเกจนี้" เปิดใช้งาน สามารถส่งคำขอจองได้
+                        &quot;จองแพ็กเกจนี้&quot; เปิดใช้งาน สามารถส่งคำขอจองได้
                       </p>
                     </div>
                   )}
@@ -2000,7 +2015,7 @@ export default function EditPackagePage({ params }) {
                       </div>
                       <p className="text-[11px] leading-relaxed text-rose-700">
                         • <strong>หน้ารวมทัวร์:</strong> ยังคงแสดงให้ลูกค้าชมได้
-                        แต่ขึ้นป้าย "ปิดรับจองแล้ว"
+                        แต่ขึ้นป้าย &quot;ปิดรับจองแล้ว&quot;
                         <br />• <strong>ระบบการจอง:</strong> ปุ่มจองถูกปิด
                         (Disabled) ไม่สามารถกดส่งคำขอจองได้
                       </p>

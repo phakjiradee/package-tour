@@ -42,6 +42,8 @@ import PartnerModal from "@/components/partner/PartnerModal";
 import { partnerService, partnerTypeService } from "@/service/partner";
 import { locationService } from "@/service/location";
 import { employeeService } from "@/service/employee";
+import { busService } from "@/service/bus";
+import PackageBusPicker from "@/components/package/PackageBusPicker";
 import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import { formatThaiDateRange } from "@/lib/date";
@@ -55,6 +57,7 @@ export default function CreatePackagePage() {
     location_id: "",
     partner_id: "",
     partner_ids: [],
+    bus_ids: [],
     price: "",
     status: "Draft",
     booking_start_date: "",
@@ -85,6 +88,7 @@ export default function CreatePackagePage() {
   const [partnerTypes, setPartnerTypes] = useState([]);
   const [locationsList, setLocationsList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
+  const [busesList, setBusesList] = useState([]);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -126,17 +130,19 @@ export default function CreatePackagePage() {
     let ignore = false;
     async function loadInitialData() {
       try {
-        const [partners, types, locations, employees] = await Promise.all([
+        const [partners, types, locations, employees, buses] = await Promise.all([
           partnerService.getAll().catch(() => []),
           partnerTypeService.getAll().catch(() => []),
           locationService.getAll().catch(() => []),
           employeeService.getAll().catch(() => []),
+          busService.getAll().catch(() => []),
         ]);
         if (!ignore) {
           setPartnersList(Array.isArray(partners) ? partners : []);
           setPartnerTypes(Array.isArray(types) ? types : []);
           setLocationsList(Array.isArray(locations) ? locations : []);
           setEmployeesList(Array.isArray(employees) ? employees : []);
+          setBusesList(Array.isArray(buses) ? buses : []);
         }
       } catch (error) {
         console.error("Failed to load initial data", error);
@@ -716,6 +722,12 @@ export default function CreatePackagePage() {
           3. ผู้ให้บริการร่วม ({packageData.partner_ids?.length || 0})
         </a>
         <a
+          href="#buses"
+          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
+          รถบัส ({packageData.bus_ids.length})
+        </a>
+        <a
           href="#guides"
           className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
         >
@@ -974,6 +986,8 @@ export default function CreatePackagePage() {
               </div>
             </div>
           </section>
+
+          <PackageBusPicker buses={busesList} selected={packageData.bus_ids} onChange={(bus_ids) => setPackageData((prev) => ({ ...prev, bus_ids }))} />
 
           {/* SECTION: Tour Guides & Staff Assignment */}
           <section id="guides" className="scroll-mt-44">
@@ -1865,7 +1879,7 @@ export default function CreatePackagePage() {
                         • <strong>หน้ารวมทัวร์:</strong>{" "}
                         ลูกค้าค้นหาและเห็นแพ็กเกจนี้ได้ตามปกติ
                         <br />• <strong>ระบบการจอง:</strong> ปุ่ม
-                        "จองแพ็กเกจนี้" เปิดใช้งาน สามารถส่งคำขอจองได้
+                        &quot;จองแพ็กเกจนี้&quot; เปิดใช้งาน สามารถส่งคำขอจองได้
                       </p>
                     </div>
                   )}
@@ -1893,7 +1907,7 @@ export default function CreatePackagePage() {
                       </div>
                       <p className="text-[11px] leading-relaxed text-rose-700">
                         • <strong>หน้ารวมทัวร์:</strong> ยังคงแสดงให้ลูกค้าชมได้
-                        แต่ขึ้นป้าย "ปิดรับจองแล้ว"
+                        แต่ขึ้นป้าย &quot;ปิดรับจองแล้ว&quot;
                         <br />• <strong>ระบบการจอง:</strong> ปุ่มจองถูกปิด
                         (Disabled) ไม่สามารถกดส่งคำขอจองได้
                       </p>
