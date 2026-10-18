@@ -241,10 +241,7 @@ export default function BookingDetailModal({
                 )}
                 <div className="space-y-1">
                   <p className="font-semibold text-slate-900 text-base line-clamp-2">
-                    {booking.package?.name || `Package ID: ${booking.package_id}`}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    รหัสแพ็กเกจ: #{booking.package_id}
+                    {booking.package?.name || "แพ็กเกจทัวร์"}
                   </p>
                   <div className="flex items-center gap-1.5 text-xs font-medium text-cyan-700">
                     <Calendar className="h-3.5 w-3.5" />
@@ -319,14 +316,6 @@ export default function BookingDetailModal({
                     <span className="text-xs text-slate-500">LINE ID:</span>
                     <span className="font-medium text-emerald-700">
                       {booking.contact_line_id}
-                    </span>
-                  </div>
-                )}
-                {booking.user_id && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">User ID ในระบบ:</span>
-                    <span className="font-mono text-xs text-slate-600">
-                      #{booking.user_id}
                     </span>
                   </div>
                 )}

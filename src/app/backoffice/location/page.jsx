@@ -14,6 +14,8 @@ import LocationModal from "@/components/location/LocationModal";
 import LocationTypeModal from "@/components/location/LocationTypeModal";
 import DeleteConfirmModal from "@/components/location/DeleteConfirmModal";
 import LocationTable from "@/components/location/LocationTable";
+import PageHeader from "@/components/backoffice/PageHeader";
+import StatCard from "@/components/backoffice/StatCard";
 import { locationService, locationTypeService } from "@/service/location";
 
 export default function LocationPage() {
@@ -64,7 +66,14 @@ export default function LocationPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    let ignore = false;
+    const run = async () => {
+      await fetchData();
+    };
+    run();
+    return () => {
+      ignore = true;
+    };
   }, [fetchData]);
 
   // Handle Location Add / Update
@@ -116,76 +125,44 @@ export default function LocationPage() {
     await fetchData(true);
   };
 
-  // Top category calculation
-  const topType = (() => {
-    if (locations.length === 0 || locationTypes.length === 0) return null;
-    const counts = {};
-    locations.forEach((loc) => {
-      const typeName = loc.lct_type?.name || "ไม่ระบุ";
-      counts[typeName] = (counts[typeName] || 0) + 1;
-    });
-    let topName = "";
-    let topCount = 0;
-    Object.entries(counts).forEach(([name, count]) => {
-      if (count > topCount) {
-        topName = name;
-        topCount = count;
-      }
-    });
-    return { name: topName, count: topCount };
-  })();
-
   return (
     <div className="space-y-6">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-xl transition-all animate-in fade-in slide-in-from-top-4">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-800 shadow-xl transition-all animate-in fade-in slide-in-from-top-3">
+          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header Banner */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-50 text-cyan-600 ring-1 ring-cyan-100">
-              <MapPin className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
-                  จัดการสถานที่ (Locations)
-                </h1>
-                <span className="rounded-full bg-cyan-100/80 px-2.5 py-0.5 text-xs font-semibold text-cyan-800">
-                  {locations.length} แห่ง
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-slate-500">
-                จัดการข้อมูลจุดหมายปลายทาง แหล่งท่องเที่ยว และจัดหมวดหมู่ประเภทสถานที่สำหรับแพ็กเกจทัวร์
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
+      <PageHeader
+        title="จัดการสถานที่"
+        titleEn="Locations"
+        description="จุดหมายปลายทาง แหล่งท่องเที่ยว และจัดหมวดหมู่ประเภทสถานที่สำหรับแพ็กเกจทัวร์"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 hover:text-slate-900"
+              className="btn-secondary h-8 px-3 text-xs rounded-lg cursor-pointer"
               title="รีเฟรชข้อมูล"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-cyan-600" : ""}`} />
+              <RefreshCw
+                size={13}
+                className={refreshing ? "animate-spin text-zinc-500" : "text-zinc-500"}
+              />
               <span className="hidden sm:inline">รีเฟรช</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsTypeModalOpen(true)}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-4 text-xs font-semibold text-purple-700 shadow-xs transition hover:bg-purple-100 hover:text-purple-800"
+              className="btn-secondary h-8 px-3 text-xs rounded-lg cursor-pointer"
             >
-              <FolderTree className="h-4 w-4" />
-              จัดการประเภท ({locationTypes.length})
+              <FolderTree size={13} className="text-purple-600" />
+              <span>จัดการประเภท ({locationTypes.length})</span>
             </button>
 
             <button
@@ -194,51 +171,35 @@ export default function LocationPage() {
                 setEditingLocation(null);
                 setIsLocationModalOpen(true);
               }}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+              className="btn-primary h-8 px-3.5 text-xs rounded-lg cursor-pointer"
             >
-              <Plus className="h-4 w-4" />
-              เพิ่มสถานที่ใหม่
+              <Plus size={13} />
+              <span>เพิ่มสถานที่ใหม่</span>
             </button>
           </div>
-        </div>
+        }
+      />
 
-        {/* Quick Stats Cards */}
-        <div className="mt-6 grid grid-cols-1 gap-4 border-t border-slate-100 pt-6 sm:grid-cols-3">
-          <div className="flex items-center gap-3.5 rounded-xl bg-slate-50/80 p-4 ring-1 ring-slate-100">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-100/70 text-cyan-700">
-              <MapPin className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500">สถานที่ทั้งหมด</p>
-              <p className="text-lg font-bold text-slate-900">{locations.length} แห่ง</p>
-            </div>
-          </div>
+      {/* Quick Stats Cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatCard
+          title="สถานที่ทั้งหมด"
+          value={`${locations.length} แห่ง`}
+          icon={MapPin}
+          subtitle="จุดหมายปลายทางในระบบ"
+        />
 
-          <div className="flex items-center gap-3.5 rounded-xl bg-slate-50/80 p-4 ring-1 ring-slate-100">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-purple-100/70 text-purple-700">
-              <Layers className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500">ประเภทสถานที่</p>
-              <p className="text-lg font-bold text-slate-900">{locationTypes.length} หมวดหมู่</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3.5 rounded-xl bg-slate-50/80 p-4 ring-1 ring-slate-100">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-100/70 text-amber-700">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500">หมวดหมู่ยอดนิยม</p>
-              <p className="text-lg font-bold text-slate-900 truncate">
-                {topType ? `${topType.name} (${topType.count})` : "-"}
-              </p>
-            </div>
-          </div>
-        </div>
+        <StatCard
+          title="ประเภทสถานที่"
+          value={`${locationTypes.length} หมวดหมู่`}
+          icon={Layers}
+          subtitle="หมวดหมู่สถานที่ท่องเที่ยว"
+        />
       </div>
 
+
       {/* Main Table */}
+
       <LocationTable
         locations={locations}
         locationTypes={locationTypes}

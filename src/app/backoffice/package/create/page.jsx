@@ -35,6 +35,8 @@ import {
   ShieldCheck,
   AlertCircle,
   Archive,
+  FileText,
+  XCircle,
 } from "lucide-react";
 import PartnerModal from "@/components/partner/PartnerModal";
 import { partnerService, partnerTypeService } from "@/service/partner";
@@ -648,27 +650,27 @@ export default function CreatePackagePage() {
                 สร้างแพ็กเกจทัวร์ใหม่
               </h1>
               {packageData.status === "Published" && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                  Published (เปิดขาย & ให้จอง)
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200 shadow-2xs">
+                  <CheckCircle2 size={12.5} className="text-emerald-600 shrink-0" />
+                  <span>เปิดขาย</span>
                 </span>
               )}
               {packageData.status === "Draft" && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
-                  Draft (ฉบับร่าง - ซ่อน)
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200 shadow-2xs">
+                  <FileText size={12.5} className="text-amber-600 shrink-0" />
+                  <span>ฉบับร่าง</span>
                 </span>
               )}
               {packageData.status === "Closed" && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-800">
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
-                  Closed (ปิดรับจอง)
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-800 border border-rose-200 shadow-2xs">
+                  <XCircle size={12.5} className="text-rose-600 shrink-0" />
+                  <span>ปิดรับจอง</span>
                 </span>
               )}
               {packageData.status === "Archived" && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-bold text-slate-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
-                  Archived (เก็บถาวร)
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200 shadow-2xs">
+                  <Archive size={12.5} className="text-slate-500 shrink-0" />
+                  <span>เก็บถาวร</span>
                 </span>
               )}
             </div>
@@ -1828,16 +1830,16 @@ export default function CreatePackagePage() {
                   className="w-full rounded-xl border border-slate-300 bg-white py-2.5 px-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 shadow-sm"
                 >
                   <option value="Published">
-                    Published (เปิดขาย & ให้จองบนเว็บไซต์)
+                    เปิดขาย (ให้จองบนเว็บไซต์)
                   </option>
                   <option value="Draft">
-                    Draft (ฉบับร่าง — ซ่อนไม่ให้ลูกค้าเห็น)
+                    ฉบับร่าง (ซ่อนไม่ให้ลูกค้าเห็น)
                   </option>
                   <option value="Closed">
-                    Closed (ปิดรับจองชั่วคราว / เต็ม)
+                    ปิดรับจอง (ชั่วคราว / เต็ม)
                   </option>
                   <option value="Archived">
-                    Archived (เก็บถาวร — ซ่อนออกจากเว็บไซต์)
+                    เก็บถาวร (ซ่อนออกจากเว็บไซต์)
                   </option>
                 </select>
 

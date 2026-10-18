@@ -15,6 +15,8 @@ import PartnerModal from "@/components/partner/PartnerModal";
 import PartnerTypeModal from "@/components/partner/PartnerTypeModal";
 import DeleteConfirmModal from "@/components/partner/DeleteConfirmModal";
 import PartnerTable from "@/components/partner/PartnerTable";
+import PageHeader from "@/components/backoffice/PageHeader";
+import StatCard from "@/components/backoffice/StatCard";
 import { partnerService, partnerTypeService } from "@/service/partner";
 
 export default function PartnerPage() {
@@ -170,46 +172,29 @@ export default function PartnerPage() {
     <div className="space-y-6">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-xl transition-all animate-in fade-in slide-in-from-top-4">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-800 shadow-xl transition-all animate-in fade-in slide-in-from-top-3">
+          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header Banner */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-50 text-cyan-600 ring-1 ring-cyan-100">
-              <Handshake className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
-                  จัดการพาร์ทเนอร์ (Partners)
-                </h1>
-                <span className="rounded-full bg-cyan-100/80 px-2.5 py-0.5 text-xs font-semibold text-cyan-800">
-                  {partners.length} ราย
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-slate-500">
-                จัดการข้อมูลคู่ค้าทางธุรกิจ โรงแรม ยานพาหนะ ร้านอาหาร และประเภทพาร์ทเนอร์สำหรับแพ็กเกจทัวร์
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
+      <PageHeader
+        title="จัดการพาร์ทเนอร์"
+        titleEn="Partners"
+        description="จัดการข้อมูลคู่ค้าทางธุรกิจ โรงแรม ยานพาหนะ และประเภทพาร์ทเนอร์สำหรับแพ็กเกจทัวร์"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={refreshData}
               disabled={refreshing}
-              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
+              className="btn-secondary h-8 px-3 text-xs rounded-lg cursor-pointer"
               title="รีเฟรชข้อมูล"
             >
               <RefreshCw
-                className={`h-4 w-4 ${
-                  refreshing ? "animate-spin text-cyan-600" : ""
-                }`}
+                size={13}
+                className={refreshing ? "animate-spin text-zinc-500" : "text-zinc-500"}
               />
               <span className="hidden sm:inline">รีเฟรช</span>
             </button>
@@ -217,10 +202,10 @@ export default function PartnerPage() {
             <button
               type="button"
               onClick={() => setIsTypeModalOpen(true)}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-4 text-xs font-semibold text-purple-700 shadow-xs transition hover:bg-purple-100 hover:text-purple-800 cursor-pointer"
+              className="btn-secondary h-8 px-3 text-xs rounded-lg cursor-pointer"
             >
-              <FolderTree className="h-4 w-4" />
-              จัดการประเภท ({partnerTypes.length})
+              <FolderTree size={13} className="text-purple-600" />
+              <span>จัดการประเภท ({partnerTypes.length})</span>
             </button>
 
             <button
@@ -229,61 +214,39 @@ export default function PartnerPage() {
                 setEditingPartner(null);
                 setIsPartnerModalOpen(true);
               }}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 cursor-pointer"
+              className="btn-primary h-8 px-3.5 text-xs rounded-lg cursor-pointer"
             >
-              <Plus className="h-4 w-4" />
-              เพิ่มพาร์ทเนอร์ใหม่
+              <Plus size={13} />
+              <span>เพิ่มพาร์ทเนอร์ใหม่</span>
             </button>
           </div>
-        </div>
+        }
+      />
 
-        {/* Quick Stats Cards */}
-        <div className="mt-6 grid grid-cols-1 gap-4 border-t border-slate-100 pt-6 sm:grid-cols-3">
-          <div className="flex items-center gap-3.5 rounded-xl bg-slate-50/80 p-4 ring-1 ring-slate-100">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-100/70 text-cyan-700">
-              <Handshake className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500">
-                พาร์ทเนอร์ทั้งหมด
-              </p>
-              <p className="text-lg font-bold text-slate-900">
-                {partners.length} ราย
-              </p>
-            </div>
-          </div>
+      {/* Quick Stats Cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard
+          title="พาร์ทเนอร์ทั้งหมด"
+          value={`${partners.length} ราย`}
+          icon={Handshake}
+          subtitle="คู่ค้าและพันธมิตรในระบบ"
+        />
 
-          <div className="flex items-center gap-3.5 rounded-xl bg-slate-50/80 p-4 ring-1 ring-slate-100">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-purple-100/70 text-purple-700">
-              <Layers className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500">
-                ประเภทพาร์ทเนอร์
-              </p>
-              <p className="text-lg font-bold text-slate-900">
-                {partnerTypes.length} หมวดหมู่
-              </p>
-            </div>
-          </div>
+        <StatCard
+          title="ประเภทพาร์ทเนอร์"
+          value={`${partnerTypes.length} หมวดหมู่`}
+          icon={Layers}
+          subtitle="หมวดหมู่ธุรกิจ"
+        />
 
-          
-
-          <div className="flex items-center gap-3.5 rounded-xl bg-slate-50/80 p-4 ring-1 ring-slate-100">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100/70 text-emerald-700">
-              <MapPin className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500">
-                ระบุที่อยู่ชัดเจน
-              </p>
-              <p className="text-lg font-bold text-slate-900">
-                {partnersWithAddressCount} / {partners.length} ราย
-              </p>
-            </div>
-          </div>
-        </div>
+        <StatCard
+          title="ระบุที่อยู่ชัดเจน"
+          value={`${partnersWithAddressCount} ราย`}
+          icon={MapPin}
+          subtitle={`จากทั้งหมด ${partners.length} ราย`}
+        />
       </div>
+
 
       {/* Main Table */}
       <PartnerTable

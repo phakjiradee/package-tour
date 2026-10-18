@@ -82,25 +82,25 @@ export default function LocationTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-zinc-200/90 bg-zinc-50/90 shadow-2xs">
       {/* Search & Filter Bar */}
-      <div className="grid gap-3 border-b border-slate-200 p-4 sm:p-5 lg:grid-cols-[minmax(220px,1fr)_200px_auto_auto]">
-        <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
-          <Search className="h-4 w-4 shrink-0" />
+      <div className="grid gap-2.5 p-3 sm:p-3.5 lg:grid-cols-[minmax(220px,1fr)_200px_auto_auto]">
+        <label className="flex h-8.5 items-center gap-2 rounded-md border border-zinc-200/90 bg-white px-2.5 text-xs text-zinc-500 shadow-2xs focus-within:border-[#0051c8]">
+          <Search size={14} className="shrink-0 text-zinc-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ค้นหาชื่อสถานที่ หรือประเภท..."
-            className="w-full bg-transparent text-slate-800 outline-none placeholder:text-slate-400"
+            className="w-full bg-transparent text-zinc-900 outline-none placeholder:text-zinc-400 text-xs"
           />
         </label>
 
-        <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
-          <Tag className="h-4 w-4 shrink-0" />
+        <label className="flex h-8.5 items-center gap-2 rounded-md border border-zinc-200/90 bg-white px-2.5 text-xs text-zinc-500 shadow-2xs focus-within:border-[#0051c8]">
+          <Tag size={13} className="shrink-0 text-zinc-400" />
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="w-full bg-transparent text-slate-800 outline-none"
+            className="w-full bg-transparent text-zinc-800 outline-none cursor-pointer text-xs"
           >
             <option value="ทั้งหมด">ประเภท: ทั้งหมด</option>
             {locationTypes.map((type) => (
@@ -114,73 +114,69 @@ export default function LocationTable({
         <button
           type="button"
           onClick={clearFilters}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+          className="btn-secondary h-8.5 px-3 text-xs rounded-md cursor-pointer"
         >
-          <RotateCcw className="h-4 w-4" />
-          ล้างตัวกรอง
+          <RotateCcw size={13} />
+          <span>ล้างตัวกรอง</span>
         </button>
 
-        <div className="flex items-center justify-end text-xs text-slate-500">
-          พบ <span className="mx-1 font-semibold text-slate-900">{filteredLocations.length}</span> รายการ
+        <div className="flex items-center justify-end text-[11px] text-zinc-400 pr-1">
+          พบ <span className="mx-1 font-semibold text-zinc-900">{filteredLocations.length}</span> รายการ
         </div>
       </div>
 
       {/* Table Content */}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[650px] border-collapse text-left text-sm">
+      <div className="overflow-x-auto border-t border-zinc-200/90 bg-white">
+        <table className="w-full min-w-162.5 border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-500">
-              <th className="px-5 py-3.5">ID</th>
-              <th className="px-5 py-3.5">ชื่อสถานที่</th>
-              <th className="px-5 py-3.5">ประเภทสถานที่</th>
-              <th className="px-5 py-3.5">วันที่บันทึก</th>
-              <th className="px-5 py-3.5 text-right">จัดการ</th>
+            <tr className="border-b border-zinc-200/90 bg-zinc-50/70 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <th className="px-4 py-2.5">ชื่อสถานที่</th>
+              <th className="px-4 py-2.5">ประเภทสถานที่</th>
+              <th className="px-4 py-2.5">วันที่บันทึก</th>
+              <th className="px-4 py-2.5 text-right">จัดการ</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-zinc-100">
             {loading ? (
               // Skeleton loading rows
               Array.from({ length: 4 }).map((_, idx) => (
                 <tr key={idx} className="animate-pulse">
-                  <td className="px-5 py-4">
-                    <div className="h-4 w-8 rounded bg-slate-100" />
+                  <td className="px-4 py-3">
+                    <div className="h-4 w-32 rounded bg-zinc-100" />
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="h-4 w-32 rounded bg-slate-100" />
+                  <td className="px-4 py-3">
+                    <div className="h-5 w-20 rounded bg-zinc-100" />
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="h-6 w-20 rounded-md bg-slate-100" />
+                  <td className="px-4 py-3">
+                    <div className="h-3.5 w-24 rounded bg-zinc-100" />
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="h-4 w-28 rounded bg-slate-100" />
-                  </td>
-                  <td className="px-5 py-4 text-right">
-                    <div className="ml-auto h-8 w-16 rounded bg-slate-100" />
+                  <td className="px-4 py-3 text-right">
+                    <div className="ml-auto h-7 w-16 rounded bg-zinc-100" />
                   </td>
                 </tr>
               ))
             ) : filteredLocations.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-5 py-12 text-center">
+                <td colSpan={4} className="px-4 py-12 text-center">
                   <div className="mx-auto flex max-w-sm flex-col items-center justify-center text-center">
-                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-100 text-slate-400">
-                      <MapPin className="h-6 w-6" />
+                    <div className="grid size-11 place-items-center rounded-xl bg-zinc-100 text-zinc-400">
+                      <MapPin size={20} />
                     </div>
-                    <p className="mt-3 text-sm font-semibold text-slate-800">
+                    <p className="mt-3 text-xs font-semibold text-zinc-800">
                       {search || selectedType !== "ทั้งหมด"
                         ? "ไม่พบสถานที่ที่ตรงกับเงื่อนไขการค้นหา"
                         : "ยังไม่มีรายการสถานที่"}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-[11px] text-zinc-400">
                       {search || selectedType !== "ทั้งหมด"
                         ? "ลองเปลี่ยนคำค้นหาหรือล้างตัวกรองใหม่"
                         : "เริ่มต้นเพิ่มสถานที่ท่องเที่ยว จุดเช็คอินแรกของคุณ"}
                     </p>
-                    {onAddNew && (!search && selectedType === "ทั้งหมด") && (
+                    {onAddNew && !search && selectedType === "ทั้งหมด" && (
                       <button
                         type="button"
                         onClick={onAddNew}
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                        className="btn-primary mt-3 h-8 px-3 text-xs rounded-md cursor-pointer"
                       >
                         + เพิ่มสถานที่แรก
                       </button>
@@ -192,55 +188,52 @@ export default function LocationTable({
               filteredLocations.map((item) => (
                 <tr
                   key={item.id}
-                  className="transition-colors hover:bg-slate-50/70"
+                  className="transition-colors hover:bg-zinc-50/70"
                 >
-                  <td className="px-5 py-4 font-mono text-xs font-semibold text-slate-400">
-                    #{item.id}
-                  </td>
-                  <td className="px-5 py-4 font-medium text-slate-900">
+                  <td className="px-4 py-3 font-medium text-zinc-900">
                     <div className="flex items-center gap-2.5">
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600">
-                        <MapPin className="h-4 w-4" />
+                      <div className="grid size-8 shrink-0 place-items-center rounded-md bg-blue-50 text-[#0051c8]">
+                        <MapPin size={15} />
                       </div>
-                      <span className="font-semibold text-slate-800">
+                      <span className="font-semibold text-zinc-900">
                         {item.name}
                       </span>
                     </div>
                   </td>
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${getTypeBadgeClass(
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${getTypeBadgeClass(
                         item.lct_type?.name
                       )}`}
                     >
-                      <Tag className="h-3 w-3" />
-                      {item.lct_type?.name || "ไม่ระบุประเภท"}
+                      <Tag size={10} />
+                      <span>{item.lct_type?.name || "ไม่ระบุประเภท"}</span>
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-xs text-slate-500">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                  <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 text-[11px]">
+                      <Calendar size={12} className="text-zinc-400" />
                       <span>{formatDate(item.createAt)}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-right">
+                  <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
                         onClick={() => onEdit(item)}
-                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                        className="btn-secondary h-7 px-2.5 text-xs rounded-md cursor-pointer"
                         title="แก้ไข"
                       >
-                        <Edit3 className="h-3.5 w-3.5" />
+                        <Edit3 size={12} />
                         <span>แก้ไข</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => onDelete(item)}
-                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-100 bg-rose-50/50 px-2.5 text-xs font-medium text-rose-600 transition hover:bg-rose-100 hover:text-rose-700"
+                        className="btn-danger h-7 px-2.5 text-xs rounded-md cursor-pointer"
                         title="ลบ"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 size={12} />
                         <span>ลบ</span>
                       </button>
                     </div>
@@ -254,3 +247,4 @@ export default function LocationTable({
     </div>
   );
 }
+

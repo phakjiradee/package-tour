@@ -15,9 +15,18 @@ import {
   Package2,
   ImageIcon,
   Calendar,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  Archive,
+  AlertCircle,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import FeedbackModal from "@/components/ui/FeedbackModal";
+import PageHeader from "@/components/backoffice/PageHeader";
+import StatCard from "@/components/backoffice/StatCard";
 
 export default function PackagePage() {
   const [packages, setPackages] = useState([]);
@@ -170,35 +179,105 @@ export default function PackagePage() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Top Banner / Heading & Action */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                <Package2 className="h-5 w-5" />
-              </div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">
-                คลังแพ็กเกจท่องเที่ยว
-              </h1>
-            </div>
-            <p className="mt-1 text-xs sm:text-sm text-slate-500">
-              จัดการรายการแพ็กเกจทัวร์ ตรวจสอบสถานะการขาย ราคาเริ่มต้น และผู้ให้บริการร่วม
-            </p>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <PageHeader
+        title="คลังแพ็กเกจท่องเที่ยว"
+        titleEn="Packages"
+        description="จัดการรายการแพ็กเกจทัวร์ ตรวจสอบสถานะการขาย ราคาเริ่มต้น และผู้ให้บริการร่วม"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchPackages}
+              disabled={isLoading}
+              className="btn-secondary h-8 px-3 text-xs rounded-lg cursor-pointer"
+              title="รีเฟรชข้อมูล"
+            >
+              <RefreshCw
+                size={13}
+                className={isLoading ? "animate-spin text-zinc-500" : "text-zinc-500"}
+              />
+              <span className="hidden sm:inline">รีเฟรช</span>
+            </button>
+
+            <Link
+              href="/backoffice/package/create"
+              className="btn-primary h-8 px-3.5 text-xs rounded-lg cursor-pointer"
+            >
+              <Plus size={13} />
+              <span>สร้างแพ็กเกจใหม่</span>
+            </Link>
           </div>
+        }
+      />
 
-          <Link
-            href="/backoffice/package/create"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-xs transition hover:bg-indigo-700 active:scale-98"
-          >
-            <Plus className="h-4 w-4" />
-            <span>สร้างแพ็กเกจใหม่</span>
-          </Link>
-        </div>
+      {/* Stats Cards */}
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Total Packages */}
+        <StatCard
+          title="แพ็กเกจทั้งหมด"
+          label="แพ็กเกจทั้งหมด"
+          value={isLoading ? "-" : `${statusCounts.all} รายการ`}
+          icon={Package2}
+          subtitle={`เก็บถาวร ${statusCounts.Archived} รายการ`}
+          onClick={() => setStatusFilter("all")}
+          active={statusFilter === "all"}
+        />
 
-        {/* Status Filter Tabs */}
-        <div className="mt-6 flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-3">
+        {/* Published */}
+        <StatCard
+          title="เปิดขาย"
+          label="เปิดขาย"
+          value={isLoading ? "-" : `${statusCounts.Published} รายการ`}
+          icon={CheckCircle2}
+          tone="success"
+          trendBadge={{
+            text: "เปิดขาย",
+            tone: "success",
+          }}
+          subtitle="เปิดขายและให้จองบนเว็บไซต์"
+          onClick={() => setStatusFilter("Published")}
+          active={statusFilter === "Published"}
+        />
+
+        {/* Draft */}
+        <StatCard
+          title="ฉบับร่าง"
+          label="ฉบับร่าง"
+          value={isLoading ? "-" : `${statusCounts.Draft} รายการ`}
+          icon={FileText}
+          tone="warning"
+          trendBadge={{
+            text: "ฉบับร่าง",
+            tone: "warning",
+          }}
+          subtitle="ยังไม่เผยแพร่ต่อลูกค้า"
+          onClick={() => setStatusFilter("Draft")}
+          active={statusFilter === "Draft"}
+        />
+
+        {/* Closed */}
+        <StatCard
+          title="ปิดรับจอง"
+          label="ปิดรับจอง"
+          value={isLoading ? "-" : `${statusCounts.Closed} รายการ`}
+          icon={XCircle}
+          tone="danger"
+          trendBadge={{
+            text: "ปิดรับจอง",
+            tone: "danger",
+          }}
+          subtitle="ปิดรับจองชั่วคราวหรือเต็ม"
+          onClick={() => setStatusFilter("Closed")}
+          active={statusFilter === "Closed"}
+        />
+      </div>
+
+      {/* Search and Filters */}
+      <div className="rounded-lg border border-zinc-200/90 bg-white p-3.5 shadow-2xs space-y-3">
+        {/* Status Tabs */}
+        <div className="flex flex-wrap items-center gap-1 border-b border-zinc-100 pb-2.5">
           {[
             { id: "all", label: "ทั้งหมด", count: statusCounts.all },
             { id: "Published", label: "เปิดขาย", count: statusCounts.Published },
@@ -212,18 +291,18 @@ export default function PackagePage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setStatusFilter(tab.id)}
-                className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                className={`rounded-md px-3 py-1 text-xs font-semibold transition cursor-pointer select-none ${
                   isActive
-                    ? "bg-slate-900 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    ? "bg-zinc-900 text-white shadow-2xs"
+                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
                 }`}
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                  className={`ml-1.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
                     isActive
                       ? "bg-white/20 text-white"
-                      : "bg-slate-200/70 text-slate-700"
+                      : "bg-zinc-200/70 text-zinc-700"
                   }`}
                 >
                   {tab.count}
@@ -234,40 +313,40 @@ export default function PackagePage() {
         </div>
 
         {/* Filter Controls Toolbar */}
-        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           {/* Left: Search input */}
-          <div className="relative flex-1 min-w-[240px] max-w-md">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <div className="relative flex-1 min-w-60 max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="ค้นหาชื่อแพ็กเกจ, จุดหมาย, หรือพาร์ทเนอร์..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-2.5 pl-10 pr-9 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              className="h-8.5 w-full rounded-md border border-zinc-200 bg-zinc-50/70 pl-8.5 pr-8 text-xs text-zinc-900 placeholder:text-zinc-400 outline-none transition focus:border-[#0051c8] focus:bg-white focus:ring-2 focus:ring-[#0051c8]/10"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer"
                 title="ล้างข้อความค้นหา"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
 
           {/* Right: Destination dropdown, Sort dropdown, and Reset */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Destination filter */}
-            <div className="relative min-w-[170px]">
-              <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <div className="relative min-w-42.5">
+              <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400">
                 <MapPin className="h-3.5 w-3.5" />
               </div>
               <select
                 value={destinationFilter}
                 onChange={(e) => setDestinationFilter(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-8.5 pr-8 text-xs font-medium text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 shadow-2xs"
+                className="h-8.5 w-full appearance-none rounded-md border border-zinc-200 bg-white py-1 pl-7.5 pr-7 text-xs font-medium text-zinc-700 outline-none transition focus:border-[#0051c8] focus:ring-2 focus:ring-[#0051c8]/10 shadow-2xs"
               >
                 <option value="all">ทุกจุดหมายปลายทาง</option>
                 {uniqueDestinations.map((dest) => (
@@ -279,14 +358,14 @@ export default function PackagePage() {
             </div>
 
             {/* Sort order dropdown */}
-            <div className="relative min-w-[155px]">
-              <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <div className="relative min-w-38.75">
+              <div className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400">
                 <ArrowUpDown className="h-3.5 w-3.5" />
               </div>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2 pl-8.5 pr-8 text-xs font-medium text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 shadow-2xs"
+                className="h-8.5 w-full appearance-none rounded-md border border-zinc-200 bg-white py-1 pl-7.5 pr-7 text-xs font-medium text-zinc-700 outline-none transition focus:border-[#0051c8] focus:ring-2 focus:ring-[#0051c8]/10 shadow-2xs"
               >
                 <option value="newest">เพิ่มล่าสุด</option>
                 <option value="oldest">เก่าที่สุด</option>
@@ -301,10 +380,10 @@ export default function PackagePage() {
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                className="inline-flex h-8.5 items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors shadow-2xs cursor-pointer"
                 title="ล้างตัวกรองทั้งหมด"
               >
-                <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+                <RotateCcw className="h-3.5 w-3.5 text-zinc-400" />
                 <span>รีเซ็ต</span>
               </button>
             )}
@@ -312,12 +391,12 @@ export default function PackagePage() {
         </div>
 
         {/* Results summary bar */}
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
+        <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-2 border-t border-zinc-100">
           <div>
-            แสดง <span className="font-bold text-slate-800">{filteredPackages.length}</span> จากทั้งหมด{" "}
-            <span className="font-bold text-slate-800">{packages.length}</span> รายการ
+            แสดง <span className="font-bold text-zinc-800">{filteredPackages.length}</span> จากทั้งหมด{" "}
+            <span className="font-bold text-zinc-800">{packages.length}</span> รายการ
             {hasActiveFilters && (
-              <span className="ml-2 text-indigo-600 font-medium">
+              <span className="ml-2 text-[#0051c8] font-medium">
                 (ใช้ตัวกรองอยู่)
               </span>
             )}
@@ -326,10 +405,10 @@ export default function PackagePage() {
       </div>
 
       {/* Table Container */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-        <div className="overflow-x-auto min-h-[360px]">
-          <table className="w-full min-w-[820px] text-left">
-            <thead className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+      <div className="overflow-hidden rounded-lg border border-zinc-200/90 bg-white shadow-2xs">
+        <div className="overflow-x-auto min-h-90">
+          <table className="w-full min-w-205 text-left">
+            <thead className="border-b border-zinc-200 bg-zinc-50/80 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-5 py-3.5">แพ็กเกจท่องเที่ยว</th>
                 <th className="px-5 py-3.5">จุดหมายปลายทาง</th>
@@ -429,11 +508,8 @@ export default function PackagePage() {
                             >
                               {item.name}
                             </Link>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] text-slate-400">
-                                รหัส: #{item.id}
-                              </span>
-                              {(item.booking_start_date || item.booking_end_date) && (
+                            {(item.booking_start_date || item.booking_end_date) && (
+                              <div className="flex items-center gap-2 mt-1">
                                 <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50/80 border border-indigo-100/80 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
                                   <Calendar className="h-2.5 w-2.5 text-indigo-600" />
                                   <span>
@@ -442,8 +518,8 @@ export default function PackagePage() {
                                     {item.booking_end_date ? new Date(item.booking_end_date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "ตลอดไป"}
                                   </span>
                                 </span>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -463,7 +539,7 @@ export default function PackagePage() {
                       {/* Partner */}
                       <td className="px-5 py-4 text-xs text-slate-600">
                         {item.partners && item.partners.length > 0 ? (
-                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                          <div className="flex flex-wrap gap-1 max-w-50">
                             {item.partners.map((p) => (
                               <span
                                 key={p.partner_id}
@@ -492,53 +568,53 @@ export default function PackagePage() {
                         {item.status === "Published" && (
                           (() => {
                             const now = new Date();
-                            const isAfterEnd = item.booking_end_date && new Date(new Date(item.booking_end_date).setHours(23, 59, 59, 999)) < now;
-                            const isBeforeStart = item.booking_start_date && new Date(item.booking_start_date) > now;
+                            const isAfterEnd =
+                              item.booking_end_date &&
+                              new Date(new Date(item.booking_end_date).setHours(23, 59, 59, 999)) < now;
+                            const isBeforeStart =
+                              item.booking_start_date && new Date(item.booking_start_date) > now;
 
                             if (isAfterEnd) {
                               return (
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 border border-slate-300 shadow-2xs">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                                  หมดเขตรับจอง (Expired)
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200 shadow-2xs">
+                                  <AlertCircle size={12.5} className="text-slate-500 shrink-0" />
+                                  <span>หมดเขตรับจอง</span>
                                 </span>
                               );
                             }
                             if (isBeforeStart) {
                               return (
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800 border border-sky-200 shadow-2xs">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                                  รอเปิดจอง (Upcoming)
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800 border border-sky-200 shadow-2xs">
+                                  <Clock size={12.5} className="text-sky-600 shrink-0" />
+                                  <span>รอเปิดจอง</span>
                                 </span>
                               );
                             }
                             return (
-                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 shadow-2xs">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                                Published (เปิดขาย)
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200 shadow-2xs">
+                                <CheckCircle2 size={12.5} className="text-emerald-600 shrink-0" />
+                                <span>เปิดขาย</span>
                               </span>
                             );
                           })()
                         )}
                         {item.status === "Draft" && (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 border border-amber-200 shadow-2xs">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
-                            Draft (ฉบับร่าง)
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200 shadow-2xs">
+                            <FileText size={12.5} className="text-amber-600 shrink-0" />
+                            <span>ฉบับร่าง</span>
                           </span>
                         )}
                         {item.status === "Closed" && (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-800 border border-rose-200 shadow-2xs">
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
-                            Closed (ปิดรับจอง)
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-800 border border-rose-200 shadow-2xs">
+                            <XCircle size={12.5} className="text-rose-600 shrink-0" />
+                            <span>ปิดรับจอง</span>
                           </span>
                         )}
                         {item.status === "Archived" && (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 border border-slate-200 shadow-2xs">
-                            <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
-                            Archived (เก็บถาวร)
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200 shadow-2xs">
+                            <Archive size={12.5} className="text-slate-500 shrink-0" />
+                            <span>เก็บถาวร</span>
                           </span>
-                        )}
-                        {!["Published", "Draft", "Closed", "Archived"].includes(
-                          item.status
                         )}
                       </td>
 

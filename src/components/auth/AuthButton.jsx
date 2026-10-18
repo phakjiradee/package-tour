@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
+  ChevronRight,
   LogOut,
   Package,
   UserRound,
   Ticket,
   LayoutDashboard,
+  Coins,
 } from "lucide-react";
 import {
   getAuth,
@@ -19,6 +21,7 @@ import {
   getAuthServerSnapshot,
 } from "@/lib/auth-client";
 import authService, { serviceAuth } from "@/service/auth";
+import Image from "next/image";
 
 const auth = authService || serviceAuth;
 
@@ -29,8 +32,28 @@ export default function AuthButton({ fullWidth = false, isHero = false }) {
     getAuthServerSnapshot,
   );
   const [open, setOpen] = useState(false);
+  const [fetchedPoints, setFetchedPoints] = useState(null);
   const ref = useRef(null);
   const router = useRouter();
+
+  const displayPoints = fetchedPoints ?? user?.points ?? 0;
+
+  useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+    authService
+      ?.getMyPoints?.()
+      .then((res) => {
+        if (!isMounted) return;
+        if (res?.success && typeof res?.data?.points === "number") {
+          setFetchedPoints(res.data.points);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [user, open]);
 
   // Validate session with the backend API on mount
   useEffect(() => {
@@ -239,7 +262,7 @@ export default function AuthButton({ fullWidth = false, isHero = false }) {
       )}
 
       {open ? (
-        <div className="animate-menu-in absolute right-0 z-30 mt-2 w-56 origin-top-right rounded-2xl border border-slate-200/70 bg-white/95 p-1.5 shadow-xl shadow-slate-900/10 backdrop-blur-xl">
+        <div className="animate-menu-in absolute right-0 z-30 mt-6 w-60 origin-top-right rounded-2xl border border-slate-200/70 bg-white/95 p-1.5 shadow-xl shadow-slate-900/10 backdrop-blur-xl">
           <div className="px-3 py-2">
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-semibold text-slate-900">
@@ -256,6 +279,38 @@ export default function AuthButton({ fullWidth = false, isHero = false }) {
                 {user.email}
               </p>
             ) : null}
+
+            {/* Points Card */}
+            <Link
+              href="/profile?tab=points"
+              onClick={() => setOpen(false)}
+              className="group relative mt-2.5 block overflow-hidden rounded-2xl border border-amber-200/80 p-3 shadow-xs transition-all hover:border-amber-300 hover:shadow-md"
+            >
+              {/* Background Illustration */}
+              <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+                <Image
+                  width={300}
+                  height={300}
+                  src="/dropdown-points-bg.jpg"
+                  alt="Points Background"
+                  className="h-full w-full object-cover object-right group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-linear-to-r from-amber-50/95 via-amber-50/60 to-transparent" />
+              </div>
+
+              <div className="relative z-10 flex flex-col items-start">
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-900/90">
+                  <Coins className="h-3.5 w-3.5 text-amber-600" />
+                  <span>แต้มสะสม</span>
+                </span>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  <span className="text-base font-extrabold text-amber-950">
+                    {Number(displayPoints).toLocaleString()}
+                  </span>
+                  <span className="text-xs font-bold text-amber-800">แต้ม</span>
+                </div>
+              </div>
+            </Link>
           </div>
           <div className="my-1 h-px bg-slate-100" />
           <Link

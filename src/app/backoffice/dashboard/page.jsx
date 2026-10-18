@@ -5,25 +5,26 @@ import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
-  Calendar,
   CalendarCheck,
   CalendarDays,
   CheckCircle2,
   CircleDollarSign,
   Clock,
   Eye,
-  MapPin,
   PlaneTakeoff,
   RefreshCw,
   TrendingUp,
-  User,
   UsersRound,
   XCircle,
 } from "lucide-react";
 import { bookingService } from "@/service/booking";
-import { BookingStatusBadge } from "@/components/ui/Badges";
 import BookingDetailModal from "@/components/booking/BookingDetailModal";
 import { api } from "@/lib/axios";
+import PageHeader from "@/components/backoffice/PageHeader";
+import StatCard from "@/components/backoffice/StatCard";
+import TwoToneCard from "@/components/backoffice/TwoToneCard";
+import StatusChip from "@/components/backoffice/StatusChip";
+import BookingTrendsChart from "@/components/backoffice/BookingTrendsChart";
 
 export default function DashboardPage() {
   const [bookings, setBookings] = useState([]);
@@ -64,7 +65,14 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    let ignore = false;
+    const run = async () => {
+      await fetchData();
+    };
+    run();
+    return () => {
+      ignore = true;
+    };
   }, [fetchData]);
 
   // Update status
@@ -74,7 +82,7 @@ export default function DashboardPage() {
       await bookingService.updateStatus(bookingId, newStatus);
       // Refresh local bookings state
       setBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
       );
       if (selectedBooking && selectedBooking.id === bookingId) {
         setSelectedBooking((prev) => ({ ...prev, status: newStatus }));
@@ -91,20 +99,24 @@ export default function DashboardPage() {
   const kpis = useMemo(() => {
     const totalBookings = bookings.length;
 
-    // Total revenue from confirmed or all active bookings
     const confirmedRevenue = bookings
       .filter((b) => b.status === "CONFIRMED")
       .reduce((sum, b) => sum + Number(b.total_price || 0), 0);
 
     const pendingCount = bookings.filter(
-      (b) => b.status === "PENDING_PAYMENT" || b.status === "AWAITING_VERIFICATION"
+      (b) =>
+        b.status === "PENDING_PAYMENT" || b.status === "AWAITING_VERIFICATION",
     ).length;
 
-    const confirmedCount = bookings.filter((b) => b.status === "CONFIRMED").length;
-    const cancelledCount = bookings.filter((b) => b.status === "CANCELLED").length;
+    const confirmedCount = bookings.filter(
+      (b) => b.status === "CONFIRMED",
+    ).length;
+    const cancelledCount = bookings.filter(
+      (b) => b.status === "CANCELLED",
+    ).length;
 
     const activePackagesCount = packages.filter(
-      (p) => p.status === "Published" || !p.status
+      (p) => p.status === "Published" || !p.status,
     ).length;
 
     return {
@@ -131,20 +143,26 @@ export default function DashboardPage() {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
       const label = d.toLocaleDateString("th-TH", { weekday: "short" });
+      const fullDate = d.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
 
-      const count = bookings.filter((b) => {
+      const dayBookings = bookings.filter((b) => {
         if (!b.createdAt) return false;
         return new Date(b.createdAt).toISOString().slice(0, 10) === dateStr;
-      }).length;
+      });
 
-      days.push({ label, count, dateStr });
+      const count = dayBookings.length;
+      const confirmedCount = dayBookings.filter((b) => b.status === "CONFIRMED").length;
+
+      days.push({
+        label,
+        fullDate,
+        dateStr,
+        count,
+        confirmedCount,
+      });
     }
 
-    const maxCount = Math.max(...days.map((d) => d.count), 1);
-    return days.map((d) => ({
-      ...d,
-      heightPercent: Math.max(12, Math.round((d.count / maxCount) * 100)),
-    }));
+    return days;
   }, [bookings]);
 
   // Formatters
@@ -167,392 +185,344 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top Welcome & Refresh bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            ภาพรวมระบบและการจอง (Dashboard)
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            สรุปข้อมูลสถิติยอดจอง รายได้ และการดำเนินงานทั้งหมดของ Zentura Tour
-          </p>
-        </div>
+      {/* Top Welcome Bar */}
+      <PageHeader
+        title="แดชบอร์ด"
+        titleEn="Dashboard"
+        description="ภาพรวมสถิติยอดจอง รายรับ และการดำเนินงานทั้งหมดของ Zentura Tour"
+        showDate
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchData}
+              disabled={refreshing}
+              className="btn-secondary h-8 px-3 text-xs rounded-lg cursor-pointer"
+            >
+              <RefreshCw
+                size={13}
+                className={
+                  refreshing ? "animate-spin text-zinc-500" : "text-zinc-500"
+                }
+              />
+              <span>รีเฟรชข้อมูล</span>
+            </button>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={fetchData}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`h-4 w-4 text-slate-500 ${refreshing ? "animate-spin" : ""}`}
-            />
-            อัปเดตข้อมูล
-          </button>
-
-          <Link
-            href="/backoffice/booking"
-            className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 active:scale-95"
-          >
-            <CalendarCheck className="h-4 w-4" />
-            จัดการรายการจอง
-          </Link>
-        </div>
-      </div>
+            <Link
+              href="/backoffice/booking"
+              className="btn-primary h-8 px-3 text-xs rounded-lg cursor-pointer"
+            >
+              <CalendarCheck size={13} />
+              <span>จัดการรายการจอง</span>
+            </Link>
+          </div>
+        }
+      />
 
       {/* KPI Cards Grid */}
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
         {/* Total Bookings */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-300 transition">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-slate-500">
-                ยอดการจองทั้งหมด
-              </p>
-              <p className="mt-2 text-3xl font-black text-slate-950">
-                {loading ? "-" : kpis.totalBookings}
-              </p>
-            </div>
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-cyan-50 text-cyan-700">
-              <CalendarDays className="h-5 w-5" />
-            </span>
-          </div>
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-            <span className="flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-              <TrendingUp className="h-3.5 w-3.5" />
-              ยืนยันแล้ว {kpis.confirmedCount} รายการ
-            </span>
+        <StatCard
+          title="ยอดการจองทั้งหมด"
+          label="ยอดการจองทั้งหมด"
+          value={loading ? "-" : kpis.totalBookings}
+          icon={CalendarDays}
+          trendBadge={{
+            text: `ยืนยันแล้ว ${kpis.confirmedCount}`,
+            tone: "success",
+          }}
+          meterSegments={[
+            {
+              percent: kpis.totalBookings
+                ? Math.round((kpis.confirmedCount / kpis.totalBookings) * 100)
+                : 0,
+              color: "bg-emerald-500",
+            },
+            {
+              percent: kpis.totalBookings
+                ? Math.round((kpis.pendingCount / kpis.totalBookings) * 100)
+                : 0,
+              color: "bg-amber-500",
+            },
+            {
+              percent: kpis.totalBookings
+                ? Math.round((kpis.cancelledCount / kpis.totalBookings) * 100)
+                : 0,
+              color: "bg-rose-400",
+            },
+          ]}
+          footer={
             <Link
               href="/backoffice/booking"
-              className="text-cyan-600 hover:underline flex items-center gap-0.5"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0051c8] hover:underline"
             >
-              ดูทั้งหมด <ArrowRight className="h-3 w-3" />
+              ดูรายการจองทั้งหมด <ArrowRight size={11} />
             </Link>
-          </div>
-        </div>
+          }
+        />
 
         {/* Confirmed Revenue */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-300 transition">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-slate-500">
-                รายได้ที่ยืนยันแล้ว
-              </p>
-              <p className="mt-2 text-3xl font-black text-emerald-700">
-                {loading ? "-" : `฿${formatPrice(kpis.confirmedRevenue)}`}
-              </p>
-            </div>
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
-              <CircleDollarSign className="h-5 w-5" />
+        <StatCard
+          title="รายได้ที่ยืนยันแล้ว"
+          label="รายได้ที่ยืนยันแล้ว"
+          value={loading ? "-" : `฿${formatPrice(kpis.confirmedRevenue)}`}
+          icon={CircleDollarSign}
+          badgeText="CONFIRMED"
+          trendBadge={{
+            text: `${kpis.confirmedCount} ใบเสร็จ`,
+            tone: "neutral",
+          }}
+          footer={
+            <span className="text-[11px] text-zinc-400">
+              คำนวณเฉพาะคำสั่งซื้อสถานะ Confirmed
             </span>
-          </div>
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-            <span>คำนวณจากยอดที่ Confirmed</span>
-            <span className="font-semibold text-slate-700">
-              {kpis.confirmedCount} ใบเสร็จ
-            </span>
-          </div>
-        </div>
+          }
+        />
 
         {/* Pending Actions */}
-        <div className="rounded-xl border border-amber-200/80 bg-amber-50/20 p-5 shadow-sm hover:border-amber-300 transition">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-amber-800">
-                รอชำระ / รอตรวจสอบ
-              </p>
-              <p className="mt-2 text-3xl font-black text-amber-900">
-                {loading ? "-" : kpis.pendingCount}
-              </p>
-            </div>
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-amber-100 text-amber-800">
-              <Clock className="h-5 w-5" />
-            </span>
-          </div>
-          <div className="mt-4 flex items-center justify-between text-xs text-amber-800">
-            <span>ต้องดำเนินการตรวจสอบ</span>
+        <StatCard
+          title="รอชำระ / รอตรวจสอบ"
+          label="รอชำระ / รอตรวจสอบ"
+          value={loading ? "-" : kpis.pendingCount}
+          icon={Clock}
+          tone="warning"
+          trendBadge={{
+            text: kpis.pendingCount > 0 ? "ต้องดำเนินการ" : "ปกติ",
+            tone: kpis.pendingCount > 0 ? "warning" : "success",
+          }}
+          footer={
             <Link
               href="/backoffice/booking?status=AWAITING_VERIFICATION"
-              className="font-bold underline flex items-center gap-0.5"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 hover:underline"
             >
-              ตรวจสอบเลย <ArrowRight className="h-3 w-3" />
+              ตรวจสอบเลย <ArrowRight size={11} />
             </Link>
-          </div>
-        </div>
+          }
+        />
 
         {/* Active Packages */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-300 transition">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-slate-500">
-                แพ็กเกจทัวร์ในระบบ
-              </p>
-              <p className="mt-2 text-3xl font-black text-slate-950">
-                {loading ? "-" : kpis.activePackagesCount}
-              </p>
-            </div>
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-50 text-indigo-700">
-              <PlaneTakeoff className="h-5 w-5" />
-            </span>
-          </div>
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-            <span>แพ็กเกจพร้อมให้บริการ</span>
+        <StatCard
+          title="แพ็กเกจทัวร์ในระบบ"
+          label="แพ็กเกจทัวร์ในระบบ"
+          value={loading ? "-" : kpis.activePackagesCount}
+          icon={PlaneTakeoff}
+          trendBadge={{
+            text: "เปิดบริการ",
+            tone: "neutral",
+          }}
+          footer={
             <Link
               href="/backoffice/package"
-              className="text-cyan-600 hover:underline flex items-center gap-0.5"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0051c8] hover:underline"
             >
-              จัดการแพ็กเกจ <ArrowRight className="h-3 w-3" />
+              จัดการแพ็กเกจ <ArrowRight size={11} />
             </Link>
-          </div>
-        </div>
+          }
+        />
       </section>
 
-      {/* Middle Section: Booking Trends & Status Overview */}
-      <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
+      {/* Middle Section: Booking Trends & Operations Overview */}
+      <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
         {/* Activity Chart & Trends */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-950">
-                สถิติการทำรายการจอง (7 วันล่าสุด)
-              </h2>
-              <p className="mt-1 text-xs text-slate-500">
-                จำนวนคำสั่งจองแพ็กเกจทัวร์ที่ลูกค้าทำรายการเข้ามาในแต่ละวัน
-              </p>
-            </div>
+        <TwoToneCard
+          title="สถิติการทำรายการจอง (7 วันล่าสุด)"
+          titleEn="7-Day Trends"
+          action={
             <Link
               href="/backoffice/booking"
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+              className="btn-secondary h-7 px-2.5 text-[11px] rounded-md"
             >
-              ดูรายการทั้งหมด
+              <span>ดูข้อมูลทั้งหมด</span>
             </Link>
-          </div>
-
-          {/* Bar Chart Representation */}
-          <div className="mt-8 flex h-56 items-end gap-3 sm:gap-6 border-b border-slate-100 pb-2">
-            {activityDays.map((day, idx) => (
-              <div
-                key={idx}
-                className="group relative flex min-w-0 flex-1 flex-col items-center justify-end h-full"
-              >
-                {/* Tooltip on hover */}
-                <div className="absolute -top-9 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] rounded px-2 py-1 pointer-events-none whitespace-nowrap z-10 shadow-lg">
-                  {day.dateStr}: {day.count} รายการ
-                </div>
-                {/* Bar */}
-                <div
-                  className={`w-full max-w-[48px] rounded-t-lg transition-all duration-300 ${day.count > 0
-                      ? "bg-gradient-to-t from-cyan-600 to-cyan-400 group-hover:from-cyan-700 group-hover:to-cyan-500"
-                      : "bg-slate-100"
-                    }`}
-                  style={{ height: `${day.heightPercent}%` }}
-                />
-                <span className="mt-2 text-xs font-semibold text-slate-500 truncate">
-                  {day.label}
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  {day.count}
-                </span>
-              </div>
-            ))}
-          </div>
+          }
+        >
+          {/* Recharts Area Chart */}
+          <BookingTrendsChart data={activityDays} />
 
           {/* Status Breakdown Bar */}
-          <div className="mt-6 pt-2">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+          <div className="mt-5 pt-4 border-t border-zinc-100">
+            <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-2.5">
               สัดส่วนสถานะการจองในระบบ
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <Link
                 href="/backoffice/booking?status=CONFIRMED"
-                className="rounded-lg bg-emerald-50/70 p-3 border border-emerald-100 hover:bg-emerald-100/70 transition"
+                className="rounded-lg bg-emerald-50/60 p-2.5 border border-emerald-100 hover:bg-emerald-100/60 transition"
               >
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  ยืนยันแล้ว
+                  <CheckCircle2 size={13} />
+                  <span>ยืนยันแล้ว</span>
                 </div>
-                <p className="mt-1 text-xl font-black text-emerald-900">
+                <p className="mt-1 text-lg font-bold text-emerald-900 tabular-nums">
                   {kpis.confirmedCount}
                 </p>
               </Link>
 
               <Link
                 href="/backoffice/booking?status=PENDING_PAYMENT"
-                className="rounded-lg bg-amber-50/70 p-3 border border-amber-100 hover:bg-amber-100/70 transition"
+                className="rounded-lg bg-amber-50/60 p-2.5 border border-amber-100 hover:bg-amber-100/60 transition"
               >
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
-                  <Clock className="h-3.5 w-3.5" />
-                  รอชำระเงิน
+                  <Clock size={13} />
+                  <span>รอชำระเงิน</span>
                 </div>
-                <p className="mt-1 text-xl font-black text-amber-900">
-                  {bookings.filter((b) => b.status === "PENDING_PAYMENT").length}
+                <p className="mt-1 text-lg font-bold text-amber-900 tabular-nums">
+                  {
+                    bookings.filter((b) => b.status === "PENDING_PAYMENT")
+                      .length
+                  }
                 </p>
               </Link>
 
               <Link
                 href="/backoffice/booking?status=AWAITING_VERIFICATION"
-                className="rounded-lg bg-sky-50/70 p-3 border border-sky-100 hover:bg-sky-100/70 transition"
+                className="rounded-lg bg-sky-50/60 p-2.5 border border-sky-100 hover:bg-sky-100/60 transition"
               >
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-800">
-                  <Clock className="h-3.5 w-3.5" />
-                  รอตรวจสอบ
+                  <Clock size={13} />
+                  <span>รอตรวจสอบ</span>
                 </div>
-                <p className="mt-1 text-xl font-black text-sky-900">
-                  {bookings.filter((b) => b.status === "AWAITING_VERIFICATION").length}
+                <p className="mt-1 text-lg font-bold text-sky-900 tabular-nums">
+                  {
+                    bookings.filter((b) => b.status === "AWAITING_VERIFICATION")
+                      .length
+                  }
                 </p>
               </Link>
 
               <Link
                 href="/backoffice/booking?status=CANCELLED"
-                className="rounded-lg bg-rose-50/70 p-3 border border-rose-100 hover:bg-rose-100/70 transition"
+                className="rounded-lg bg-rose-50/60 p-2.5 border border-rose-100 hover:bg-rose-100/60 transition"
               >
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-800">
-                  <XCircle className="h-3.5 w-3.5" />
-                  ยกเลิกแล้ว
+                  <XCircle size={13} />
+                  <span>ยกเลิกแล้ว</span>
                 </div>
-                <p className="mt-1 text-xl font-black text-rose-900">
+                <p className="mt-1 text-lg font-bold text-rose-900 tabular-nums">
                   {kpis.cancelledCount}
                 </p>
               </Link>
             </div>
           </div>
-        </div>
+        </TwoToneCard>
 
-        {/* Quick Operations / Recent Activity */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-950">
-                การแจ้งเตือนและการทำงาน
-              </h2>
-              <span className="flex h-2 w-2 rounded-full bg-cyan-500 animate-ping" />
-            </div>
-
-            <div className="mt-4 space-y-3.5">
-              {kpis.pendingCount > 0 ? (
-                <div className="rounded-lg bg-amber-50 p-3.5 border border-amber-200/70">
-                  <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-amber-600 shrink-0" />
-                    มีรายการรอการตรวจสอบ {kpis.pendingCount} รายการ
-                  </p>
-                  <p className="mt-1 text-xs text-amber-800 leading-relaxed">
-                    มีลูกค้าทำรายการจองและรอการยืนยันสถานะ กรุณาเข้าไปตรวจสอบยอดเงินและยืนยันการจอง
-                  </p>
-                  <Link
-                    href="/backoffice/booking"
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-amber-900 underline hover:text-amber-950"
-                  >
-                    ไปที่หน้ารายการจอง <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </div>
-              ) : (
-                <div className="rounded-lg bg-emerald-50 p-3.5 border border-emerald-200/70">
-                  <p className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    ไม่มีรายการค้างตรวจสอบ
-                  </p>
-                  <p className="mt-1 text-xs text-emerald-800">
-                    รายการจองทั้งหมดได้รับการประมวลผลเรียบร้อย
-                  </p>
-                </div>
-              )}
-
-              {/* Quick links to system features */}
-              <div className="pt-2 space-y-2">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  ทางลัดการทำงาน
+        {/* Quick Operations / Activity */}
+        <TwoToneCard title="การแจ้งเตือน & ทางลัด" titleEn="Quick Actions">
+          <div className="space-y-3.5">
+            {kpis.pendingCount > 0 ? (
+              <div className="rounded-lg bg-amber-50/80 p-3 border border-amber-200/70">
+                <p className="text-xs font-semibold text-amber-900 flex items-center gap-1.5">
+                  <Clock size={13} className="text-amber-600 shrink-0" />
+                  <span>รอการตรวจสอบ {kpis.pendingCount} รายการ</span>
+                </p>
+                <p className="mt-1 text-[11px] text-amber-800/50 leading-relaxed">
+                  มีรายการจองรอการยืนยันสถานะ
+                  กรุณาเข้าไปตรวจสอบยอดเงินและยืนยันการจอง
                 </p>
                 <Link
-                  href="/backoffice/package/create"
-                  className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
-                >
-                  <span className="flex items-center gap-2">
-                    <PlaneTakeoff className="h-4 w-4 text-cyan-600" />
-                    สร้างแพ็กเกจทัวร์ใหม่
-                  </span>
-                  <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
-                </Link>
-
-                <Link
                   href="/backoffice/booking"
-                  className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+                  className="mt-2 inline-flex w-full justify-end items-center gap-1 text-[11px] font-semibold text-amber-900 hover:underline"
                 >
-                  <span className="flex items-center gap-2">
-                    <CalendarCheck className="h-4 w-4 text-cyan-600" />
-                    ตรวจสอบรายการจองทั้งหมด
-                  </span>
-                  <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
-                </Link>
-
-                <Link
-                  href="/backoffice/partner"
-                  className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
-                >
-                  <span className="flex items-center gap-2">
-                    <UsersRound className="h-4 w-4 text-cyan-600" />
-                    จัดการพาร์ทเนอร์ & โรงแรม
-                  </span>
-                  <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                  ไปที่หน้ารายการจอง <ArrowRight size={11} />
                 </Link>
               </div>
+            ) : (
+              <div className="rounded-lg bg-emerald-50/80 p-3 border border-emerald-200/70">
+                <p className="text-xs font-semibold text-emerald-900 flex items-center gap-1.5">
+                  <CheckCircle2
+                    size={13}
+                    className="text-emerald-600 shrink-0"
+                  />
+                  <span>ไม่มีรายการค้างตรวจสอบ</span>
+                </p>
+                <p className="mt-1 text-[11px] text-emerald-800">
+                  รายการจองทั้งหมดได้รับการประมวลผลเรียบร้อย
+                </p>
+              </div>
+            )}
+
+            {/* Quick links to system features */}
+            <div className="pt-1 space-y-1.5">
+              <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                ทางลัดระบบ
+              </p>
+              <Link
+                href="/backoffice/package/create"
+                className="flex items-center justify-between rounded-lg border border-zinc-200/80 bg-zinc-50/60 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 transition"
+              >
+                <span className="flex items-center gap-2">
+                  <PlaneTakeoff size={14} className="text-[#0051c8]" />
+                  <span>สร้างแพ็กเกจทัวร์ใหม่</span>
+                </span>
+                <ArrowRight size={12} className="text-zinc-400" />
+              </Link>
+
+              <Link
+                href="/backoffice/booking"
+                className="flex items-center justify-between rounded-lg border border-zinc-200/80 bg-zinc-50/60 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 transition"
+              >
+                <span className="flex items-center gap-2">
+                  <CalendarCheck size={14} className="text-[#0051c8]" />
+                  <span>ตรวจสอบรายการจองทั้งหมด</span>
+                </span>
+                <ArrowRight size={12} className="text-zinc-400" />
+              </Link>
+
+              <Link
+                href="/backoffice/partner"
+                className="flex items-center justify-between rounded-lg border border-zinc-200/80 bg-zinc-50/60 px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 transition"
+              >
+                <span className="flex items-center gap-2">
+                  <UsersRound size={14} className="text-[#0051c8]" />
+                  <span>จัดการพาร์ทเนอร์ & โรงแรม</span>
+                </span>
+                <ArrowRight size={12} className="text-zinc-400" />
+              </Link>
             </div>
           </div>
-
-          <div className="mt-4 border-t border-slate-100 pt-3">
-            <p className="text-[11px] text-slate-400 text-center">
-              Zentura Backoffice Management System v1.0
-            </p>
-          </div>
-        </div>
+        </TwoToneCard>
       </section>
 
       {/* Bottom Section: Recent Bookings Table */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100">
-          <div>
-            <h2 className="text-base font-bold text-slate-950">
-              รายการจองล่าสุดในระบบ (Recent Bookings)
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">
-              คำสั่งจอง 6 รายการล่าสุดที่ลูกค้าส่งเข้ามาในระบบ
-            </p>
-          </div>
-
+      <TwoToneCard
+        title="รายการจองล่าสุดในระบบ"
+        titleEn="Recent Bookings"
+        action={
           <Link
             href="/backoffice/booking"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-600 hover:text-cyan-700 hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-[#0051c8] hover:underline"
           >
             ดูการจองทั้งหมด ({bookings.length} รายการ)
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight size={12} />
           </Link>
-        </div>
-
-        {/* Table */}
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-slate-50/70 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              <tr>
-                <th className="py-3 px-4">รหัสการจอง</th>
-                <th className="py-3 px-4">แพ็กเกจ</th>
-                <th className="py-3 px-4">ผู้ติดต่อ</th>
-                <th className="py-3 px-4">วันเดินทาง</th>
-                <th className="py-3 px-4">ยอดเงิน</th>
-                <th className="py-3 px-4">สถานะ</th>
-                <th className="py-3 px-4 text-center">ดูข้อมูล</th>
+        }
+        noPadding
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-zinc-200/90 bg-zinc-50/70 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+                <th className="py-2.5 px-4">แพ็กเกจ</th>
+                <th className="py-2.5 px-4">ผู้ติดต่อ</th>
+                <th className="py-2.5 px-4">วันเดินทาง</th>
+                <th className="py-2.5 px-4">ยอดเงิน</th>
+                <th className="py-2.5 px-4">สถานะ</th>
+                <th className="py-2.5 px-4 text-center">ดูข้อมูล</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-zinc-100 text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
-                    <RefreshCw className="mx-auto h-5 w-5 animate-spin text-cyan-600" />
-                    <p className="mt-2 text-xs">กำลังโหลดข้อมูลการจอง...</p>
+                  <td colSpan={6} className="py-10 text-center text-zinc-400">
+                    <RefreshCw className="mx-auto size-5 animate-spin text-[#0051c8]" />
+                    <p className="mt-2 text-xs text-zinc-500">
+                      กำลังโหลดข้อมูลการจอง...
+                    </p>
                   </td>
                 </tr>
               ) : recentBookings.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                  <td colSpan={6} className="py-8 text-center text-zinc-400">
                     ยังไม่มีรายการจองในระบบ
                   </td>
                 </tr>
@@ -560,32 +530,36 @@ export default function DashboardPage() {
                 recentBookings.map((b) => (
                   <tr
                     key={b.id}
-                    className="hover:bg-slate-50/60 transition cursor-pointer"
+                    className="hover:bg-zinc-50/70 transition-colors cursor-pointer"
                     onClick={() => {
                       setSelectedBooking(b);
                       setIsDetailModalOpen(true);
                     }}
                   >
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                      {b.booking_code}
-                    </td>
-                    <td className="py-3 px-4 max-w-[200px] truncate">
-                      <p className="font-semibold text-slate-800 truncate">
-                        {b.package?.name || `Package #${b.package_id}`}
+                    <td className="py-3 px-4 max-w-50 truncate">
+                      <p className="font-medium text-zinc-900 truncate">
+                        {b.package?.name || "แพ็กเกจทัวร์"}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">
+                        จองเมื่อ {formatDate(b.createdAt)}
                       </p>
                     </td>
-                    <td className="py-3 px-4 text-slate-700">
-                      <p className="font-medium text-slate-900">{b.contact_name}</p>
-                      <p className="text-[11px] text-slate-400">{b.contact_phone}</p>
+                    <td className="py-3 px-4 text-zinc-700">
+                      <p className="font-medium text-zinc-900">
+                        {b.contact_name}
+                      </p>
+                      <p className="text-[11px] text-zinc-400">
+                        {b.contact_phone}
+                      </p>
                     </td>
-                    <td className="py-3 px-4 text-slate-600">
+                    <td className="py-3 px-4 text-zinc-600">
                       {formatDate(b.travel_date)}
                     </td>
-                    <td className="py-3 px-4 font-bold text-slate-900">
+                    <td className="py-3 px-4 font-semibold text-zinc-900 tabular-nums">
                       ฿{formatPrice(b.total_price)}
                     </td>
                     <td className="py-3 px-4">
-                      <BookingStatusBadge status={b.status} />
+                      <StatusChip status={b.status} />
                     </td>
                     <td className="py-3 px-4 text-center">
                       <button
@@ -595,9 +569,9 @@ export default function DashboardPage() {
                           setSelectedBooking(b);
                           setIsDetailModalOpen(true);
                         }}
-                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 transition"
+                        className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye size={15} />
                       </button>
                     </td>
                   </tr>
@@ -606,7 +580,7 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
-      </section>
+      </TwoToneCard>
 
       {/* Booking Detail Modal */}
       <BookingDetailModal

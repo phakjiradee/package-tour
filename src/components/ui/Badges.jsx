@@ -1,11 +1,22 @@
 "use client";
 
+import {
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Clock,
+  ShieldCheck,
+  Building2,
+  MapPin,
+  User,
+  HelpCircle,
+} from "lucide-react";
+
 /**
  * PositionBadge
- * User specification:
  * - แอดมิน (Admin): bg สีน้ำเงิน (Blue)
- * - sup (suppler): bg สีม่วง (Purple)
- * - user: bg สีเทา (Gray)
+ * - ซัพพลายเออร์ (Supplier): bg สีม่วง (Purple)
+ * - ผู้ใช้งาน (User): bg สีเทา (Gray)
  * - ไกด์ (Guide): bg สีเหลืองส้ม (Yellow-Orange / Amber)
  */
 export function PositionBadge({ position, className = "" }) {
@@ -21,10 +32,10 @@ export function PositionBadge({ position, className = "" }) {
   ) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-md bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800 ring-1 ring-inset ring-blue-300 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-800 border border-blue-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-blue-600"></span>
-        {raw || "Admin"}
+        <ShieldCheck size={12.5} className="text-blue-600 shrink-0" />
+        <span>แอดมิน</span>
       </span>
     );
   }
@@ -39,10 +50,10 @@ export function PositionBadge({ position, className = "" }) {
   ) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-md bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-800 ring-1 ring-inset ring-purple-300 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-800 border border-purple-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-purple-600"></span>
-        {raw || "suppler"}
+        <Building2 size={12.5} className="text-purple-600 shrink-0" />
+        <span>ซัพพลายเออร์</span>
       </span>
     );
   }
@@ -56,10 +67,10 @@ export function PositionBadge({ position, className = "" }) {
   ) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-400 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900 border border-amber-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-        {raw || "ไกด์"}
+        <MapPin size={12.5} className="text-amber-600 shrink-0" />
+        <span>ไกด์</span>
       </span>
     );
   }
@@ -73,10 +84,10 @@ export function PositionBadge({ position, className = "" }) {
   ) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-md bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-300 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-slate-500"></span>
-        {raw || "user"}
+        <User size={12.5} className="text-slate-500 shrink-0" />
+        <span>ผู้ใช้งาน</span>
       </span>
     );
   }
@@ -84,17 +95,16 @@ export function PositionBadge({ position, className = "" }) {
   // Fallback
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200 ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200 shadow-2xs ${className}`}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
-      {raw || "-"}
+      <User size={12.5} className="text-slate-400 shrink-0" />
+      <span>{raw || "ไม่ระบุ"}</span>
     </span>
   );
 }
 
 /**
  * StatusBadge
- * User specification:
  * - ใช้งาน: เขียว (Green)
  * - ปิดใช้งาน: แดง (Red)
  * - พักงาน: เหลือง (Yellow)
@@ -108,10 +118,10 @@ export function StatusBadge({ status, className = "" }) {
   if (st === "ใช้งาน" || lower === "active") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-300 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-        {raw || "ใช้งาน"}
+        <CheckCircle2 size={12.5} className="text-emerald-600 shrink-0" />
+        <span>ใช้งาน</span>
       </span>
     );
   }
@@ -125,10 +135,10 @@ export function StatusBadge({ status, className = "" }) {
   ) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-md bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-800 ring-1 ring-inset ring-rose-300 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-800 border border-rose-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
-        {raw || "ปิดใช้งาน"}
+        <XCircle size={12.5} className="text-rose-600 shrink-0" />
+        <span>ปิดใช้งาน</span>
       </span>
     );
   }
@@ -137,20 +147,20 @@ export function StatusBadge({ status, className = "" }) {
   if (st === "พักงาน" || lower === "suspended" || lower === "on leave") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-md bg-yellow-100 px-2.5 py-1 text-xs font-semibold text-yellow-900 ring-1 ring-inset ring-yellow-400 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900 border border-amber-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-yellow-500"></span>
-        {raw || "พักงาน"}
+        <AlertCircle size={12.5} className="text-amber-600 shrink-0" />
+        <span>พักงาน</span>
       </span>
     );
   }
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200 ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200 shadow-2xs ${className}`}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
-      {raw || "ไม่ระบุ"}
+      <HelpCircle size={12.5} className="text-slate-400 shrink-0" />
+      <span>ไม่ระบุ</span>
     </span>
   );
 }
@@ -165,10 +175,10 @@ export function BookingStatusBadge({ status, className = "" }) {
   if (s === "CONFIRMED") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-        ยืนยันการจองแล้ว
+        <CheckCircle2 size={12.5} className="text-emerald-600 shrink-0" />
+        <span>ยืนยันการจองแล้ว</span>
       </span>
     );
   }
@@ -176,10 +186,10 @@ export function BookingStatusBadge({ status, className = "" }) {
   if (s === "PENDING_PAYMENT") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-        รอชำระเงิน
+        <Clock size={12.5} className="text-amber-600 shrink-0" />
+        <span>รอชำระเงิน</span>
       </span>
     );
   }
@@ -187,10 +197,10 @@ export function BookingStatusBadge({ status, className = "" }) {
   if (s === "AWAITING_VERIFICATION") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-inset ring-sky-600/20 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800 border border-sky-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
-        รอตรวจสอบการชำระเงิน
+        <Clock size={12.5} className="text-sky-600 shrink-0" />
+        <span>รอตรวจสอบการชำระเงิน</span>
       </span>
     );
   }
@@ -198,10 +208,10 @@ export function BookingStatusBadge({ status, className = "" }) {
   if (s === "CANCELLED") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-600/20 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-800 border border-rose-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
-        ยกเลิกแล้ว
+        <XCircle size={12.5} className="text-rose-600 shrink-0" />
+        <span>ยกเลิกแล้ว</span>
       </span>
     );
   }
@@ -209,20 +219,20 @@ export function BookingStatusBadge({ status, className = "" }) {
   if (s === "COMPLETED") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-800 border border-purple-200 shadow-2xs ${className}`}
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span>
-        เดินทางสำเร็จ
+        <CheckCircle2 size={12.5} className="text-purple-600 shrink-0" />
+        <span>เดินทางสำเร็จ</span>
       </span>
     );
   }
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-500/20 ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200 shadow-2xs ${className}`}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
-      {status || "-"}
+      <AlertCircle size={12.5} className="text-slate-400 shrink-0" />
+      <span>{status || "-"}</span>
     </span>
   );
 }

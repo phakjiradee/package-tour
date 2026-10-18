@@ -57,11 +57,15 @@ export function getBackofficeToken() {
   return window.localStorage.getItem(BO_TOKEN_KEY);
 }
 
+export const getBackofficeUser = getBackofficeAuth;
+
 const backofficeAuth = {
   setBackofficeAuth,
   clearBackofficeAuth,
   getBackofficeAuth,
+  getBackofficeUser,
   getBackofficeToken,
 };
 
 export default backofficeAuth;
+
