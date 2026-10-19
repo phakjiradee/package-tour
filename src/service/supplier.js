@@ -48,6 +48,11 @@ export const supplierService = {
       const response = await api.delete(`/supplier/admin/accounts/${id}`);
       return response.data;
     },
+
+    async setPartnerAccess(partnerId, password) {
+      const response = await api.put(`/supplier/admin/partners/${partnerId}/access`, { password });
+      return response.data;
+    },
   },
 };
 

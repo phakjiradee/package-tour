@@ -89,7 +89,7 @@ export default function SupplierManagementPage() {
       phone: "",
       lineId: "",
       password: "",
-      partner_id: partners.length > 0 ? String(partners[0].id) : "",
+      partner_id: "",
       status: "ใช้งาน",
     });
     setModalError("");
@@ -115,18 +115,31 @@ export default function SupplierManagementPage() {
     e.preventDefault();
     setModalError("");
 
-    if (!formData.name.trim() || !formData.email.trim()) {
+    if (editingAccount && (!formData.name.trim() || !formData.email.trim())) {
       setModalError("กรุณากรอกชื่อและอีเมล");
       return;
     }
 
-    if (!editingAccount && (!formData.password || formData.password.length < 6)) {
+    if (!editingAccount && !formData.partner_id) {
+      setModalError("กรุณาเลือกพาร์ทเนอร์");
+      return;
+    }
+    if (!editingAccount && formData.password.length < 6) {
       setModalError("รหัสผ่านเริ่มต้นต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
       return;
     }
 
     try {
       setModalLoading(true);
+      if (!editingAccount) {
+        const result = await supplierService.admin.setPartnerAccess(Number(formData.partner_id), formData.password);
+        showToast(result.data?.status === "ปิดใช้งาน"
+          ? "ตั้งรหัสแล้ว แต่บัญชีถูกปิดใช้งาน กรุณาเปิดใช้งานก่อน"
+          : "ตั้งรหัส Supplier สำเร็จ ใช้อีเมลพาร์ทเนอร์เข้าระบบได้แล้ว");
+        setIsModalOpen(false);
+        loadData();
+        return;
+      }
       const payload = {
         name: formData.name.trim(),
         email: formData.email.trim(),
@@ -140,13 +153,8 @@ export default function SupplierManagementPage() {
         payload.password = formData.password.trim();
       }
 
-      if (editingAccount) {
-        await supplierService.admin.updateAccount(editingAccount.id, payload);
-        showToast("อัปเดตบัญชี Supplier เรียบร้อยแล้ว");
-      } else {
-        await supplierService.admin.createAccount(payload);
-        showToast("สร้างบัญชี Supplier สำเร็จแล้ว");
-      }
+      await supplierService.admin.updateAccount(editingAccount.id, payload);
+      showToast("อัปเดตบัญชี Supplier เรียบร้อยแล้ว");
 
       setIsModalOpen(false);
       loadData();
@@ -238,7 +246,7 @@ export default function SupplierManagementPage() {
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
-            <span>เพิ่มบัญชี Supplier</span>
+            <span>ตั้งรหัสร้าน</span>
           </button>
         </div>
       </div>
@@ -315,7 +323,7 @@ export default function SupplierManagementPage() {
                       {search ? "ไม่พบบัญชีที่ค้นหา" : "ยังไม่มีบัญชี Supplier"}
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
-                      กดปุ่ม &quot;เพิ่มบัญชี Supplier&quot; ด้านบนเพื่อเริ่มสร้างบัญชีเข้าใช้งาน
+                      กดปุ่ม &quot;ตั้งรหัสร้าน&quot; ด้านบนเพื่อเปิดให้พาร์ทเนอร์เข้าใช้งาน
                     </p>
                   </td>
                 </tr>
@@ -430,7 +438,7 @@ export default function SupplierManagementPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    {editingAccount ? "แก้ไขบัญชี Supplier" : "เพิ่มบัญชี Supplier ใหม่"}
+                    {editingAccount ? "แก้ไขบัญชี Supplier" : "ตั้งรหัสเข้าระบบให้พาร์ทเนอร์"}
                   </h3>
                   <p className="text-xs text-slate-400">
                     บัญชีนี้จะล็อกอินได้ที่หน้า /supplier/login เท่านั้น
@@ -454,7 +462,7 @@ export default function SupplierManagementPage() {
             )}
 
             <form onSubmit={handleFormSubmit} className="mt-4 space-y-4">
-              <div>
+              {editingAccount && <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700">
                   ชื่อผู้ใช้งาน / ชื่อตัวแทน <span className="text-rose-500">*</span>
                 </label>
@@ -469,9 +477,9 @@ export default function SupplierManagementPage() {
                     className="h-10 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-xs focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
-              </div>
+              </div>}
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {editingAccount && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-700">
                     อีเมล (สำหรับ Login) <span className="text-rose-500">*</span>
@@ -504,7 +512,7 @@ export default function SupplierManagementPage() {
                     />
                   </div>
                 </div>
-              </div>
+              </div>}
 
               {/* Partner Selection (Linked to Location) */}
               <div>
@@ -531,6 +539,7 @@ export default function SupplierManagementPage() {
                   <div className="mt-2 rounded-xl bg-slate-50 p-2.5 text-xs border border-slate-100 flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-cyan-600 shrink-0" />
                     <span className="text-slate-600">
+                      {!editingAccount && <>อีเมลเข้าระบบ: <strong>{selectedPartnerObj.email}</strong><br /></>}
                       สถานที่ที่เชื่อมต่อ:{" "}
                       <strong className="text-slate-800">
                         {selectedPartnerObj.location?.name || "ยังไม่มี (สามารถไปผูกได้ที่หน้าพาร์ทเนอร์)"}
@@ -543,7 +552,7 @@ export default function SupplierManagementPage() {
               {/* Password */}
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700">
-                  {editingAccount ? "รหัสผ่านใหม่ (เว้นว่างไว้หากไม่ต้องการเปลี่ยน)" : "รหัสผ่านเริ่มต้น *"}
+                  {editingAccount ? "รหัสผ่านใหม่ (เว้นว่างไว้หากไม่ต้องการเปลี่ยน)" : "รหัสผ่านร้าน *"}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -565,7 +574,7 @@ export default function SupplierManagementPage() {
               </div>
 
               {/* Status */}
-              <div>
+              {editingAccount && <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700">สถานะ</label>
                 <select
                   value={formData.status}
@@ -575,7 +584,7 @@ export default function SupplierManagementPage() {
                   <option value="ใช้งาน">ใช้งาน</option>
                   <option value="ปิดใช้งาน">ปิดใช้งาน</option>
                 </select>
-              </div>
+              </div>}
 
               {/* Submit Buttons */}
               <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
@@ -592,7 +601,7 @@ export default function SupplierManagementPage() {
                   className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-blue-600 px-5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
                 >
                   {modalLoading && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-                  <span>{editingAccount ? "บันทึกการแก้ไข" : "สร้างบัญชี"}</span>
+                  <span>{editingAccount ? "บันทึกการแก้ไข" : "บันทึกรหัสร้าน"}</span>
                 </button>
               </div>
             </form>
