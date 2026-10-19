@@ -15,7 +15,8 @@ export default function SupplierLayout({ children }) {
   const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
-    setUser(getSupplierAuth());
+    const timer = setTimeout(() => setUser(getSupplierAuth()), 0);
+    return () => clearTimeout(timer);
   }, [pathname]);
 
   if (pathname === "/supplier/login") return children;
