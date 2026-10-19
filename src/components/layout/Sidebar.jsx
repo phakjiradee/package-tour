@@ -20,6 +20,7 @@ import {
   Settings,
   UserCheck,
   UsersRound,
+  Store
 } from "lucide-react";
 import { clearBackofficeAuth } from "@/lib/backoffice-auth";
 

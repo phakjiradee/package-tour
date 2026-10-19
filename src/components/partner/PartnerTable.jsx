@@ -320,7 +320,7 @@ export default function PartnerTable({
                       <button
                         type="button"
                         onClick={() => onSetSupplierPassword(item)}
-                        className="btn-secondary h-7 px-2.5 text-xs rounded-md cursor-pointer"
+                        className="btn-secondary h-7 w-max px-2.5 text-xs rounded-md cursor-pointer"
                         title="ใช้ข้อมูลร้านและ Location นี้สร้างหรือเปลี่ยนรหัส Supplier"
                       >
                         <KeyRound size={12} />
