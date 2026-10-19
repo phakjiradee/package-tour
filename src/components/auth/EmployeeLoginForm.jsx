@@ -68,6 +68,7 @@ export default function EmployeeLoginForm({
       const response = await authService.login({
         email: loginForm.email.trim(),
         password: loginForm.password,
+        isEmployee: true,
       });
 
       const user = response.user;

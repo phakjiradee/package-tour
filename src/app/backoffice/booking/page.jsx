@@ -26,6 +26,7 @@ import PageHeader from "@/components/backoffice/PageHeader";
 import StatCard from "@/components/backoffice/StatCard";
 import TwoToneCard from "@/components/backoffice/TwoToneCard";
 import StatusChip from "@/components/backoffice/StatusChip";
+import Image from "next/image";
 
 const STATUS_TABS = [
   { label: "ทั้งหมด", value: "ALL" },
@@ -105,7 +106,7 @@ export default function BackofficeBookingPage() {
         setRefreshing(false);
       }
     },
-    [search, statusFilter]
+    [search, statusFilter],
   );
 
   useEffect(() => {
@@ -133,7 +134,7 @@ export default function BackofficeBookingPage() {
 
       // Update in local state
       setBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
       );
 
       // If modal is open with this booking, update it too
@@ -142,7 +143,10 @@ export default function BackofficeBookingPage() {
       }
     } catch (err) {
       console.error("Update status error:", err);
-      showToast(err.response?.data?.message || "ไม่สามารถอัปเดตสถานะได้", "error");
+      showToast(
+        err.response?.data?.message || "ไม่สามารถอัปเดตสถานะได้",
+        "error",
+      );
     } finally {
       setUpdatingStatus(false);
     }
@@ -167,7 +171,10 @@ export default function BackofficeBookingPage() {
       }
     } catch (err) {
       console.error("Backoffice mock pay error:", err);
-      showToast(err.response?.data?.message || "ไม่สามารถจำลองการชำระเงินได้", "error");
+      showToast(
+        err.response?.data?.message || "ไม่สามารถจำลองการชำระเงินได้",
+        "error",
+      );
     } finally {
       setUpdatingStatus(false);
     }
@@ -250,7 +257,9 @@ export default function BackofficeBookingPage() {
           >
             <RefreshCw
               size={13}
-              className={refreshing ? "animate-spin text-zinc-500" : "text-zinc-500"}
+              className={
+                refreshing ? "animate-spin text-zinc-500" : "text-zinc-500"
+              }
             />
             <span>รีเฟรช</span>
           </button>
@@ -327,7 +336,10 @@ export default function BackofficeBookingPage() {
         {/* Search bar */}
         <form onSubmit={handleSearchSubmit} className="flex gap-2">
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+            />
             <input
               type="text"
               placeholder="ค้นหาตามรหัสการจอง, ชื่อลูกค้า, เบอร์โทร หรืออีเมล..."
@@ -376,14 +388,18 @@ export default function BackofficeBookingPage() {
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-zinc-400">
                     <RefreshCw className="mx-auto size-5 animate-spin text-[#0051c8]" />
-                    <p className="mt-2 text-xs text-zinc-500">กำลังโหลดข้อมูลการจอง...</p>
+                    <p className="mt-2 text-xs text-zinc-500">
+                      กำลังโหลดข้อมูลการจอง...
+                    </p>
                   </td>
                 </tr>
               ) : bookings.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-zinc-500">
                     <CalendarCheck className="mx-auto size-8 text-zinc-300" />
-                    <p className="mt-2 font-medium text-zinc-800">ไม่พบรายการจองตามเงื่อนไข</p>
+                    <p className="mt-2 font-medium text-zinc-800">
+                      ไม่พบรายการจองตามเงื่อนไข
+                    </p>
                     <p className="text-xs text-zinc-400">
                       ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ
                     </p>
@@ -403,7 +419,9 @@ export default function BackofficeBookingPage() {
                     <td className="py-3 px-4 max-w-xs">
                       <div className="flex items-center gap-2.5">
                         {booking.package?.image ? (
-                          <img
+                          <Image
+                            width={32}
+                            height={32}
                             src={booking.package.image}
                             alt=""
                             className="size-9 shrink-0 rounded-md object-cover border border-zinc-200/70"
@@ -445,7 +463,9 @@ export default function BackofficeBookingPage() {
                         <Users size={11} className="text-zinc-400" />
                         <span>
                           ผู้ใหญ่ {booking.adult_count}
-                          {booking.child_count > 0 && `, เด็ก ${booking.child_count}`} ท่าน
+                          {booking.child_count > 0 &&
+                            `, เด็ก ${booking.child_count}`}{" "}
+                          ท่าน
                         </span>
                       </p>
                     </td>
@@ -468,7 +488,10 @@ export default function BackofficeBookingPage() {
                     </td>
 
                     {/* Actions */}
-                    <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td
+                      className="py-3 px-4 text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex items-center justify-center gap-1">
                         <button
                           type="button"
@@ -494,16 +517,24 @@ export default function BackofficeBookingPage() {
         {pagination.totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-zinc-200/90 bg-zinc-50/60 px-4 py-2.5 text-xs">
             <p className="text-zinc-500">
-              หน้า <span className="font-semibold text-zinc-900">{pagination.page}</span> จาก{" "}
-              <span className="font-semibold text-zinc-900">{pagination.totalPages}</span> (ทั้งหมด{" "}
-              {pagination.total} รายการ)
+              หน้า{" "}
+              <span className="font-semibold text-zinc-900">
+                {pagination.page}
+              </span>{" "}
+              จาก{" "}
+              <span className="font-semibold text-zinc-900">
+                {pagination.totalPages}
+              </span>{" "}
+              (ทั้งหมด {pagination.total} รายการ)
             </p>
 
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 disabled={!pagination.hasPrevPage}
-                onClick={() => fetchBookings(pagination.page - 1, search, statusFilter)}
+                onClick={() =>
+                  fetchBookings(pagination.page - 1, search, statusFilter)
+                }
                 className="btn-secondary size-7 p-0 flex items-center justify-center rounded-md cursor-pointer disabled:opacity-40"
               >
                 <ChevronLeft size={13} />
@@ -511,7 +542,9 @@ export default function BackofficeBookingPage() {
               <button
                 type="button"
                 disabled={!pagination.hasNextPage}
-                onClick={() => fetchBookings(pagination.page + 1, search, statusFilter)}
+                onClick={() =>
+                  fetchBookings(pagination.page + 1, search, statusFilter)
+                }
                 className="btn-secondary size-7 p-0 flex items-center justify-center rounded-md cursor-pointer disabled:opacity-40"
               >
                 <ChevronRight size={13} />
@@ -533,4 +566,3 @@ export default function BackofficeBookingPage() {
     </div>
   );
 }
-

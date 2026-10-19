@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -45,7 +45,31 @@ import { busService } from "@/service/bus";
 import PackageBusPicker from "@/components/package/PackageBusPicker";
 import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
+import Dropdown, { GuideDropdown } from "@/components/ui/Dropdown";
 import { formatThaiDateRange } from "@/lib/date";
+
+const formatPrice = (val) => {
+  if (val === null || val === undefined || val === "") return "";
+  const str = String(val).replace(/,/g, "");
+  const clean = str.replace(/[^0-9.]/g, "");
+  if (!clean) return "";
+
+  const parts = clean.split(".");
+  const intPart = (parts[0].replace(/^0+(?=\d)/, "") || "0").replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    ","
+  );
+  if (parts.length > 1) {
+    const decPart = parts.slice(1).join("").slice(0, 2);
+    return `${intPart}.${decPart}`;
+  }
+  return intPart;
+};
+
+const unformatPrice = (val) => {
+  if (val === null || val === undefined || val === "") return "";
+  return String(val).replace(/,/g, "");
+};
 
 export default function EditPackagePage({ params }) {
   const router = useRouter();
@@ -185,7 +209,6 @@ export default function EditPackagePage({ params }) {
               id: pg.id,
               emp_id: String(pg.emp_id),
               role: pg.role || "LEAD_GUIDE",
-              note: pg.note || "",
             }));
 
             setPackageData({
@@ -197,7 +220,7 @@ export default function EditPackagePage({ params }) {
               bus_ids: (data.packageBuses || []).map((item) => item.bus_id),
               price:
                 data.price !== null && data.price !== undefined
-                  ? String(data.price)
+                  ? formatPrice(String(data.price))
                   : "",
               status: data.status || "Draft",
               booking_start_date: data.booking_start_date
@@ -291,6 +314,57 @@ export default function EditPackagePage({ params }) {
     });
   };
 
+  const handleAssignPartner = (partnerId) => {
+    if (!partnerId) return;
+    const pId = Number(partnerId);
+    setPackageData((prev) => {
+      const currentIds = prev.partner_ids || [];
+      if (currentIds.includes(pId)) return prev;
+      const newIds = [...currentIds, pId];
+      return {
+        ...prev,
+        partner_ids: newIds,
+        partner_id: newIds.length > 0 ? String(newIds[0]) : "",
+      };
+    });
+  };
+
+  const handleRemovePartner = (partnerId) => {
+    const pId = Number(partnerId);
+    setPackageData((prev) => {
+      const currentIds = prev.partner_ids || [];
+      const newIds = currentIds.filter((item) => item !== pId);
+      return {
+        ...prev,
+        partner_ids: newIds,
+        partner_id: newIds.length > 0 ? String(newIds[0]) : "",
+      };
+    });
+  };
+
+  const partnerDropdownOptions = useMemo(() => {
+    return (partnersList || []).map((partner) => {
+      const isSelected = (packageData.partner_ids || []).includes(partner.id);
+      return {
+        value: partner.id,
+        label: partner.name,
+        subLabel: partner.phone
+          ? `โทร: ${partner.phone}`
+          : partner.address || "",
+        badge: isSelected ? "เลือกแล้ว" : partner.pt_type?.name,
+        badgeVariant: isSelected ? "warning" : "neutral",
+        disabled: isSelected,
+        disabledReason: isSelected ? "เลือกแล้วในรายการนี้" : "",
+        keywords: [
+          partner.name,
+          partner.phone || "",
+          partner.pt_type?.name || "",
+          partner.address || "",
+        ],
+      };
+    });
+  }, [partnersList, packageData.partner_ids]);
+
   const handleCreatePartner = async (formData) => {
     try {
       const newPartner = await partnerService.create(formData);
@@ -382,32 +456,28 @@ export default function EditPackagePage({ params }) {
     return null;
   };
 
-  const addGuide = () => {
-    const guidesOnly = employeesList.filter(
+  const guidesList = useMemo(() => {
+    return employeesList.filter(
       (e) => e.role === "ไกด์" || e.position === "ไกด์",
     );
-    const assignedIds = new Set(
-      (packageData.guides || []).map((g) => parseInt(g.emp_id)),
-    );
-    // เลือกไกด์ที่ยังไม่ถูกมอบหมายในทริปนี้ และไม่มีงานซ้อน
-    const available = guidesOnly.find(
-      (e) => !assignedIds.has(e.id) && !checkGuideConflict(e, id),
-    );
-    const defaultEmpId = available
-      ? available.id
-      : guidesOnly.find((e) => !assignedIds.has(e.id))?.id || "";
+  }, [employeesList]);
 
+  const handleAssignGuide = (empId) => {
+    if (!empId) return;
+    const idStr = String(empId);
+    if ((packageData.guides || []).some((g) => String(g.emp_id) === idStr)) {
+      return;
+    }
     setPackageData((prev) => ({
       ...prev,
       guides: [
         ...(prev.guides || []),
         {
-          emp_id: defaultEmpId ? String(defaultEmpId) : "",
+          emp_id: idStr,
           role:
             !prev.guides || prev.guides.length === 0
               ? "LEAD_GUIDE"
               : "ASSISTANT_GUIDE",
-          note: "",
         },
       ],
     }));
@@ -670,10 +740,14 @@ export default function EditPackagePage({ params }) {
 
     try {
       setIsSaving(true);
+      const payload = {
+        ...packageData,
+        price: parseFloat(unformatPrice(packageData.price)) || 0,
+      };
       const res = await fetch(`http://localhost:4000/api/packages/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(packageData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (res.ok) {
@@ -745,7 +819,7 @@ export default function EditPackagePage({ params }) {
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Sticky Top Header */}
-      <header className="sticky top-16 z-20 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-6 shadow-xs backdrop-blur-md">
+      <header className="sticky top-12 z-20 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-6 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -762,7 +836,10 @@ export default function EditPackagePage({ params }) {
               </h1>
               {packageData.status === "Published" && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200 shadow-2xs">
-                  <CheckCircle2 size={12.5} className="text-emerald-600 shrink-0" />
+                  <CheckCircle2
+                    size={12.5}
+                    className="text-emerald-600 shrink-0"
+                  />
                   <span>เปิดขาย</span>
                 </span>
               )}
@@ -807,7 +884,7 @@ export default function EditPackagePage({ params }) {
       </header>
 
       {/* Quick Navigation Anchor Bar */}
-      <div className="sticky top-32 z-20 bg-white/95 backdrop-blur-xs border-b border-slate-200 px-6 py-2 flex items-center gap-2 overflow-x-auto text-xs font-semibold shadow-xs">
+      <div className="sticky top-28 z-20 bg-white/95 backdrop-blur-xs border-b border-slate-200 px-6 py-2 flex items-center gap-2 overflow-x-auto text-xs font-semibold shadow-xs">
         <a
           href="#overview"
           className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
@@ -853,7 +930,7 @@ export default function EditPackagePage({ params }) {
       </div>
 
       {/* Main Layout Workspace */}
-      <div className="mx-auto max-w-7xl p-6 lg:flex lg:gap-8 lg:p-8">
+      <div className="w-full p-6 lg:flex lg:gap-8 lg:p-8">
         {/* Left Column: Canvas */}
         <div className="flex-1 space-y-8 pb-20">
           {/* SECTION: Overview */}
@@ -907,29 +984,21 @@ export default function EditPackagePage({ params }) {
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                       จุดหมายปลายทางหลัก
                     </label>
-                    <div className="relative">
-                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                        <Map className="h-4 w-4 text-slate-400" />
-                      </div>
-                      <select
-                        value={packageData.location_id}
-                        onChange={(e) =>
-                          handlePackageChange("location_id", e.target.value)
-                        }
-                        className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                      >
-                        <option value="">เลือกจุดหมายปลายทางหลัก</option>
-                        {locationsList.map((loc) => (
-                          <option key={loc.id} value={loc.id}>
-                            {loc.name}{" "}
-                            {loc.lct_type?.name ? `(${loc.lct_type.name})` : ""}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                        <ChevronDown className="h-4 w-4 text-slate-400" />
-                      </div>
-                    </div>
+                    <Dropdown
+                      value={packageData.location_id}
+                      onChange={(e) => {
+                        const val = e?.target ? e.target.value : e;
+                        handlePackageChange("location_id", val);
+                      }}
+                      options={locationsList.map((loc) => ({
+                        value: loc.id,
+                        label:
+                          `${loc.name} ${loc.lct_type?.name ? `(${loc.lct_type.name})` : ""}`.trim(),
+                      }))}
+                      placeholder="เลือกจุดหมายปลายทางหลัก"
+                      searchPlaceholder="ค้นหาจุดหมายปลายทาง..."
+                      clearable={false}
+                    />
                   </div>
                 </div>
               </div>
@@ -983,7 +1052,7 @@ export default function EditPackagePage({ params }) {
               <button
                 type="button"
                 onClick={() => setIsPartnerModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-xs cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 เพิ่มพันธมิตรใหม่
@@ -991,105 +1060,132 @@ export default function EditPackagePage({ params }) {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-2.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    เลือกผู้ให้บริการที่ร่วมในแพ็กเกจนี้
-                  </label>
-                  {partnersList.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-slate-400">
-                      ยังไม่มีข้อมูลพันธมิตรในระบบ สามารถกดปุ่ม
-                      &quot;เพิ่มพันธมิตรใหม่&quot;
-                      ด้านบนเพื่อสร้างข้อมูลได้ทันที
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                      {partnersList.map((partner) => {
-                        const isSelected = (
-                          packageData.partner_ids || []
-                        ).includes(partner.id);
-                        return (
-                          <div
-                            key={partner.id}
-                            onClick={() => handleTogglePartner(partner.id)}
-                            className={`flex items-start justify-between p-3.5 rounded-xl border cursor-pointer select-none transition-all ${
-                              isSelected
-                                ? "border-indigo-600 bg-indigo-50/60 shadow-sm ring-1 ring-indigo-600"
-                                : "border-slate-200 bg-slate-50/40 hover:border-slate-300 hover:bg-slate-50"
-                            }`}
-                          >
-                            <div className="flex-1 min-w-0 pr-2">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <span className="font-semibold text-sm text-slate-900 truncate">
-                                  {partner.name}
-                                </span>
-                              </div>
+              {/* Dropdown to assign partner directly into the list */}
+              <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
+                <label className="text-xs font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                  <Handshake className="h-4 w-4 text-indigo-600" />
+                  <span>เลือกพันธมิตรและผู้ให้บริการร่วม</span>
+                </label>
+                <Dropdown
+                  value=""
+                  onChange={(e) => {
+                    const partnerId = e?.target ? e.target.value : e;
+                    handleAssignPartner(partnerId);
+                  }}
+                  options={partnerDropdownOptions}
+                  placeholder="+ ค้นหาหรือเลือกพันธมิตรเพื่อเพิ่มในรายการ..."
+                  searchPlaceholder="ค้นหาชื่อพันธมิตร, เบอร์โทร, ประเภท..."
+                  className="w-full"
+                />
+                {partnersList.length === 0 && (
+                  <p className="text-[11px] text-amber-600 mt-1.5">
+                    ⚠️ ยังไม่มีข้อมูลพันธมิตรในระบบ สามารถกดปุ่ม
+                    &quot;เพิ่มพันธมิตรใหม่&quot; ด้านบนเพื่อสร้างข้อมูลได้
+                  </p>
+                )}
+              </div>
+
+              {/* Header for list items */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-700">
+                    รายชื่อผู้ให้บริการร่วมที่เลือก
+                  </span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    {(packageData.partner_ids || []).length} แห่ง
+                  </span>
+                </div>
+              </div>
+
+              {/* List Items */}
+              {!packageData.partner_ids ||
+              packageData.partner_ids.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 py-8 px-4 text-center mt-3">
+                  <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                    <Handshake className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">
+                    ยังไม่มีการเลือกผู้ให้บริการร่วม
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    เลือกพันธมิตรจากเมนูดรอปดาวน์ด้านบนเพื่อเพิ่มลงในรายการทันที
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs mt-3">
+                  {packageData.partner_ids.map((partnerId, index) => {
+                    const partner = partnersList.find(
+                      (p) => p.id === partnerId,
+                    );
+                    if (!partner) return null;
+
+                    return (
+                      <div
+                        key={partner.id}
+                        className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3.5 transition-colors hover:bg-slate-50/70"
+                      >
+                        {/* Partner Info Left */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500 shrink-0">
+                            {index + 1}
+                          </span>
+
+                          <div className="h-11 w-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <Building2 className="h-5 w-5 text-indigo-600" />
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-bold text-slate-900 text-sm truncate">
+                                {partner.name}
+                              </p>
                               {partner.pt_type?.name && (
-                                <span className="inline-block rounded-md bg-slate-200/70 px-2 py-0.5 text-[11px] font-medium text-slate-700 mb-1.5">
+                                <span className="inline-flex items-center rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
                                   {partner.pt_type.name}
                                 </span>
                               )}
-                              <div className="text-xs text-slate-500 truncate flex items-center gap-1">
-                                <Phone className="h-3 w-3 text-slate-400" />{" "}
-                                {partner.phone}
-                              </div>
                             </div>
-                            <div
-                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
-                                isSelected
-                                  ? "border-indigo-600 bg-indigo-600 text-white"
-                                  : "border-slate-300 bg-white"
-                              }`}
-                            >
-                              {isSelected && <Check className="h-3.5 w-3.5" />}
+
+                            <div className="flex items-center gap-2.5 mt-1 text-xs text-slate-500 flex-wrap">
+                              {partner.phone ? (
+                                <span className="flex items-center gap-1 text-[11px] text-slate-600 font-mono">
+                                  <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                                  {partner.phone}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-slate-400 italic">
+                                  ไม่มีเบอร์โทร
+                                </span>
+                              )}
+
+                              {partner.address && (
+                                <>
+                                  <span className="text-slate-300">•</span>
+                                  <span className="text-[11px] text-slate-500 truncate max-w-sm">
+                                    {partner.address}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                        </div>
 
-                {/* Selected Partners Summary Chips */}
-                {(packageData.partner_ids || []).length > 0 && (
-                  <div className="pt-4 border-t border-slate-100">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                      ผู้ให้บริการร่วมที่เลือก (
-                      {(packageData.partner_ids || []).length} แห่ง)
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {partnersList
-                        .filter((p) =>
-                          (packageData.partner_ids || []).includes(p.id),
-                        )
-                        .map((partner) => (
-                          <span
-                            key={partner.id}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 py-1.5 text-xs font-semibold text-indigo-900 shadow-sm"
+                        {/* Right: Delete button */}
+                        <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePartner(partner.id)}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="ลบออกจากรายการ"
                           >
-                            <Building2 className="h-3.5 w-3.5 text-indigo-600" />
-                            <span>{partner.name}</span>
-                            {partner.pt_type?.name && (
-                              <span className="rounded bg-indigo-200/60 px-1.5 py-0.5 text-[10px] text-indigo-800">
-                                {partner.pt_type.name}
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleTogglePartner(partner.id);
-                              }}
-                              className="ml-1 text-indigo-400 hover:text-indigo-800 transition-colors"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
 
@@ -1109,291 +1205,172 @@ export default function EditPackagePage({ params }) {
                   &apos;ไกด์&apos; และไม่มีงานซ้อนในวันเวลาเดียวกัน)
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={addGuide}
-                className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-xs cursor-pointer"
-              >
-                <Plus className="h-4 w-4 shrink-0" />
-                <span>มอบหมายไกด์</span>
-              </button>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              {/* Dropdown to assign guide directly into the list */}
+              <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-4">
+                <label className="text-xs font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                  <UserCheck className="h-4 w-4 text-indigo-600" />
+                  <span>เลือกไกด์นำเที่ยวเพื่อมอบหมายงาน</span>
+                </label>
+                <Dropdown
+                  type="guide"
+                  value=""
+                  onChange={(e) => {
+                    const empId = e?.target ? e.target.value : e;
+                    handleAssignGuide(empId);
+                  }}
+                  guidesList={guidesList}
+                  assignedGuides={packageData.guides}
+                  checkConflict={checkGuideConflict}
+                  packageId={id}
+                  placeholder="+ ค้นหาหรือเลือกไกด์นำเที่ยวเพื่อมอบหมาย..."
+                  searchPlaceholder="ค้นหาชื่อไกด์, เบอร์โทร..."
+                  className="w-full"
+                />
+                {guidesList.length === 0 && (
+                  <p className="text-[11px] text-amber-600 mt-1.5">
+                    ⚠️ ไม่พบพนักงานที่มีบทบาท &apos;ไกด์&apos; ในระบบ
+                  </p>
+                )}
+              </div>
+
+              {/* Header for list items */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-700">
+                    รายชื่อไกด์ที่มอบหมาย
+                  </span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    {(packageData.guides || []).length} ท่าน
+                  </span>
+                </div>
+              </div>
+
+              {/* List Items */}
               {!packageData.guides || packageData.guides.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
-                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
-                    <UserCheck className="h-6 w-6" />
+                <div className="rounded-xl border border-dashed border-slate-200 py-8 px-4 text-center mt-3">
+                  <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                    <UserCheck className="h-5 w-5" />
                   </div>
-                  <p className="text-sm font-medium text-slate-700 mb-1">
-                    ยังไม่มีการมอบหมายไกด์ประจำแพ็กเกจนี้
+                  <p className="text-sm font-semibold text-slate-700">
+                    ยังไม่มีการมอบหมายไกด์
                   </p>
-                  <p className="text-xs text-slate-500 mb-4">
-                    คุณสามารถระบุไกด์นำเที่ยวเพื่อให้นักท่องเที่ยวทราบชื่อและผู้ดูแลทริปได้
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    เลือกไกด์จากเมนูดรอปดาวน์ด้านบนเพื่อเพิ่มลงในรายการทันที
                   </p>
-                  <button
-                    type="button"
-                    onClick={addGuide}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4" />
-                    มอบหมายไกด์คนแรก
-                  </button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs mt-3">
                   {packageData.guides.map((guide, index) => {
                     const selectedEmp = employeesList.find(
                       (e) => e.id === parseInt(guide.emp_id),
                     );
                     const currentConflict = checkGuideConflict(selectedEmp, id);
-                    const isNotGuideRole =
-                      selectedEmp &&
-                      selectedEmp.role !== "ไกด์" &&
-                      selectedEmp.position !== "ไกด์";
-                    const guidesList = employeesList.filter(
-                      (e) => e.role === "ไกด์" || e.position === "ไกด์",
-                    );
+                    const isLead = guide.role === "LEAD_GUIDE";
 
                     return (
                       <div
-                        key={index}
-                        className={`rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md ${
-                          currentConflict || isNotGuideRole
-                            ? "border-rose-200 bg-rose-50/20"
-                            : "border-slate-200/90 bg-white hover:border-slate-300"
-                        }`}
+                        key={guide.emp_id || index}
+                        className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3.5 transition-colors hover:bg-slate-50/70"
                       >
-                        {/* Header: ลำดับที่, ป้ายหน้าที่, ปุ่มลบ */}
-                        <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-slate-100">
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
-                              {index + 1}
-                            </span>
-                            <span className="text-xs font-bold text-slate-700">
-                              การมอบหมายไกด์
-                            </span>
-                            {guide.role === "LEAD_GUIDE" && (
-                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                                <Crown className="h-3 w-3 text-amber-600 shrink-0" />
-                                <span>หัวหน้าทริป (Lead Guide)</span>
-                              </span>
-                            )}
-                            {guide.role === "ASSISTANT_GUIDE" && (
-                              <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                ไกด์ผู้ช่วย (Assistant Guide)
-                              </span>
-                            )}
-                            {guide.role === "COORDINATOR" && (
-                              <span className="inline-flex items-center rounded-md bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 text-[11px] font-semibold">
-                                ผู้ประสานงานทริป (Coordinator)
-                              </span>
-                            )}
+                        {/* Guide Info Left */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500 shrink-0">
+                            {index + 1}
+                          </span>
+
+                          <div
+                            className={`h-11 w-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs ${
+                              isLead
+                                ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                            }`}
+                          >
+                            {selectedEmp?.name
+                              ? selectedEmp.name.slice(0, 2)
+                              : "ไกด์"}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-bold text-slate-900 text-sm truncate">
+                                {selectedEmp?.name ||
+                                  `รหัสพนักงาน #${guide.emp_id}`}
+                              </p>
+                              {isLead && (
+                                <Crown className="h-3 w-3 text-amber-600" />
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2.5 mt-1 text-xs text-slate-500 flex-wrap">
+                              {selectedEmp?.phone ? (
+                                <span className="flex items-center gap-1 text-[11px] text-slate-600 font-mono">
+                                  <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                                  {selectedEmp.phone}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-slate-400 italic">
+                                  ไม่มีเบอร์โทร
+                                </span>
+                              )}
+
+                              {currentConflict ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                                  <AlertCircle className="h-3 w-3 shrink-0 text-rose-600" />
+                                  ติดงานแพ็กเกจ &quot;
+                                  {currentConflict.package_name}&quot;
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                  <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-600" />
+                                  พร้อมรับงาน
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Role selection using global Dropdown + Delete */}
+                        <div className="flex items-center gap-2.5 shrink-0 self-end md:self-center">
+                          <div className="w-56">
+                            <Dropdown
+                              value={guide.role || "LEAD_GUIDE"}
+                              onChange={(val) => {
+                                const roleVal = val?.target
+                                  ? val.target.value
+                                  : val;
+                                updateGuide(index, "role", roleVal);
+                              }}
+                              options={[
+                                {
+                                  value: "LEAD_GUIDE",
+                                  label: "ไกด์หลัก (Lead Guide)",
+                                },
+                                {
+                                  value: "ASSISTANT_GUIDE",
+                                  label: "ไกด์ผู้ช่วย (Assistant Guide)",
+                                },
+                                {
+                                  value: "COORDINATOR",
+                                  label: "ผู้ประสานงานทริป (Coordinator)",
+                                },
+                              ]}
+                              searchable={false}
+                              clearable={false}
+                              placeholder="เลือกหน้าที่"
+                            />
                           </div>
 
                           <button
                             type="button"
                             onClick={() => removeGuide(index)}
-                            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-                            title="ลบการมอบหมายนี้"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="ลบออกจากรายการ"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>ลบ</span>
+                            <Trash2 className="h-4 w-4" />
                           </button>
-                        </div>
-
-                        {/* Content Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                          {/* Left Profile Preview Box (4 cols) */}
-                          <div className="lg:col-span-4 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 flex flex-col justify-between">
-                            <div className="flex items-center gap-3.5">
-                              <div
-                                className={`h-12 w-12 rounded-xl flex items-center justify-center font-bold text-base shrink-0 shadow-xs ${
-                                  guide.role === "LEAD_GUIDE"
-                                    ? "bg-amber-100 text-amber-900 border border-amber-200"
-                                    : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                }`}
-                              >
-                                {selectedEmp?.name
-                                  ? selectedEmp.name.slice(0, 2)
-                                  : "ไกด์"}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="font-bold text-slate-900 text-sm truncate">
-                                  {selectedEmp?.name || "ยังไม่ได้เลือกไกด์"}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                  {selectedEmp?.position || "ตำแหน่งไกด์"}
-                                </p>
-                                {selectedEmp?.phone ? (
-                                  <p className="text-[11px] text-slate-600 flex items-center gap-1 mt-1 font-mono">
-                                    <Phone className="h-3 w-3 text-slate-400 shrink-0" />
-                                    <span>{selectedEmp.phone}</span>
-                                  </p>
-                                ) : (
-                                  <span className="text-[11px] text-slate-400 italic">
-                                    ไม่มีเบอร์โทร
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Status indicator badge */}
-                            {currentConflict && (
-                              <div className="mt-2.5 rounded-lg bg-rose-50 border border-rose-200 p-2 text-xs text-rose-700 flex items-start gap-1.5">
-                                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
-                                <div>
-                                  <p className="font-semibold text-rose-800">
-                                    ตารางงานซ้อนทับ
-                                  </p>
-                                  <p className="text-[11px] text-rose-600 leading-tight mt-0.5">
-                                    ติดงานแพ็กเกจ &quot;
-                                    {currentConflict.package_name}&quot;
-                                    ในช่วงวันเดินทางเดียวกัน
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-
-                            {isNotGuideRole && (
-                              <div className="mt-2.5 rounded-lg bg-amber-50 border border-amber-200 p-2 text-xs text-amber-800 flex items-start gap-1.5">
-                                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-                                <div>
-                                  <p className="font-semibold text-amber-900">
-                                    ไม่ใช่ตำแหน่งไกด์
-                                  </p>
-                                  <p className="text-[11px] text-amber-700 leading-tight mt-0.5">
-                                    พนักงานนี้มีตำแหน่ง &quot;
-                                    {selectedEmp.position || selectedEmp.role}
-                                    &quot; ต้องเป็นตำแหน่ง &quot;ไกด์&quot;
-                                    เท่านั้น
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-
-                            {selectedEmp &&
-                              !currentConflict &&
-                              !isNotGuideRole && (
-                                <div className="mt-2.5">
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                                    <span>พร้อมรับงาน (ตารางว่าง)</span>
-                                  </span>
-                                </div>
-                              )}
-                          </div>
-
-                          {/* Right Controls (8 cols) */}
-                          <div className="lg:col-span-8 space-y-3.5">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                              <div>
-                                <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
-                                  <span className="flex items-center gap-1">
-                                    <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
-                                    <span>
-                                      เลือกไกด์นำเที่ยว (Role ไกด์เท่านั้น)
-                                    </span>
-                                  </span>
-                                </label>
-                                <select
-                                  value={guide.emp_id}
-                                  onChange={(e) =>
-                                    updateGuide(index, "emp_id", e.target.value)
-                                  }
-                                  className={`w-full rounded-xl border bg-white px-3.5 py-2 text-sm text-slate-800 shadow-xs outline-none transition-all focus:ring-2 ${
-                                    currentConflict || isNotGuideRole
-                                      ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100"
-                                      : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-100"
-                                  }`}
-                                >
-                                  <option value="">
-                                    -- เลือกไกด์นำเที่ยว --
-                                  </option>
-                                  {guidesList.map((emp) => {
-                                    const isSelectedInOther =
-                                      packageData.guides.some(
-                                        (g, gIdx) =>
-                                          gIdx !== index &&
-                                          String(g.emp_id) === String(emp.id),
-                                      );
-                                    const conflict = checkGuideConflict(
-                                      emp,
-                                      id,
-                                    );
-                                    const isDisabled =
-                                      isSelectedInOther || !!conflict;
-
-                                    let statusLabel = "• ว่าง";
-                                    if (isSelectedInOther) {
-                                      statusLabel = "• (เลือกแล้วในรายการนี้)";
-                                    } else if (conflict) {
-                                      statusLabel = `• [ไม่ว่าง: ติดงาน "${conflict.package_name}"]`;
-                                    }
-
-                                    return (
-                                      <option
-                                        key={emp.id}
-                                        value={emp.id}
-                                        disabled={isDisabled}
-                                      >
-                                        {emp.name} {statusLabel}{" "}
-                                        {emp.phone ? `(โทร ${emp.phone})` : ""}
-                                      </option>
-                                    );
-                                  })}
-                                </select>
-                                {guidesList.length === 0 && (
-                                  <p className="text-[11px] text-amber-600 mt-1">
-                                    ⚠️ ไม่พบพนักงานที่มีบทบาท &apos;ไกด์&apos;
-                                    ในระบบ
-                                  </p>
-                                )}
-                              </div>
-
-                              <div>
-                                <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                                  <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
-                                  <span>หน้าที่ในทริป</span>
-                                </label>
-                                <select
-                                  value={guide.role || "LEAD_GUIDE"}
-                                  onChange={(e) =>
-                                    updateGuide(index, "role", e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-800 shadow-xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                                >
-                                  <option value="LEAD_GUIDE">
-                                    ไกด์หลัก (Lead Guide)
-                                  </option>
-                                  <option value="ASSISTANT_GUIDE">
-                                    ไกด์ผู้ช่วย (Assistant Guide)
-                                  </option>
-                                  <option value="COORDINATOR">
-                                    ผู้ประสานงานทริป (Coordinator)
-                                  </option>
-                                </select>
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                                <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
-                                <span>
-                                  หมายเหตุ / ทักษะภาษา / ความเชี่ยวชาญ
-                                </span>
-                              </label>
-                              <input
-                                type="text"
-                                value={guide.note || ""}
-                                onChange={(e) =>
-                                  updateGuide(index, "note", e.target.value)
-                                }
-                                placeholder="เช่น ชำนาญภาษาอังกฤษ-จีน, ดูแลกลุ่ม VIP, เชี่ยวชาญเส้นทางเดินป่า"
-                                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-800 placeholder:text-slate-400 shadow-xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                              />
-                            </div>
-                          </div>
                         </div>
                       </div>
                     );
@@ -1913,7 +1890,7 @@ export default function EditPackagePage({ params }) {
         </div>
 
         {/* Right Column: Sticky Summary Panel */}
-        <aside className="w-full lg:w-80 shrink-0">
+        <aside className="w-full lg:w-96 xl:w-105 shrink-0">
           <div className="sticky top-24 space-y-6">
             {/* Pricing Card */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1929,10 +1906,11 @@ export default function EditPackagePage({ params }) {
                     <span className="font-medium text-slate-400">฿</span>
                   </div>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={packageData.price}
                     onChange={(e) =>
-                      handlePackageChange("price", e.target.value)
+                      handlePackageChange("price", formatPrice(e.target.value))
                     }
                     placeholder="0.00"
                     className="w-full rounded-xl border border-slate-300 bg-slate-50 py-3 pl-9 pr-4 text-lg font-bold text-slate-900 outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
@@ -1951,15 +1929,9 @@ export default function EditPackagePage({ params }) {
                   }
                   className="w-full rounded-xl border border-slate-300 bg-white py-2.5 px-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 shadow-sm"
                 >
-                  <option value="Published">
-                    เปิดขาย (ให้จองบนเว็บไซต์)
-                  </option>
-                  <option value="Draft">
-                    ฉบับร่าง (ซ่อนไม่ให้ลูกค้าเห็น)
-                  </option>
-                  <option value="Closed">
-                    ปิดรับจอง (ชั่วคราว / เต็ม)
-                  </option>
+                  <option value="Published">เปิดขาย (ให้จองบนเว็บไซต์)</option>
+                  <option value="Draft">ฉบับร่าง (ซ่อนไม่ให้ลูกค้าเห็น)</option>
+                  <option value="Closed">ปิดรับจอง (ชั่วคราว / เต็ม)</option>
                   <option value="Archived">
                     เก็บถาวร (ซ่อนออกจากเว็บไซต์)
                   </option>
@@ -2049,9 +2021,6 @@ export default function EditPackagePage({ params }) {
                       <span className="flex items-center gap-1.5">
                         <Plane className="h-4 w-4 text-indigo-600" />
                         <span>วันเดินทางของแพ็กเกจ</span>
-                      </span>
-                      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] text-indigo-700">
-                        เชื่อมจากแพลนอัตโนมัติ
                       </span>
                     </div>
                     <p className="font-extrabold text-slate-900 text-sm">

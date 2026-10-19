@@ -6,23 +6,19 @@ import {
   Image as ImageIcon,
   Star,
   Trash2,
+  AlertCircle,
   Plus,
-  ArrowLeft,
-  ArrowRight,
-  Link as LinkIcon,
-  Check,
-  AlertCircle
 } from "lucide-react";
 
 export default function PackageImageUploader({ images = [], onChange }) {
-  const [urlInput, setUrlInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef(null);
+  const dragCounter = useRef(0);
 
-  // Handle file upload from computer via API
-  const handleFileUpload = async (e) => {
-    const files = e.target.files;
+  // Common upload handler for both input and drag-and-drop
+  const uploadFiles = async (files) => {
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
@@ -64,22 +60,43 @@ export default function PackageImageUploader({ images = [], onChange }) {
     }
   };
 
-  // Handle URL addition
-  const handleAddUrl = (e) => {
-    e?.preventDefault();
-    const trimmed = urlInput.trim();
-    if (!trimmed) return;
+  const handleFileUpload = (e) => {
+    uploadFiles(e.target.files);
+  };
 
-    const isFirst = images.length === 0;
-    const newImage = {
-      image_url: trimmed,
-      is_cover: isFirst,
-      sort_order: images.length,
-      caption: "",
-    };
+  // Drag and Drop Handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
 
-    onChange([...images, newImage]);
-    setUrlInput("");
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      uploadFiles(e.dataTransfer.files);
+    }
   };
 
   // Set cover image
@@ -94,12 +111,10 @@ export default function PackageImageUploader({ images = [], onChange }) {
   // Remove image
   const handleRemoveImage = (index) => {
     const filtered = images.filter((_, idx) => idx !== index);
-    // If the removed image was cover, make the first one cover
     const hasCover = filtered.some((img) => img.is_cover);
     if (!hasCover && filtered.length > 0) {
       filtered[0].is_cover = true;
     }
-    // Re-index sort_order
     const reindexed = filtered.map((img, idx) => ({
       ...img,
       sort_order: idx,
@@ -107,108 +122,72 @@ export default function PackageImageUploader({ images = [], onChange }) {
     onChange(reindexed);
   };
 
-  // Move image (reorder)
-  const handleMove = (index, direction) => {
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= images.length) return;
-
-    const list = [...images];
-    const temp = list[index];
-    list[index] = list[targetIndex];
-    list[targetIndex] = temp;
-
-    const reordered = list.map((img, idx) => ({
-      ...img,
-      sort_order: idx,
-    }));
-    onChange(reordered);
-  };
-
-  // Update caption
-  const handleCaptionChange = (index, text) => {
-    const updated = [...images];
-    updated[index] = { ...updated[index], caption: text };
-    onChange(updated);
-  };
-
   return (
-    <div className="space-y-4">
-      {/* Upload Zone & URL Input */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Upload box */}
+    <div
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className="relative space-y-4"
+    >
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        multiple
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* Drag & Drop Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-indigo-500 bg-indigo-50/95 p-6 backdrop-blur-xs transition-all pointer-events-none">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-md text-indigo-600 animate-bounce">
+            <Upload className="h-7 w-7" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold text-indigo-900">
+              ปล่อยไฟล์ที่นี่เพื่ออัปโหลด
+            </p>
+            <p className="text-xs text-indigo-600 mt-0.5">
+              รองรับไฟล์รูปภาพ PNG, JPG, WEBP
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Zone (Visible only when no images uploaded yet) */}
+      {images.length === 0 && (
         <div
           onClick={() => fileInputRef.current?.click()}
-          className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all ${
+          className={`cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
             isUploading
-              ? "border-blue-300 bg-blue-50/50"
-              : "border-slate-200 bg-slate-50/60 hover:border-blue-400 hover:bg-blue-50/30"
+              ? "border-indigo-300 bg-indigo-50/50"
+              : "border-slate-200 bg-slate-50/60 hover:border-indigo-400 hover:bg-indigo-50/30"
           }`}
         >
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            multiple
-            accept="image/*"
-            className="hidden"
-          />
           <div className="flex flex-col items-center justify-center gap-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm text-blue-600">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm text-indigo-600">
               {isUploading ? (
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
               ) : (
                 <Upload className="h-6 w-6" />
               )}
             </div>
             <div>
               <p className="text-sm font-bold text-slate-800">
-                {isUploading ? "กำลังอัปโหลดรูปภาพ..." : "คลิกเพื่อเลือกรูปภาพจากเครื่อง"}
+                {isUploading
+                  ? "กำลังอัปโหลดรูปภาพ..."
+                  : "คลิกหรือลากไฟล์มาวางที่นี่เพื่ออัปโหลด"}
               </p>
               <p className="text-xs text-slate-400 mt-0.5">
-                รองรับไฟล์ PNG, JPG, WEBP (เลือกได้พร้อมกันหลายรูป)
+                รองรับไฟล์ PNG, JPG, WEBP (เลือกหรือลากวางได้พร้อมกันหลายรูป)
               </p>
             </div>
           </div>
         </div>
-
-        {/* URL Input Box */}
-        <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div>
-            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-              <LinkIcon className="h-3.5 w-3.5 text-blue-600" />
-              <span>หรือเพิ่มจากลิงก์รูปภาพภายนอก</span>
-            </label>
-            <p className="text-xs text-slate-400 mt-1">
-              ระบุ URL ของรูปภาพ เช่น จาก Unsplash หรือคลังภาพออนไลน์
-            </p>
-          </div>
-
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              type="url"
-              placeholder="https://images.unsplash.com/..."
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleAddUrl();
-                }
-              }}
-              className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={handleAddUrl}
-              disabled={!urlInput.trim()}
-              className="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>เพิ่ม</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      )}
 
       {uploadError && (
         <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-600">
@@ -218,118 +197,99 @@ export default function PackageImageUploader({ images = [], onChange }) {
       )}
 
       {/* Images List / Grid */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            คลังรูปภาพของแพ็กเกจ ({images.length} รูป)
-          </span>
-          {images.length > 0 && (
-            <span className="text-[11px] text-slate-400">
-              *คลิกไอคอนรูปดาว ⭐ เพื่อเลือกภาพหน้าปกหลักของทริป
-            </span>
-          )}
-        </div>
-
-        {images.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 py-8 text-center text-slate-400">
-            <ImageIcon className="mx-auto h-8 w-8 text-slate-300 mb-2" />
-            <p className="text-xs font-medium">ยังไม่มีรูปภาพในแพ็กเกจนี้</p>
-            <p className="text-[11px] text-slate-400">อัปโหลดรูปภาพด้านบนเพื่อให้แพ็กเกจดูน่าสนใจยิ่งขึ้น</p>
+      {images.length > 0 && (
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                คลังรูปภาพของแพ็กเกจ ({images.length} รูป)
+              </span>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition cursor-pointer disabled:opacity-50"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>{isUploading ? "กำลังอัปโหลด..." : "เพิ่มรูปภาพ"}</span>
+              </button>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {images.map((img, index) => (
               <div
                 key={index}
-                className={`relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all ${
+                className={`group relative aspect-video w-full overflow-hidden rounded-2xl border bg-slate-100 shadow-xs transition-all ${
                   img.is_cover
                     ? "border-amber-400 ring-2 ring-amber-300/40"
                     : "border-slate-200 hover:border-slate-300"
                 }`}
               >
-                {/* Image Container */}
-                <div className="relative h-40 w-full bg-slate-100 overflow-hidden">
-                  <img
-                    src={img.image_url}
-                    alt={img.caption || `ภาพที่ ${index + 1}`}
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = "https://images.unsplash.com/photo-1589394815804-964ce0fa2556?auto=format&fit=crop&w=400&q=80";
-                    }}
-                  />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.image_url}
+                  alt={img.caption || `ภาพที่ ${index + 1}`}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src =
+                      "https://images.unsplash.com/photo-1589394815804-964ce0fa2556?auto=format&fit=crop&w=400&q=80";
+                  }}
+                />
 
-                  {/* Cover Badge */}
-                  {img.is_cover ? (
-                    <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-md">
-                      <Star className="h-3 w-3 fill-white" />
-                      <span>รูปหน้าปก</span>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleSetCover(index)}
-                      className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-md opacity-90 hover:opacity-100 hover:bg-amber-600 transition"
-                    >
-                      <Star className="h-3 w-3" />
-                      <span>ตั้งเป็นหน้าปก</span>
-                    </button>
-                  )}
-
-                  {/* Order & Delete Actions */}
-                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImage(index)}
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-600/90 text-white shadow hover:bg-rose-700 transition"
-                      title="ลบรูปภาพนี้"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                {/* Cover Badge / Button */}
+                {img.is_cover ? (
+                  <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-md">
+                    <Star className="h-3 w-3 fill-white" />
+                    <span>รูปหน้าปก</span>
                   </div>
-                </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSetCover(index)}
+                    className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-slate-900/60 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-md hover:bg-amber-600 transition shadow-xs cursor-pointer"
+                  >
+                    <Star className="h-3 w-3" />
+                    <span>ตั้งเป็นหน้าปก</span>
+                  </button>
+                )}
 
-                {/* Footer Controls: Caption & Move */}
-                <div className="p-3 bg-white space-y-2">
-                  <input
-                    type="text"
-                    placeholder="คำอธิบายรูปภาพ (Caption / Alt)..."
-                    value={img.caption || ""}
-                    onChange={(e) => handleCaptionChange(index, e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none"
-                  />
-
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                    <span className="text-[11px] font-semibold text-slate-400">
-                      ลำดับ #{index + 1}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleMove(index, -1)}
-                        disabled={index === 0}
-                        className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
-                        title="เลื่อนไปข้างหน้า"
-                      >
-                        <ArrowLeft className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleMove(index, 1)}
-                        disabled={index === images.length - 1}
-                        className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30"
-                        title="เลื่อนไปข้างหลัง"
-                      >
-                        <ArrowRight className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
+                {/* Delete Action */}
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(index)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-600/90 text-white shadow-xs hover:bg-rose-700 transition cursor-pointer"
+                    title="ลบรูปภาพนี้"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
             ))}
+
+            {/* Add More Tile */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="group aspect-video w-full flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:border-indigo-400 hover:bg-indigo-50/30 text-slate-400 hover:text-indigo-600 transition cursor-pointer disabled:opacity-50"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white shadow-2xs group-hover:scale-110 transition-transform">
+                {isUploading ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+              </div>
+              <span className="text-xs font-semibold">
+                {isUploading ? "กำลังอัปโหลด..." : "เพิ่มรูปภาพ"}
+              </span>
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

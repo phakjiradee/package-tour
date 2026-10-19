@@ -21,6 +21,7 @@ import {
   Hotel,
   MapPin,
   Share,
+  Copy,
   Utensils,
   Image as ImageIcon,
   Compass,
@@ -37,7 +38,6 @@ import {
   UserCheck,
   Crown,
   Search,
-  UserPlus,
   Plane,
   Coins,
 } from "lucide-react";
@@ -67,6 +67,7 @@ export default function CustomerPackageViewPage({ params }) {
   const [collaborators, setCollaborators] = useState([]);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
   const handleAddCollaborator = (user) => {
@@ -143,7 +144,7 @@ export default function CustomerPackageViewPage({ params }) {
     setExpandedDays((prev) => ({ ...prev, [index]: !prev[index] }));
   };
 
-  const handleShare = () => {
+  const handleCopyLink = () => {
     if (typeof window !== "undefined") {
       navigator.clipboard?.writeText(window.location.href);
       setCopied(true);
@@ -215,7 +216,18 @@ export default function CustomerPackageViewPage({ params }) {
     0,
   );
   const hotels = Array.from(
-    new Set(dayplans.map((d) => d.hotel).filter(Boolean)),
+    new Set(
+      dayplans
+        .map((d) => d.hotel?.trim())
+        .filter(
+          (h) =>
+            Boolean(h) &&
+            !h.includes("สิ้นสุดโปรแกรม") &&
+            !h.includes("สิ้นสุดการเดินทาง") &&
+            !h.includes("สิ้นสุดทริป") &&
+            !h.toLowerCase().includes("end of tour"),
+        ),
+    ),
   );
   const unitPrice = packageData.price || 0;
   const basePrice = unitPrice * adults;
@@ -230,7 +242,9 @@ export default function CustomerPackageViewPage({ params }) {
   const travelEndDate =
     packageData.end_date ||
     packageData.dayplans?.[packageData.dayplans.length - 1]?.dt;
-  const travelDateText = formatThaiDateRange(travelStartDate, travelEndDate);
+  const travelDateText = formatThaiDateRange(travelStartDate, travelEndDate, {
+    shortMonth: true,
+  });
   const bookingPeriodText = formatThaiDateRange(
     packageData.booking_start_date,
     packageData.booking_end_date,
@@ -273,16 +287,12 @@ export default function CustomerPackageViewPage({ params }) {
         </Link>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleShare}
-            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-            title="แชร์ลิงก์"
+            type="button"
+            onClick={() => setIsShareModalOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors cursor-pointer"
+            title="แชร์แพ็กเกจนี้"
           >
             <Share className="h-4 w-4" />
-            {copied && (
-              <span className="absolute -bottom-8 right-0 rounded-md bg-slate-900 px-2 py-1 text-[11px] font-medium text-white shadow-md whitespace-nowrap">
-                คัดลอกลิงก์แล้ว!
-              </span>
-            )}
           </button>
           <button
             onClick={() => setIsLiked(!isLiked)}
@@ -358,65 +368,6 @@ export default function CustomerPackageViewPage({ params }) {
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
             {packageData.name}
           </h1>
-
-          {/* Stored Metadata Tags (Only real data from DB) */}
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-            {totalDays > 0 && (
-              <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
-                <Clock className="h-3.5 w-3.5 text-slate-500" />
-                <span>{totalDays} วัน</span>
-              </div>
-            )}
-            {totalActivities > 0 && (
-              <div className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 font-medium text-indigo-700">
-                <Compass className="h-3.5 w-3.5 text-indigo-500" />
-                <span>{totalActivities} กิจกรรม</span>
-              </div>
-            )}
-            {totalMeals > 0 && (
-              <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 font-medium text-orange-700">
-                <Utensils className="h-3.5 w-3.5 text-orange-500" />
-                <span>{totalMeals} มื้ออาหาร</span>
-              </div>
-            )}
-          </div>
-
-          {/* Stored Partners Information */}
-          {((packageData.partners && packageData.partners.length > 0) ||
-            packageData.partner) && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                <Handshake className="h-3.5 w-3.5 text-indigo-600" />{" "}
-                พาร์ทเนอร์ร่วมบริการ:
-              </span>
-              {packageData.partners && packageData.partners.length > 0 ? (
-                packageData.partners.map((p) => (
-                  <span
-                    key={p.partner_id}
-                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800 border border-indigo-100 shadow-2xs"
-                  >
-                    <Building2 className="h-3 w-3 text-indigo-600" />
-                    <span>{p.partner?.name}</span>
-                    {p.partner?.pt_type?.name && (
-                      <span className="text-[10px] text-indigo-500 font-normal">
-                        ({p.partner.pt_type.name})
-                      </span>
-                    )}
-                  </span>
-                ))
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800 border border-indigo-100 shadow-2xs">
-                  <Building2 className="h-3 w-3 text-indigo-600" />
-                  <span>{packageData.partner.name}</span>
-                  {packageData.partner.pt_type?.name && (
-                    <span className="text-[10px] text-indigo-500 font-normal">
-                      ({packageData.partner.pt_type.name})
-                    </span>
-                  )}
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Photo Gallery (Airbnb / Agoda Mosaic + Fullscreen Lightbox) */}
@@ -431,6 +382,68 @@ export default function CustomerPackageViewPage({ params }) {
         <div className="flex flex-col lg:flex-row lg:gap-10">
           {/* Left Content */}
           <div className="flex-1 lg:max-w-[65%]">
+            {/* Stored Metadata Tags & Partners (Placed above Description) */}
+            <div className="mb-6 space-y-3">
+              {/* Badges */}
+              <div className="flex flex-wrap items-center gap-2.5 text-sm">
+                {totalDays > 0 && (
+                  <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+                    <Clock className="h-3.5 w-3.5 text-slate-500" />
+                    <span>{totalDays} วัน</span>
+                  </div>
+                )}
+                {totalActivities > 0 && (
+                  <div className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 font-medium text-indigo-700">
+                    <Compass className="h-3.5 w-3.5 text-indigo-500" />
+                    <span>{totalActivities} กิจกรรม</span>
+                  </div>
+                )}
+                {totalMeals > 0 && (
+                  <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 font-medium text-orange-700">
+                    <Utensils className="h-3.5 w-3.5 text-orange-500" />
+                    <span>{totalMeals} มื้ออาหาร</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Partners Information */}
+              {((packageData.partners && packageData.partners.length > 0) ||
+                packageData.partner) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                    <Handshake className="h-3.5 w-3.5 text-indigo-600" />{" "}
+                    พาร์ทเนอร์ร่วมบริการ:
+                  </span>
+                  {packageData.partners && packageData.partners.length > 0 ? (
+                    packageData.partners.map((p) => (
+                      <span
+                        key={p.partner_id}
+                        className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800 border border-indigo-100 shadow-2xs"
+                      >
+                        <Building2 className="h-3 w-3 text-indigo-600" />
+                        <span>{p.partner?.name}</span>
+                        {p.partner?.pt_type?.name && (
+                          <span className="text-[10px] text-indigo-500 font-normal">
+                            ({p.partner.pt_type.name})
+                          </span>
+                        )}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800 border border-indigo-100 shadow-2xs">
+                      <Building2 className="h-3 w-3 text-indigo-600" />
+                      <span>{packageData.partner.name}</span>
+                      {packageData.partner.pt_type?.name && (
+                        <span className="text-[10px] text-indigo-500 font-normal">
+                          ({packageData.partner.pt_type.name})
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Overview Section */}
             {packageData.description && (
               <section className="mb-10">
@@ -439,26 +452,6 @@ export default function CustomerPackageViewPage({ params }) {
                 </h2>
                 <div className="text-slate-600 leading-relaxed text-base whitespace-pre-line bg-slate-50/70 p-5 rounded-2xl border border-slate-100">
                   {packageData.description}
-                </div>
-              </section>
-            )}
-
-            {/* Accommodation summary if stored in DB */}
-            {hotels.length > 0 && (
-              <section className="mb-8">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">
-                  ที่พัก / โรงแรม
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {hotels.map((hotel, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/60 px-3.5 py-2 text-sm font-medium text-blue-800"
-                    >
-                      <Hotel className="h-4 w-4 text-blue-600" />
-                      <span>{hotel}</span>
-                    </div>
-                  ))}
                 </div>
               </section>
             )}
@@ -727,6 +720,21 @@ export default function CustomerPackageViewPage({ params }) {
                     / ท่าน
                   </span>
                 </div>
+
+                {/* Accommodation Badges under Price */}
+                {hotels.length > 0 && (
+                  <div className="mt-3.5 flex flex-wrap gap-1.5">
+                    {hotels.map((hotel, idx) => (
+                      <div
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50/70 px-2.5 py-1 text-xs font-semibold text-blue-800 shadow-2xs"
+                      >
+                        <Hotel className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                        <span>{hotel}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Package Summary based on stored DB fields */}
@@ -742,7 +750,7 @@ export default function CustomerPackageViewPage({ params }) {
                 {packageData.location?.name && (
                   <div className="flex justify-between items-center text-slate-600">
                     <span className="flex items-center gap-2 text-slate-500">
-                      <MapPin className="h-4 w-4 text-indigo-500" /> สถานที่
+                      <MapPin className="h-4 w-4 text-slate-400" /> สถานที่
                     </span>
                     <span className="font-semibold text-slate-900 truncate max-w-37.5">
                       {packageData.location.name}
@@ -770,26 +778,11 @@ export default function CustomerPackageViewPage({ params }) {
                     </span>
                   </div>
                 )}
-                {((packageData.partners && packageData.partners.length > 0) ||
-                  packageData.partner) && (
-                  <div className="flex justify-between items-center text-slate-600">
-                    <span className="flex items-center gap-2 text-slate-500">
-                      <Handshake className="h-4 w-4 text-indigo-500" />{" "}
-                      พาร์ทเนอร์
-                    </span>
-                    <span className="font-semibold text-slate-900 truncate max-w-37.5">
-                      {packageData.partners
-                        ?.map((p) => p.partner?.name)
-                        .filter(Boolean)
-                        .join(", ") || packageData.partner?.name}
-                    </span>
-                  </div>
-                )}
                 {/* Fixed Travel Dates from DB */}
                 {travelDateText && (
                   <div className="flex justify-between items-start text-slate-600 pt-1">
                     <span className="flex items-center gap-2 text-slate-500 shrink-0">
-                      <Plane className="h-4 w-4 text-indigo-600" /> วันเดินทาง
+                      <Plane className="h-4 w-4 text-slate-400" /> วันเดินทาง
                     </span>
                     <span className="font-bold text-indigo-950 text-xs text-right">
                       {travelDateText}
@@ -801,7 +794,7 @@ export default function CustomerPackageViewPage({ params }) {
                   packageData.booking_end_date) && (
                   <div className="flex justify-between items-start text-slate-600 pt-1">
                     <span className="flex items-center gap-2 text-slate-500 shrink-0">
-                      <Calendar className="h-4 w-4 text-amber-500" />{" "}
+                      <Calendar className="h-4 w-4 text-slate-400" />{" "}
                       ช่วงเวลาเปิดจอง
                     </span>
                     <span className="font-semibold text-slate-900 text-xs text-right">
@@ -813,7 +806,7 @@ export default function CustomerPackageViewPage({ params }) {
 
               {/* Itemized Price Breakdown */}
               {addonsTotal > 0 && (
-                <div className="pt-3 pb-1 space-y-1.5 border-t border-slate-100 text-xs">
+                <div className="pt-3 pb-3 mb-5 space-y-1.5 border-t border-slate-100 text-xs">
                   <div className="flex justify-between text-slate-500">
                     <span>ราคาหลัก:</span>
                     <span>฿{basePrice.toLocaleString()}</span>
@@ -824,37 +817,14 @@ export default function CustomerPackageViewPage({ params }) {
                     </span>
                     <span>+฿{addonsTotal.toLocaleString()}</span>
                   </div>
-                </div>
-              )}
-
-              {/* Total Calculation */}
-              <div className="flex justify-between items-baseline mb-4 pt-3 border-t border-slate-100">
-                <span className="text-sm font-medium text-slate-600">
-                  ยอดรวมทั้งสิ้น:
-                </span>
-                <span className="text-2xl font-extrabold text-indigo-600">
-                  ฿{totalPrice.toLocaleString()}
-                </span>
-              </div>
-
-              {/* Loyalty Reward Points Preview */}
-              <div className="mb-5 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div>
-                    <span className="font-bold text-slate-800">
-                      รับแต้มสะสมสมาชิก
+                  <div className="flex justify-between items-baseline pt-2 border-t border-slate-100 font-bold text-slate-800">
+                    <span>ยอดรวมสุทธิ:</span>
+                    <span className="text-base text-indigo-600">
+                      ฿{totalPrice.toLocaleString()}
                     </span>
-                    <p className="text-[10px] text-slate-400">
-                      คำนวณ 100 บาท = 1 แต้ม
-                    </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="font-extrabold text-amber-600 text-sm">
-                    +{Math.floor(totalPrice / 100)} แต้ม
-                  </span>
-                </div>
-              </div>
+              )}
 
               {/* Booking CTA Button */}
               {isBookingOpen ? (
@@ -888,53 +858,6 @@ export default function CustomerPackageViewPage({ params }) {
 
       {/* Mobile Sticky Booking Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/90 bg-white shadow-[0_-10px_25px_rgba(0,0,0,0.08)] lg:hidden">
-        {/* Collab Row (Above Price Box) */}
-        <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-slate-50/80">
-          <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-bold text-slate-700">
-              ผู้ร่วมทริป (Collab)
-            </span>
-            <span className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-2.5 py-0.5 text-[11px] font-bold text-white">
-              {collaborators.length + 1} คน
-            </span>
-          </div>
-
-          {/* Overlapping Avatars & Dashed Circle Add Button */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div
-              onClick={() => setIsCollabModalOpen(true)}
-              className="flex items-center -space-x-2.5 py-0.5 cursor-pointer"
-            >
-              <UserAvatar
-                user={currentUser || { name: "คุณ" }}
-                size="lg"
-                showCrown
-              />
-              {collaborators.slice(0, 3).map((c) => (
-                <UserAvatar key={c.id} user={c} size="lg" />
-              ))}
-              {collaborators.length > 3 && (
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600 ring-2 ring-white shadow-2xs">
-                  +{collaborators.length - 3}
-                </span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsCollabModalOpen(true)}
-              title={
-                collaborators.length > 0
-                  ? "จัดการ / ชวนเพิ่ม"
-                  : "ชวนเพื่อน (Collab)"
-              }
-              className="flex h-9 w-9 items-center justify-center rounded-full border-1 border-dashed border-indigo-300 bg-white text-indigo-600 hover:border-indigo-600 hover:bg-indigo-50 shadow-2xs active:scale-95 transition-all cursor-pointer"
-            >
-              <UserPlus className="h-4.5 w-4.5" />
-            </button>
-          </div>
-        </div>
-
         {/* Price & Action Row */}
         <div className="flex items-center justify-between px-5 py-3">
           <div>
@@ -1121,6 +1044,23 @@ export default function CustomerPackageViewPage({ params }) {
                         ฿{totalPrice.toLocaleString()}
                       </span>
                     </div>
+
+                    {/* Loyalty Reward Points Preview */}
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
+                      <div>
+                        <span className="font-bold text-slate-800">
+                          รับแต้มสะสมสมาชิก
+                        </span>
+                        <p className="text-[10px] text-slate-400">
+                          คำนวณ 100 บาท = 1 แต้ม
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-extrabold text-amber-600 text-sm">
+                          +{Math.floor(totalPrice / 100)} แต้ม
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1142,6 +1082,201 @@ export default function CustomerPackageViewPage({ params }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Social Share & Copy Link Modal */}
+      {isShareModalOpen && (
+        <div
+          onClick={() => setIsShareModalOpen(false)}
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-100"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 shadow-2xs">
+                  <Share className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    แชร์แพ็กเกจทัวร์
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    ส่งต่อทริปนี้ให้เพื่อนหรือคนในครอบครัว
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsShareModalOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Package Mini Preview */}
+            <div className="my-4 flex items-center gap-3 rounded-2xl bg-slate-50 p-3 border border-slate-100">
+              {packageData.image ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={packageData.image}
+                  alt={packageData.name}
+                  className="h-14 w-14 rounded-xl object-cover shrink-0"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src =
+                      "https://images.unsplash.com/photo-1589394815804-964ce0fa2556?auto=format&fit=crop&w=400&q=80";
+                  }}
+                />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 shrink-0">
+                  <ImageIcon className="h-6 w-6" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-800 line-clamp-2">
+                  {packageData.name}
+                </p>
+                <p className="text-xs font-extrabold text-indigo-600 mt-0.5">
+                  ฿{unitPrice.toLocaleString()}{" "}
+                  <span className="text-[10px] font-normal text-slate-400">
+                    / ท่าน
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Social Share Buttons Grid */}
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-slate-500 mb-3">
+                แชร์ไปยังโซเชียลมีเดีย
+              </p>
+              <div className="grid grid-cols-4 gap-2.5">
+                {/* Facebook */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = typeof window !== "undefined" ? window.location.href : "";
+                    window.open(
+                      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+                      "_blank",
+                      "width=600,height=500"
+                    );
+                  }}
+                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/50 transition cursor-pointer group"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#1877F2] text-white shadow-sm group-hover:scale-105 transition-transform">
+                    <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">Facebook</span>
+                </button>
+
+                {/* LINE */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = typeof window !== "undefined" ? window.location.href : "";
+                    window.open(
+                      `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}`,
+                      "_blank",
+                      "width=600,height=500"
+                    );
+                  }}
+                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition cursor-pointer group"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#06C755] text-white shadow-sm group-hover:scale-105 transition-transform">
+                    <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M19.365 9.864c0-4.043-4.195-7.332-9.365-7.332C4.83 2.532.635 5.821.635 9.864c0 3.623 3.322 6.666 7.808 7.218.304.066.718.201.823.46.094.236.062.605.03.844l-.133.805c-.04.24-.188.94.825.513 1.013-.427 5.465-3.218 7.457-5.509 1.365-1.523 1.92-3.075 1.92-4.332z" />
+                    </svg>
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">LINE</span>
+                </button>
+
+                {/* X (Twitter) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = typeof window !== "undefined" ? window.location.href : "";
+                    const text = `เที่ยวทริป ${packageData.name} กับ Zentura!`;
+                    window.open(
+                      `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
+                      "_blank",
+                      "width=600,height=500"
+                    );
+                  }}
+                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition cursor-pointer group"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-black text-white shadow-sm group-hover:scale-105 transition-transform">
+                    <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">X</span>
+                </button>
+
+                {/* WhatsApp */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = typeof window !== "undefined" ? window.location.href : "";
+                    const text = `เที่ยวทริป ${packageData.name}: ${url}`;
+                    window.open(
+                      `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+                      "_blank"
+                    );
+                  }}
+                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-2xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition cursor-pointer group"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm group-hover:scale-105 transition-transform">
+                    <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M12.031 0C5.396 0 .029 5.367.029 11.987c0 2.108.549 4.165 1.595 5.97L.004 24l6.196-1.625a11.94 11.94 0 0 0 5.831 1.505h.005c6.635 0 12.002-5.367 12.002-11.992C24.038 5.367 18.666 0 12.031 0zm0 21.883h-.004a9.92 9.92 0 0 1-5.06-1.385l-.363-.215-3.763.987 1.005-3.668-.236-.375a9.96 9.96 0 0 1-1.528-5.239c0-5.503 4.478-9.98 9.989-9.98 2.666 0 5.172 1.039 7.057 2.925a9.92 9.92 0 0 1 2.924 7.058c0 5.505-4.477 9.982-9.981 9.982z" />
+                    </svg>
+                  </div>
+                  <span className="text-[11px] font-medium text-slate-700">WhatsApp</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Copy Link Input Box */}
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-2 block">
+                หรือคัดลอกลิงก์
+              </label>
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 pl-3 focus-within:border-indigo-500 focus-within:bg-white transition-all">
+                <span className="text-xs text-slate-500 truncate flex-1 select-all font-mono">
+                  {typeof window !== "undefined" ? window.location.href : ""}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                    copied
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs active:scale-95"
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      <span>คัดลอกแล้ว!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5" />
+                      <span>คัดลอกลิงก์</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

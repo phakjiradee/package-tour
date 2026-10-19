@@ -26,6 +26,9 @@ api.interceptors.request.use((config) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    if (boToken) {
+      config.headers["x-is-employee"] = "true";
+    }
   }
   return config;
 });

@@ -1,16 +1,51 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, Settings, UserRound, Shield } from "lucide-react";
-import { clearBackofficeAuth, getBackofficeAuth } from "@/lib/backoffice-auth";
+import {
+  ChevronDown,
+  LogOut,
+  Shield,
+  UserRound,
+} from "lucide-react";
+import {
+  clearBackofficeAuth,
+  getBackofficeAuth,
+  getBackofficeToken,
+  setBackofficeAuth,
+} from "@/lib/backoffice-auth";
+import { authService } from "@/service/auth";
+import SearchableSelect from "./SearchableSelect";
 
-export default function Dropdown() {
+/**
+ * Backoffice Navbar User Profile Dropdown Menu
+ */
+export function UserDropdown() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [user] = useState(() => getBackofficeAuth());
+  const [user, setUser] = useState(() => getBackofficeAuth());
   const ref = useRef(null);
 
+  useEffect(() => {
+    let isMounted = true;
+    authService
+      .getMe()
+      .then((res) => {
+        if (isMounted && res?.user) {
+          setUser(res.user);
+          const currentToken = getBackofficeToken();
+          if (currentToken) {
+            setBackofficeAuth(res.user, currentToken);
+          }
+        }
+      })
+      .catch(() => {
+        // Silently catch network or auth sync error
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSignOut = () => {
     clearBackofficeAuth();
@@ -28,10 +63,12 @@ export default function Dropdown() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-
   const name = user?.name || "Admin User";
   const email = user?.email || "admin@zentura.com";
-  const role = user?.role || "Admin";
+  const role =
+    typeof user?.role === "object"
+      ? user?.role?.name || "Admin"
+      : user?.role || user?.position || user?.Role?.name || "Admin";
   const initials = (name || "AD").slice(0, 2).toUpperCase();
 
   return (
@@ -44,7 +81,9 @@ export default function Dropdown() {
         <span className="grid h-5 w-5 place-items-center rounded bg-[#0051c8] text-[10px] font-bold text-white uppercase">
           {initials}
         </span>
-        <span className="hidden sm:inline font-semibold text-zinc-800">{name}</span>
+        <span className="hidden sm:inline font-semibold text-zinc-800">
+          {name}
+        </span>
         <span className="hidden md:inline-flex items-center rounded bg-blue-50 px-1.5 py-0.2 text-[9px] font-semibold text-blue-700 uppercase">
           {role}
         </span>
@@ -68,6 +107,17 @@ export default function Dropdown() {
           </div>
 
           <div className="py-1">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                router.push("/backoffice/profile");
+              }}
+              className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs text-zinc-700 hover:bg-zinc-100 cursor-pointer transition-colors"
+            >
+              <UserRound className="h-3.5 w-3.5 text-zinc-400" />
+              <span>โปรไฟล์ของฉัน</span>
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -107,3 +157,115 @@ export default function Dropdown() {
     </div>
   );
 }
+
+/**
+ * Specialized Guide Assignment Dropdown
+ * Encapsulates guide conflict checks, availability badges, and formatting,
+ * removing 40+ lines of overhead code from form pages.
+ */
+export function GuideDropdown({
+  value,
+  onChange,
+  onSelect,
+  guidesList = [],
+  assignedGuides = [],
+  currentIndex = -1,
+  checkConflict,
+  packageId,
+  error = false,
+  disabled = false,
+  placeholder = "-- เลือกไกด์นำเที่ยว --",
+  searchPlaceholder = "ค้นหาชื่อไกด์, เบอร์โทร...",
+  className = "",
+}) {
+  const options = useMemo(() => {
+    return (guidesList || []).map((emp) => {
+      const isSelectedInOther = (assignedGuides || []).some(
+        (g, gIdx) =>
+          gIdx !== currentIndex && String(g?.emp_id) === String(emp.id)
+      );
+      const conflict = checkConflict
+        ? checkConflict(emp, packageId)
+        : null;
+      const isDisabled = isSelectedInOther || !!conflict;
+
+      let badge = "ว่าง";
+      let badgeVariant = "success";
+      let disabledReason = "";
+
+      if (isSelectedInOther) {
+        badge = "เลือกแล้ว";
+        badgeVariant = "warning";
+        disabledReason = "เลือกแล้วในรายการนี้";
+      } else if (conflict) {
+        badge = "ติดงาน";
+        badgeVariant = "danger";
+        disabledReason = `ติดงานแพ็กเกจ "${conflict.package_name}"`;
+      }
+
+      return {
+        value: emp.id,
+        label: emp.name,
+        subLabel: emp.phone ? `โทร: ${emp.phone}` : emp.email || "",
+        badge,
+        badgeVariant,
+        disabled: isDisabled,
+        disabledReason,
+        keywords: [
+          emp.name,
+          emp.phone || "",
+          emp.email || "",
+          emp.position || "",
+        ],
+        raw: emp,
+      };
+    });
+  }, [guidesList, assignedGuides, currentIndex, checkConflict, packageId]);
+
+  return (
+    <SearchableSelect
+      value={value}
+      onChange={onChange}
+      onSelect={onSelect}
+      options={options}
+      placeholder={placeholder}
+      searchPlaceholder={searchPlaceholder}
+      error={error}
+      disabled={disabled}
+      className={className}
+      noOptionsMessage="ไม่พบพนักงานที่มีบทบาท 'ไกด์' ในระบบ"
+    />
+  );
+}
+
+/**
+ * Universal Dropdown Component for Forms and Navbar
+ * - If guide props (guidesList or type="guide") are passed, renders GuideDropdown.
+ * - If form props (options, value, onChange, placeholder) are passed, renders SearchableSelect.
+ * - If called without form props (e.g. in BackofficeNavbar), renders UserDropdown.
+ */
+export default function Dropdown(props) {
+  if (props.type === "guide" || props.guidesList !== undefined) {
+    return <GuideDropdown {...props} />;
+  }
+
+  if (
+    props.options ||
+    props.value !== undefined ||
+    props.name ||
+    props.placeholder ||
+    props.searchPlaceholder ||
+    props.searchable !== undefined
+  ) {
+    return <SearchableSelect {...props} />;
+  }
+
+  return <UserDropdown {...props} />;
+}
+
+Dropdown.Guide = GuideDropdown;
+Dropdown.Select = SearchableSelect;
+Dropdown.User = UserDropdown;
+
+export { SearchableSelect };
+

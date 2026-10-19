@@ -350,6 +350,7 @@ export default function PackageBookingPage({ params }) {
   const travelDateRangeText = formatThaiDateRange(
     travelStartDate,
     travelEndDate,
+    { shortMonth: true },
   );
   const bookingPeriodText = formatThaiDateRange(
     packageData?.booking_start_date,
@@ -1094,6 +1095,25 @@ export default function PackageBookingPage({ params }) {
                     <span className="text-slate-700">ยอดรวมทั้งสิ้น:</span>
                     <span className="text-xl font-extrabold text-indigo-600">
                       ฿{grandTotal.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Loyalty Reward Points Preview */}
+                <div className="mb-5 flex items-center justify-between text-xs pt-3 border-t border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div>
+                      <span className="font-bold text-slate-800">
+                        รับแต้มสะสมสมาชิก
+                      </span>
+                      <p className="text-[10px] text-slate-400">
+                        คำนวณ 100 บาท = 1 แต้ม
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-extrabold text-amber-600 text-sm">
+                      +{Math.floor(grandTotal / 100)} แต้ม
                     </span>
                   </div>
                 </div>
