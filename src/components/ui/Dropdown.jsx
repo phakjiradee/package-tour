@@ -23,7 +23,7 @@ import SearchableSelect from "./SearchableSelect";
 export function UserDropdown() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState(() => getBackofficeAuth());
+  const [user, setUser] = useState(null);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export function UserDropdown() {
         }
       })
       .catch(() => {
-        // Silently catch network or auth sync error
+        if (isMounted) setUser(getBackofficeAuth());
       });
     return () => {
       isMounted = false;
