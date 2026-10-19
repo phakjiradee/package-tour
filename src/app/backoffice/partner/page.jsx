@@ -312,6 +312,9 @@ export default function PartnerPage() {
               <p>อีเมลเข้าระบบ: <strong>{accessPartner.email}</strong></p>
               <p>Location: <strong>{accessPartner.location?.name || "ยังไม่ได้ผูก"}</strong></p>
             </div>
+            {!accessPartner.location && (
+              <p className="text-xs text-amber-700">ตั้งรหัสได้เลย แต่ร้านจะยังไม่เห็นเที่ยวรถจนกว่าจะเลือก Location ในหน้าแก้ไขพาร์ทเนอร์</p>
+            )}
             <p className="text-xs text-slate-500">หากร้านมีบัญชี Supplier อยู่แล้ว การบันทึกจะเปลี่ยนรหัสของบัญชีนั้น</p>
             <label className="block text-sm font-medium text-slate-700">
               รหัสผ่านร้าน (อย่างน้อย 6 ตัวอักษร)
@@ -331,7 +334,7 @@ export default function PartnerPage() {
             {accessError && <p role="alert" className="text-sm text-rose-600">{accessError}</p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setAccessPartner(null)} className="btn-secondary px-4 py-2 text-sm">ยกเลิก</button>
-              <button type="submit" disabled={accessLoading || !accessPartner.location} className="btn-primary px-4 py-2 text-sm disabled:opacity-50">
+              <button type="submit" disabled={accessLoading} className="btn-primary px-4 py-2 text-sm disabled:opacity-50">
                 {accessLoading ? "กำลังบันทึก..." : "บันทึกรหัสร้าน"}
               </button>
             </div>
