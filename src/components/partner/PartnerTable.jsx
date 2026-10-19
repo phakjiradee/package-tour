@@ -7,6 +7,7 @@ import {
   Check,
   Edit3,
   Handshake,
+  KeyRound,
   Mail,
   MapPin,
   Phone,
@@ -23,6 +24,7 @@ export default function PartnerTable({
   onEdit,
   onDelete,
   onAddNew,
+  onSetSupplierPassword,
 }) {
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState("ทั้งหมด");
@@ -315,6 +317,15 @@ export default function PartnerTable({
                   {/* Actions */}
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onSetSupplierPassword(item)}
+                        className="btn-secondary h-7 px-2.5 text-xs rounded-md cursor-pointer"
+                        title="ใช้ข้อมูลร้านและ Location นี้สร้างหรือเปลี่ยนรหัส Supplier"
+                      >
+                        <KeyRound size={12} />
+                        <span>รหัสร้าน</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => onEdit(item)}

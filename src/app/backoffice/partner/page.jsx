@@ -6,6 +6,7 @@ import {
   FolderTree,
   Handshake,
   Layers,
+  Lock,
   MapPin,
   Plus,
   RefreshCw,
@@ -18,6 +19,7 @@ import PartnerTable from "@/components/partner/PartnerTable";
 import PageHeader from "@/components/backoffice/PageHeader";
 import StatCard from "@/components/backoffice/StatCard";
 import { partnerService, partnerTypeService } from "@/service/partner";
+import supplierService from "@/service/supplier";
 
 export default function PartnerPage() {
   const [partners, setPartners] = useState([]);
@@ -34,6 +36,10 @@ export default function PartnerPage() {
   const [editingPartner, setEditingPartner] = useState(null);
   const [deletingPartner, setDeletingPartner] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [accessPartner, setAccessPartner] = useState(null);
+  const [accessPassword, setAccessPassword] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const [accessLoading, setAccessLoading] = useState(false);
 
   // Toast feedback
   const [toastMessage, setToastMessage] = useState(null);
@@ -106,6 +112,29 @@ export default function PartnerPage() {
       showToast("เพิ่มพาร์ทเนอร์ใหม่เรียบร้อยแล้ว");
     }
     await refreshData();
+  };
+
+  const handleSetSupplierAccess = async (event) => {
+    event.preventDefault();
+    if (!accessPartner) return;
+    if (accessPassword.length < 6) {
+      setAccessError("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+    try {
+      setAccessLoading(true);
+      setAccessError("");
+      const result = await supplierService.admin.setPartnerAccess(accessPartner.id, accessPassword);
+      setAccessPartner(null);
+      setAccessPassword("");
+      showToast(result.data?.status === "ปิดใช้งาน"
+        ? "ตั้งรหัสแล้ว แต่บัญชีถูกปิดใช้งาน กรุณาเปิดที่หน้าบัญชี Supplier"
+        : "ตั้งรหัส Supplier สำเร็จ ร้านใช้อีเมลพาร์ทเนอร์เข้าระบบได้แล้ว");
+    } catch (error) {
+      setAccessError(error.response?.data?.message || "ไม่สามารถตั้งรหัส Supplier ได้");
+    } finally {
+      setAccessLoading(false);
+    }
   };
 
   // Handle Partner Delete
@@ -265,7 +294,53 @@ export default function PartnerPage() {
           setDeletingPartner(partner);
           setIsDeleteModalOpen(true);
         }}
+        onSetSupplierPassword={(partner) => {
+          setAccessPartner(partner);
+          setAccessPassword("");
+          setAccessError("");
+        }}
       />
+
+      {accessPartner && (
+        <div role="dialog" aria-modal="true" aria-label="ตั้งรหัสเข้าระบบ Supplier" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <form onSubmit={handleSetSupplierAccess} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">ตั้งรหัสเข้าระบบ Supplier</h2>
+              <p className="mt-1 text-sm text-slate-600">{accessPartner.name}</p>
+            </div>
+            <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+              <p>อีเมลเข้าระบบ: <strong>{accessPartner.email}</strong></p>
+              <p>Location: <strong>{accessPartner.location?.name || "ยังไม่ได้ผูก"}</strong></p>
+            </div>
+            {!accessPartner.location && (
+              <p className="text-xs text-amber-700">ตั้งรหัสได้เลย แต่ร้านจะยังไม่เห็นเที่ยวรถจนกว่าจะเลือก Location ในหน้าแก้ไขพาร์ทเนอร์</p>
+            )}
+            <p className="text-xs text-slate-500">หากร้านมีบัญชี Supplier อยู่แล้ว การบันทึกจะเปลี่ยนรหัสของบัญชีนั้น</p>
+            <label className="block text-sm font-medium text-slate-700">
+              รหัสผ่านร้าน (อย่างน้อย 6 ตัวอักษร)
+              <span className="relative mt-1 flex items-center">
+                <Lock className="absolute left-3 h-4 w-4 text-slate-400" />
+                <input
+                  type="password"
+                  value={accessPassword}
+                  onChange={(event) => setAccessPassword(event.target.value)}
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-3 outline-none focus:border-blue-500"
+                />
+              </span>
+            </label>
+            {accessError && <p role="alert" className="text-sm text-rose-600">{accessError}</p>}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setAccessPartner(null)} className="btn-secondary px-4 py-2 text-sm">ยกเลิก</button>
+              <button type="submit" disabled={accessLoading} className="btn-primary px-4 py-2 text-sm disabled:opacity-50">
+                {accessLoading ? "กำลังบันทึก..." : "บันทึกรหัสร้าน"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Partner Modal (Create / Edit) */}
       {isPartnerModalOpen && (

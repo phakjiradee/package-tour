@@ -202,7 +202,7 @@ export default function SupplierLoginPage() {
           <form onSubmit={handleLogin} className="mt-6 space-y-4">
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-300">
-                อีเมลประจำบัญชี Supplier
+                อีเมลของพาร์ทเนอร์
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -211,7 +211,7 @@ export default function SupplierLoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="supplier@partner.com"
+                  placeholder="อีเมลที่บันทึกในข้อมูลพาร์ทเนอร์"
                   className="h-11 w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 />
               </div>
