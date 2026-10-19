@@ -19,14 +19,16 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     config.baseURL = "/api";
-    const token = config.url?.startsWith("/supplier/")
+    const boToken = window.localStorage.getItem("bo_token");
+    const supplierPortal = config.url?.startsWith("/supplier/") &&
+      !config.url?.startsWith("/supplier/admin/");
+    const token = supplierPortal
       ? window.localStorage.getItem("sp_token")
-      : window.localStorage.getItem("bo_token") ||
-        window.localStorage.getItem("pt_token");
+      : boToken || window.localStorage.getItem("pt_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    if (boToken) {
+    if (boToken && !supplierPortal) {
       config.headers["x-is-employee"] = "true";
     }
   }
