@@ -27,7 +27,7 @@ export default function PageHeader({
       {(actions || showDate) && (
         <div className="flex shrink-0 flex-wrap items-center gap-2.5">
           {showDate && (
-            <span className="inline-flex h-9 items-center gap-2 rounded-md border border-zinc-200/90 bg-white px-2.5 text-xs font-medium text-zinc-600 shadow-2xs">
+            <span title="วันที่ปัจจุบัน (ไม่ได้ใช้กรองข้อมูล)" aria-label={`วันที่ปัจจุบัน ${todayStr}`} className="inline-flex h-9 items-center gap-2 rounded-md border border-zinc-200/90 bg-white px-2.5 text-xs font-medium text-zinc-600 shadow-2xs">
               <CalendarDays size={14} className="text-zinc-400" />
               <span>{todayStr}</span>
             </span>

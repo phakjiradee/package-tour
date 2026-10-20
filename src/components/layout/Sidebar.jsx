@@ -83,12 +83,6 @@ const NAV_GROUPS = [
         href: "/backoffice/assignment",
         icon: Compass,
       },
-      {
-        label: "โปรไฟล์ผู้ใช้งาน",
-        labelEn: "Profile",
-        href: "/backoffice/profile",
-        icon: UserCheck,
-      },
     ],
   },
   {

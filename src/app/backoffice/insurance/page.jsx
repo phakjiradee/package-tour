@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Download, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import PageHeader from "@/components/backoffice/PageHeader";
@@ -36,6 +36,7 @@ const categories = {
   OTHER: "อื่น ๆ",
 };
 const blankPlan = { insurer_name: "", plan_name: "", master_policy_no: "", terms_url: "", premium: "", min_age: "", max_age: "", active: false };
+const pageSize = 100;
 const localDateTime = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
 export default function InsurancePage() {
@@ -43,6 +44,10 @@ export default function InsurancePage() {
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [listPinned, setListPinned] = useState(false);
+  const listRef = useRef(null);
+  const rowsRef = useRef(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
   const [loading, setLoading] = useState(true);
@@ -50,15 +55,17 @@ export default function InsurancePage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showPlan, setShowPlan] = useState(false);
+  const [showInsuranceInfo, setShowInsuranceInfo] = useState(false);
   const [claimTraveler, setClaimTraveler] = useState(null);
   const [claimForm, setClaimForm] = useState({ category: "ACCIDENT", occurred_at: localDateTime(), description: "", amount: "" });
 
   const loadRows = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await insuranceService.getTravelers({ page, limit: 20, search, status });
+      const res = await insuranceService.getTravelers({ page, limit: pageSize, search, status });
       setRows(res.data || []);
       setTotalPages(Math.max(1, res.pagination?.totalPages || 1));
+      setTotal(res.pagination?.total || 0);
       setError("");
     } catch (err) {
       setError(err.response?.status === 401 ? "เซสชันหลังบ้านหมดอายุ กรุณาเข้าสู่ระบบใหม่" : err.response?.data?.message || "โหลดข้อมูลประกันไม่สำเร็จ");
@@ -67,10 +74,29 @@ export default function InsurancePage() {
 
   useEffect(() => { void Promise.resolve().then(loadRows); }, [loadRows]);
   useEffect(() => {
+    const updatePinned = () => setListPinned((listRef.current?.getBoundingClientRect().top ?? Infinity) <= 56);
+    updatePinned();
+    window.addEventListener("scroll", updatePinned, { passive: true });
+    window.addEventListener("resize", updatePinned);
+    return () => {
+      window.removeEventListener("scroll", updatePinned);
+      window.removeEventListener("resize", updatePinned);
+    };
+  }, []);
+  useEffect(() => { if (rowsRef.current) rowsRef.current.scrollTop = 0; }, [page, search, status]);
+  useEffect(() => {
     insuranceService.getPlan().then(({ data }) => {
       if (data) setPlan({ ...data, premium: String(data.premium_satang / 100) });
     }).catch(() => {});
   }, []);
+  useEffect(() => {
+    if (!showInsuranceInfo) return;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setShowInsuranceInfo(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showInsuranceInfo]);
 
   const run = async (action, success) => {
     setBusy(true); setError(""); setNotice("");
@@ -143,16 +169,18 @@ export default function InsurancePage() {
     run(() => insuranceService.updateClaim(claim.id, { status, insurer_claim_no, insurer_note }), "อัปเดตผลเคลมแล้ว");
   };
 
+  const firstPage = Math.max(1, Math.min(page - 2, totalPages - 4));
+  const visiblePages = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstPage + index);
+
   return <div className="mx-auto max-w-7xl">
     <PageHeader title="ประกันการเดินทาง" description="รายชื่อผู้เดินทาง สถานะกรมธรรม์ และเหตุเคลมรายคน" actions={<>
+      <button type="button" onClick={() => setShowInsuranceInfo(true)} aria-label={plan.active ? "ดูสถานะแผนประกัน" : "ดูแจ้งเตือนแผนประกันยังไม่เปิด"} aria-haspopup="dialog" className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-sky-200 bg-white text-sky-700 shadow-2xs hover:bg-sky-50">
+        <ShieldCheck size={17} />
+        <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${plan.active ? "bg-emerald-500" : "bg-amber-500"}`} />
+      </button>
       <button type="button" onClick={downloadPending} disabled={busy} className="inline-flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold hover:bg-zinc-50 disabled:opacity-50"><Download size={15} /> ส่งออกรายชื่อรอออกกรมธรรม์</button>
       <button type="button" onClick={() => setShowPlan(!showPlan)} className="h-9 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">ตั้งค่าแผนประกัน</button>
     </>} />
-
-    <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
-      <div className="flex items-center gap-2 font-semibold"><ShieldCheck size={17} /> {plan.active ? `${plan.insurer_name} · ${plan.plan_name}` : "ยังไม่เปิดแผนประกัน"}</div>
-      <p className="mt-1 text-xs">{plan.active ? `เบี้ย ฿${plan.premium} ต่อผู้เดินทาง · อายุ ${plan.min_age}–${plan.max_age} ปี` : "การจองใหม่จะยังทำไม่ได้จนกว่าจะตั้งค่าและเปิดแผนจากบริษัทประกันจริง"} การบันทึกเคลมในหน้านี้เป็นการแจ้งเหตุภายใน Zentura ต้องส่งเรื่องและหลักฐานให้บริษัทประกันแยกต่างหาก</p>
-    </div>
 
     {showPlan && <form onSubmit={savePlan} className="mb-5 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
       <h2 className="mb-3 text-sm font-semibold">แผนที่ใช้กับการจองใหม่ทุกคน</h2>
@@ -169,14 +197,15 @@ export default function InsurancePage() {
     {error && <p role="alert" className="mb-4 rounded-md bg-rose-50 p-3 text-xs text-rose-700">{error} {error.includes("เข้าสู่ระบบ") && <Link href="/backoffice/login" className="underline">เข้าสู่ระบบ</Link>}</p>}
     {notice && <p role="status" className="mb-4 rounded-md bg-emerald-50 p-3 text-xs text-emerald-700">{notice}</p>}
 
-    <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 p-4">
+    <div ref={listRef} className={`sticky top-14 z-10 flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm ${loading && rows.length ? "min-h-[calc(100dvh-5rem)]" : ""}`}>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-200 p-4">
         <form onSubmit={(e) => { e.preventDefault(); setPage(1); loadRows(); }} className="flex min-w-[220px] flex-1 items-center gap-2 rounded-md border border-zinc-200 px-3"><Search size={16} className="text-zinc-400" /><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="ค้นหาชื่อ เลขจอง หรือแพ็กเกจ" className="h-9 w-full text-sm outline-none" /></form>
         <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="h-9 rounded-md border border-zinc-200 bg-white px-2 text-xs">
           <option value="ALL">ทุกสถานะ</option>{Object.entries(statusLabels).map(([key, [label]]) => <option key={key} value={key}>{label}</option>)}
         </select>
         <button type="button" onClick={loadRows} aria-label="รีเฟรช" className="rounded-md border border-zinc-200 p-2 text-zinc-600"><RefreshCw size={17} /></button>
       </div>
+      <div ref={rowsRef} role="region" aria-label="รายชื่อผู้เดินทาง" tabIndex={0} className={`min-h-0 flex-1 ${listPinned ? "overflow-y-auto" : "overflow-y-hidden"}`}>
       {loading ? <p className="p-8 text-center text-sm text-zinc-500">กำลังโหลดข้อมูล...</p> : rows.length === 0 ? <p className="p-8 text-center text-sm text-zinc-500">ไม่พบผู้เดินทาง</p> : <div className="divide-y divide-zinc-100">
         {rows.map((row) => {
           const coverage = row.insuranceEnrollment;
@@ -203,8 +232,29 @@ export default function InsurancePage() {
           </div>;
         })}
       </div>}
-      <div className="flex items-center justify-between border-t border-zinc-200 p-4 text-xs text-zinc-500"><span>หน้า {page} / {totalPages}</span><div className="flex gap-2"><button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-md border px-3 py-1 disabled:opacity-40">ก่อนหน้า</button><button disabled={page >= totalPages} onClick={() => setPage(page + 1)} className="rounded-md border px-3 py-1 disabled:opacity-40">ถัดไป</button></div></div>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-zinc-200 p-4 text-xs text-zinc-500">
+        <span>{total ? `รายการ ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} จาก ${total}` : "ไม่มีรายการ"}</span>
+        <nav aria-label="หน้ารายชื่อผู้เดินทาง" className="flex flex-wrap items-center gap-1">
+          <button type="button" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)} className="rounded-md border border-zinc-200 px-2.5 py-1.5 disabled:opacity-40">ก่อนหน้า</button>
+          {visiblePages.map((number) => <button type="button" key={number} aria-label={`หน้า ${number}`} aria-current={page === number ? "page" : undefined} disabled={loading} onClick={() => setPage(number)} className={`min-w-8 rounded-md border px-2 py-1.5 ${page === number ? "border-blue-600 bg-blue-600 text-white" : "border-zinc-200 hover:bg-zinc-50"}`}>{number}</button>)}
+          <button type="button" disabled={page >= totalPages || loading} onClick={() => setPage(page + 1)} className="rounded-md border border-zinc-200 px-2.5 py-1.5 disabled:opacity-40">ถัดไป</button>
+        </nav>
+      </div>
     </div>
+
+    {showInsuranceInfo && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowInsuranceInfo(false); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="insurance-info-title" className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 text-sky-800"><ShieldCheck size={20} /><h2 id="insurance-info-title" className="text-base font-semibold">{plan.active ? "สถานะแผนประกัน" : "ยังไม่เปิดแผนประกัน"}</h2></div>
+          <button type="button" onClick={() => setShowInsuranceInfo(false)} aria-label="ปิดรายละเอียดประกัน" className="rounded-md p-1 text-zinc-500 hover:bg-zinc-100"><X size={18} /></button>
+        </div>
+        <p className="mt-4 text-sm leading-6 text-zinc-700">{plan.active ? `${plan.insurer_name} · ${plan.plan_name} เบี้ย ฿${plan.premium} ต่อผู้เดินทาง อายุที่รับประกัน ${plan.min_age}–${plan.max_age} ปี` : "การจองใหม่จะยังทำไม่ได้จนกว่าจะตั้งค่าและเปิดแผนจากบริษัทประกันจริง"}</p>
+        {plan.active && plan.terms_url && <a href={plan.terms_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm text-blue-600 underline">อ่านเงื่อนไขกรมธรรม์</a>}
+        <p className="mt-4 rounded-lg bg-sky-50 p-3 text-xs leading-5 text-sky-900">การบันทึกเคลมในหน้านี้เป็นการแจ้งเหตุภายใน Zentura ต้องส่งเรื่องและหลักฐานให้บริษัทประกันแยกต่างหาก</p>
+        <div className="mt-5 flex justify-end"><button type="button" onClick={() => setShowInsuranceInfo(false)} className="rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">เข้าใจแล้ว</button></div>
+      </div>
+    </div>}
 
     {claimTraveler && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setClaimTraveler(null); }}>
       <form onSubmit={submitClaim} role="dialog" aria-modal="true" aria-label="แจ้งเหตุประกัน" className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">

@@ -125,28 +125,6 @@ export function UserDropdown() {
               <UserRound className="h-3.5 w-3.5 text-zinc-400" />
               <span>โปรไฟล์ของฉัน</span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                router.push("/backoffice/employee");
-              }}
-              className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs text-zinc-700 hover:bg-zinc-100 cursor-pointer transition-colors"
-            >
-              <UserRound className="h-3.5 w-3.5 text-zinc-400" />
-              <span>ข้อมูลพนักงาน</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                router.push("/backoffice/position");
-              }}
-              className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs text-zinc-700 hover:bg-zinc-100 cursor-pointer transition-colors"
-            >
-              <Shield className="h-3.5 w-3.5 text-zinc-400" />
-              <span>สิทธิ์การใช้งาน</span>
-            </button>
           </div>
 
           <div className="border-t border-zinc-100 pt-1">
