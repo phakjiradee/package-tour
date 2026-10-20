@@ -461,6 +461,10 @@ export default function BookingDetailModal({
                   ฿{formatPrice(booking.addon_total)}
                 </span>
               </div>
+              {booking.insurance_total_satang > 0 && <div className="flex justify-between text-slate-600">
+                <span>ประกันการเดินทางบังคับ:</span>
+                <span className="font-medium text-slate-900">฿{formatPrice(booking.insurance_total_satang / 100)}</span>
+              </div>}
               <div className="border-t border-slate-200 pt-3 flex justify-between items-baseline">
                 <span className="text-base font-bold text-slate-900">
                   ยอดรวมสุทธิ (Grand Total):

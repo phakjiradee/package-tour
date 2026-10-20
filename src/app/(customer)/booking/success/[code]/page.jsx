@@ -43,6 +43,7 @@ function BookingSuccessContent({ params }) {
   const isCanceled = searchParams.get("canceled");
 
   const [booking, setBooking] = useState(null);
+  const [insuranceTravelers, setInsuranceTravelers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isStripeLoading, setIsStripeLoading] = useState(false);
   const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
@@ -88,6 +89,13 @@ function BookingSuccessContent({ params }) {
     }
     fetchBooking();
   }, [bookingCode]);
+
+  useEffect(() => {
+    if (!bookingCode || !booking?.insurance_total_satang) return;
+    bookingService.getMyInsurance(bookingCode)
+      .then((res) => setInsuranceTravelers(res.data || []))
+      .catch(() => setInsuranceTravelers([]));
+  }, [bookingCode, booking?.insurance_total_satang, booking?.status]);
 
   // จัดการกรณียกเลิกชำระเงินจาก Stripe
   useEffect(() => {
@@ -223,6 +231,7 @@ function BookingSuccessContent({ params }) {
 
   const isConfirmed = booking.status === "CONFIRMED";
   const isCancelled = booking.status === "CANCELLED";
+  const isPaymentException = booking.status === "PAYMENT_EXCEPTION";
 
   return (
     <div className="min-h-screen bg-slate-50/60 pb-20 pt-8 print:bg-white print:p-0">
@@ -275,12 +284,12 @@ function BookingSuccessContent({ params }) {
         <div className="rounded-3xl bg-white p-6 sm:p-8 text-center shadow-sm border border-slate-200/80 mb-6">
           <div
             className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${
-              isCancelled
+              isCancelled || isPaymentException
                 ? "bg-rose-50 text-rose-600"
                 : "bg-emerald-50 text-emerald-600"
             }`}
           >
-            {isCancelled ? (
+            {isCancelled || isPaymentException ? (
               <XCircle className="h-10 w-10 text-rose-600" />
             ) : (
               <CheckCircle2 className="h-10 w-10" />
@@ -289,7 +298,7 @@ function BookingSuccessContent({ params }) {
 
           <span
             className={`inline-block rounded-full px-3.5 py-1 text-xs font-bold mb-2 ${
-              isCancelled
+              isCancelled || isPaymentException
                 ? "bg-rose-100 text-rose-800 ring-1 ring-rose-200"
                 : isConfirmed
                 ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200"
@@ -298,6 +307,8 @@ function BookingSuccessContent({ params }) {
           >
             {isCancelled
               ? "ยกเลิกการจองแล้ว (CANCELLED)"
+              : isPaymentException
+              ? "พบการชำระเงินหลังยกเลิกการจอง"
               : isConfirmed
               ? "ชำระเงินและยืนยันการจองเรียบร้อยแล้ว"
               : "บันทึกการจองสำเร็จ (รอชำระเงิน)"}
@@ -306,11 +317,15 @@ function BookingSuccessContent({ params }) {
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             {isCancelled
               ? "รายการจองนี้ถูกยกเลิกแล้ว"
+              : isPaymentException
+              ? "กรุณาติดต่อเจ้าหน้าที่เรื่องการชำระเงิน"
               : "ขอบคุณสำหรับการจองทัวร์กับ Zentura"}
           </h1>
           <p className="mt-1 text-sm text-slate-500 max-w-md mx-auto">
             {isCancelled
               ? "รายการจองนี้ถูกยกเลิกตามคำขอเรียบร้อยแล้ว หากคุณต้องการเดินทาง กรุณาเลือกแพ็กเกจและทำรายการจองใหม่อีกครั้ง"
+              : isPaymentException
+              ? "ระบบได้รับเงินหลังการยกเลิกและยังไม่ได้ออกประกัน กรุณาติดต่อเจ้าหน้าที่เพื่อดำเนินการคืนเงิน"
               : isConfirmed
               ? "ระบบได้รับยอดชำระและยืนยันที่นั่งเรียบร้อยแล้ว คุณสามารถพิมพ์ใบยืนยันการจองได้ทันที"
               : "กรุณาชำระเงินผ่านบัตรเครดิตเพื่อยืนยันที่นั่งและออกใบยืนยันการจอง"}
@@ -335,7 +350,7 @@ function BookingSuccessContent({ params }) {
         </div>
 
         {/* PAYMENT / CANCELLATION SECTION */}
-        {isCancelled ? (
+        {isPaymentException ? <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">รับชำระหลังยกเลิกการจองแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อดำเนินการคืนเงินและตรวจสอบสถานะประกัน</div> : isCancelled ? (
           /* Cancelled Summary Card */
           <div className="rounded-3xl bg-slate-900 text-white p-6 sm:p-8 shadow-md mb-6 border border-slate-800">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
@@ -353,7 +368,7 @@ function BookingSuccessContent({ params }) {
 
             <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-slate-400">
               <p className="max-w-md leading-relaxed">
-                ระบบได้บันทึกการยกเลิกเรียบร้อยแล้ว ไม่มีการตัดเงินหรือคิดค่าบริการเพิ่มเติม หากต้องการจองใหม่สามารถเลือกดูแพ็กเกจทัวร์อื่นๆ ได้ทันที
+                ระบบบันทึกการยกเลิกแล้ว หากมีการชำระเงิน เจ้าหน้าที่ต้องตรวจสอบการคืนเงินและการยกเลิกกรมธรรม์กับบริษัทประกัน
               </p>
               <Link
                 href="/package"
@@ -549,6 +564,27 @@ function BookingSuccessContent({ params }) {
           </div>
         )}
 
+        {booking.insurance_total_satang > 0 && (
+          <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-sm border border-slate-200/80 mb-6">
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 mb-2">
+              <ShieldCheck className="h-5 w-5 text-indigo-600" /> ประกันการเดินทางของผู้ร่วมทริป
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">ค่าเบี้ยรวม ฿{(booking.insurance_total_satang / 100).toLocaleString()} · บริษัทประกันเป็นผู้ยืนยันความคุ้มครองและพิจารณาสินไหม</p>
+            <div className="space-y-2">
+              {insuranceTravelers.map((item) => {
+                const coverage = item.insuranceEnrollment;
+                return <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-3 text-xs">
+                  <span className="font-semibold text-slate-800">{item.full_name}</span>
+                  <span className={coverage?.status === "ACTIVE" ? "text-emerald-700" : "text-amber-700"}>
+                    {coverage?.status === "ACTIVE" ? `คุ้มครองแล้ว · ${coverage.certificate_no}` : coverage?.status === "PENDING_ISSUANCE" ? "ชำระแล้ว · รอบริษัทประกันออกกรมธรรม์" : coverage?.status === "AWAITING_PAYMENT" ? "รอชำระเงิน" : coverage?.status === "ISSUANCE_FAILED" ? "ออกกรมธรรม์ไม่สำเร็จ · เจ้าหน้าที่กำลังตรวจสอบ" : coverage?.status === "CANCELLATION_REQUESTED" ? "รอบริษัทประกันยกเลิก" : "ยังไม่มีกรมธรรม์ที่ยืนยันแล้ว"}
+                  </span>
+                  {coverage?.terms_url && <a href={coverage.terms_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">เงื่อนไข</a>}
+                </div>;
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Booking Details Card */}
         <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-sm border border-slate-200/80 mb-6 space-y-6">
           <h2 className="text-base font-bold text-slate-900 pb-3 border-b border-slate-100">
@@ -591,7 +627,7 @@ function BookingSuccessContent({ params }) {
                       {idx + 1}. {t.title} {t.full_name}
                     </span>
                     {t.id_card_or_passport && (
-                      <span className="font-mono text-slate-500">{t.id_card_or_passport}</span>
+                      <span className="font-mono text-slate-500">••••{t.id_card_or_passport.slice(-4)}</span>
                     )}
                   </div>
                 ))}
@@ -668,7 +704,7 @@ function BookingSuccessContent({ params }) {
           </Link>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-            {!isCancelled && (
+            {!isCancelled && !isPaymentException && (
               <button
                 type="button"
                 onClick={() => setIsCancelModalOpen(true)}
@@ -679,7 +715,7 @@ function BookingSuccessContent({ params }) {
               </button>
             )}
 
-            {!isCancelled && (
+            {!isCancelled && !isPaymentException && (
               <button
                 onClick={handlePrint}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all cursor-pointer"

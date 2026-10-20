@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowRight,
@@ -25,17 +26,16 @@ import {
 } from "lucide-react";
 import { authService } from "@/service/auth";
 import { guideService } from "@/service/guide";
-import { getBackofficeAuth, setBackofficeAuth, getBackofficeToken } from "@/lib/backoffice-auth";
+import { clearBackofficeAuth, setBackofficeAuth, getBackofficeToken } from "@/lib/backoffice-auth";
 import { formatThaiDate } from "@/lib/date";
 import PageHeader from "@/components/backoffice/PageHeader";
 import StatCard from "@/components/backoffice/StatCard";
 import { PositionBadge } from "@/components/ui/Badges";
 
 export default function BackofficeProfilePage() {
+  const router = useRouter();
   // Real authenticated user data from /api/auth/me
-  const [profileUser, setProfileUser] = useState(() =>
-    typeof window !== "undefined" ? getBackofficeAuth() : null
-  );
+  const [profileUser, setProfileUser] = useState(null);
 
   // If user is a guide, load their tour statistics
   const [guideStats, setGuideStats] = useState({
@@ -56,7 +56,7 @@ export default function BackofficeProfilePage() {
 
     try {
       const res = await authService.getMe();
-      if (res && res.user) {
+      if (res?.user?.isEmployee === true) {
         setProfileUser(res.user);
 
         // อัปเดตข้อมูล user ใน localStorage ให้เป็นปัจจุบัน
@@ -93,26 +93,22 @@ export default function BackofficeProfilePage() {
           }
         }
       } else {
-        // Fallback to local session if available
-        const localAuth = getBackofficeAuth();
-        if (localAuth) {
-          setProfileUser(localAuth);
-        }
+        clearBackofficeAuth();
+        setProfileUser(null);
+        router.replace("/backoffice/login");
       }
     } catch (err) {
       console.error("Failed to fetch real profile from getMe:", err);
-      // Fallback to local storage if API network fails
-      const localAuth = getBackofficeAuth();
-      if (localAuth) {
-        setProfileUser(localAuth);
-      } else {
-        setErrorMessage("ไม่สามารถดึงข้อมูลโปรไฟล์ได้ กรุณาลองใหม่อีกครั้ง");
-      }
+      setProfileUser(null);
+      if ([401, 403, 404].includes(err.response?.status)) {
+        clearBackofficeAuth();
+        router.replace("/backoffice/login");
+      } else setErrorMessage("ไม่สามารถดึงข้อมูลโปรไฟล์ได้ กรุณาลองใหม่อีกครั้ง");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let isMounted = true;

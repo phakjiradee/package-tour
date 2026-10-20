@@ -169,6 +169,9 @@ export default function PackageBookingPage({ params }) {
 
   // State
   const [packageData, setPackageData] = useState(null);
+  const [insurancePlan, setInsurancePlan] = useState(null);
+  const [insuranceReady, setInsuranceReady] = useState(false);
+  const [insuranceTermsAcknowledged, setInsuranceTermsAcknowledged] = useState(false);
   const [isLoadingPackage, setIsLoadingPackage] = useState(true);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -225,6 +228,7 @@ export default function PackageBookingPage({ params }) {
         title: "นาย",
         full_name: "",
         id_card_or_passport: "",
+        date_of_birth: "",
         phone: "",
         collab_user: null,
       },
@@ -235,6 +239,7 @@ export default function PackageBookingPage({ params }) {
         title: "นาย",
         full_name: "",
         id_card_or_passport: "",
+        date_of_birth: "",
         phone: "",
         collab_user: null,
       });
@@ -281,6 +286,13 @@ export default function PackageBookingPage({ params }) {
     fetchPackage();
   }, [packageId]);
 
+  useEffect(() => {
+    bookingService.getInsurancePlan()
+      .then((res) => setInsurancePlan(res.data || null))
+      .catch(() => setInsurancePlan(null))
+      .finally(() => setInsuranceReady(true));
+  }, []);
+
   // Load initial collabs from query string if provided
   useEffect(() => {
     if (initialCollabIds.length > 0) {
@@ -298,6 +310,7 @@ export default function PackageBookingPage({ params }) {
                 title: "นาย",
                 full_name: u.name,
                 id_card_or_passport: "",
+                date_of_birth: "",
                 phone: u.phone || "",
                 collab_user: u,
               }));
@@ -376,6 +389,7 @@ export default function PackageBookingPage({ params }) {
       title: "นาย",
       full_name: u.name,
       id_card_or_passport: "",
+      date_of_birth: "",
       phone: u.phone || "",
       collab_user: u,
     }));
@@ -414,7 +428,8 @@ export default function PackageBookingPage({ params }) {
     (sum, item) => sum + (item.price || 0),
     0,
   );
-  const grandTotal = baseTotal + addonsTotal;
+  const insuranceTotal = insurancePlan ? insurancePlan.premium_satang * totalPeople / 100 : 0;
+  const grandTotal = baseTotal + addonsTotal + insuranceTotal;
 
   // Handle Form Submit
   const handleSubmit = async (e) => {
@@ -469,18 +484,34 @@ export default function PackageBookingPage({ params }) {
       return;
     }
 
+    if (!insurancePlan) {
+      setErrorMessage("ยังไม่เปิดแผนประกันสำหรับทริปนี้ กรุณาติดต่อเจ้าหน้าที่");
+      return;
+    }
+    if (!insuranceTermsAcknowledged) {
+      setErrorMessage("กรุณาอ่านและรับทราบเงื่อนไขกรมธรรม์ก่อนจอง");
+      return;
+    }
+    const incompleteIndex = travelers.findIndex((t, idx) =>
+      !(t.full_name?.trim() || (idx === 0 && activeContactName)) ||
+      !t.id_card_or_passport?.trim() || !t.date_of_birth
+    );
+    if (incompleteIndex !== -1) {
+      setErrorMessage(`กรุณากรอกชื่อ เลขบัตร/Passport และวันเกิดของผู้เดินทางท่านที่ ${incompleteIndex + 1} ให้ครบ`);
+      setEditingTravelerIndex(incompleteIndex);
+      return;
+    }
+
     // Format selected addons payload
     const formattedAddons = activeAddons.map((item) => ({
       addon_id: item.id,
       quantity: 1,
     }));
 
-    // Ensure lead traveler has name
+    // Lead traveler may use the account name; every other name must be explicit.
     const finalTravelers = travelers.map((t, idx) => ({
       ...t,
-      full_name:
-        t.full_name?.trim() ||
-        (idx === 0 ? activeContactName : `ผู้ร่วมเดินทางท่านที่ ${idx + 1}`),
+      full_name: t.full_name?.trim() || (idx === 0 ? activeContactName : ""),
     }));
 
     const payload = {
@@ -495,6 +526,8 @@ export default function PackageBookingPage({ params }) {
       special_requests: specialRequests.trim() || null,
       travelers: finalTravelers,
       selected_addons: formattedAddons,
+      insurance_plan_updated_at: insurancePlan.updatedAt,
+      insurance_terms_acknowledged: insuranceTermsAcknowledged,
       collab_ids: collaborators.map((c) => c.id),
     };
 
@@ -742,7 +775,7 @@ export default function PackageBookingPage({ params }) {
                     const isIdFilled = Boolean(
                       traveler.id_card_or_passport?.trim(),
                     );
-                    const isComplete = isNameFilled && isIdFilled;
+                    const isComplete = isNameFilled && isIdFilled && Boolean(traveler.date_of_birth);
 
                     return (
                       <div
@@ -1091,6 +1124,21 @@ export default function PackageBookingPage({ params }) {
                     </div>
                   )}
 
+                  <div className="flex justify-between gap-2 border-t border-dashed border-slate-200 pt-2 text-xs">
+                    <span>ประกันการเดินทางบังคับ ({totalPeople} คน)</span>
+                    <span className="font-semibold text-slate-900">{insurancePlan ? `฿${insuranceTotal.toLocaleString()}` : "รอตั้งค่าแผน"}</span>
+                  </div>
+                  {insurancePlan && (
+                    <p className="text-[11px] text-slate-500">
+                      {insurancePlan.insurer_name} · {insurancePlan.plan_name} · ฿{(insurancePlan.premium_satang / 100).toLocaleString()} ต่อคน · อายุ {insurancePlan.min_age}–{insurancePlan.max_age} ปี ·{" "}
+                      <a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">เงื่อนไขกรมธรรม์</a>
+                    </p>
+                  )}
+                  {insurancePlan && <label className="flex items-start gap-2 text-[11px] text-slate-600">
+                    <input type="checkbox" checked={insuranceTermsAcknowledged} onChange={(e) => setInsuranceTermsAcknowledged(e.target.checked)} className="mt-0.5" />
+                    <span>ฉันอ่านและรับทราบเงื่อนไขกรมธรรม์และการส่งข้อมูลผู้เดินทางให้บริษัทประกันแล้ว</span>
+                  </label>}
+
                   <div className="flex justify-between pt-3 border-t border-slate-100 text-sm font-medium">
                     <span className="text-slate-700">ยอดรวมทั้งสิ้น:</span>
                     <span className="text-xl font-extrabold text-indigo-600">
@@ -1121,7 +1169,7 @@ export default function PackageBookingPage({ params }) {
                 {/* Submit CTA Button */}
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !insuranceReady || !insurancePlan || !insuranceTermsAcknowledged}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.99] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (

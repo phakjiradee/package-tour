@@ -12,10 +12,10 @@ export function setBackofficeAuth(user, token) {
 
   if (token) {
     window.localStorage.setItem(BO_TOKEN_KEY, token);
-    // Set cookie for Next.js middleware (30 days expiry)
+    // Backoffice JWT expires after one day.
     document.cookie = `${BO_TOKEN_KEY}=${encodeURIComponent(
       token
-    )}; path=/; max-age=2592000; SameSite=Lax`;
+    )}; path=/; max-age=86400; SameSite=Lax`;
   }
 
   if (user) {
