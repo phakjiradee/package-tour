@@ -48,7 +48,9 @@ export function getUserAvatar(user, fallbackIndex = 0) {
   for (let i = 0; i < key.length; i++) {
     hash = key.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return MOCK_AVATARS[Math.abs(hash) % MOCK_AVATARS.length] || DEFAULT_USER_AVATAR;
+  return (
+    MOCK_AVATARS[Math.abs(hash) % MOCK_AVATARS.length] || DEFAULT_USER_AVATAR
+  );
 }
 
 export function UserAvatar({
@@ -65,13 +67,14 @@ export function UserAvatar({
     setImgSrc(getUserAvatar(user) || fallback);
   }, [user, fallback]);
 
-  const sizeClasses = {
-    xs: "h-5 w-5",
-    sm: "h-7 w-7",
-    md: "h-8 w-8",
-    lg: "h-9 w-9",
-    xl: "h-10 w-10",
-  }[size] || "h-8 w-8";
+  const sizeClasses =
+    {
+      xs: "h-5 w-5",
+      sm: "h-7 w-7",
+      md: "h-8 w-8",
+      lg: "h-9 w-9",
+      xl: "h-10 w-10",
+    }[size] || "h-8 w-8";
 
   return (
     <div
@@ -108,7 +111,8 @@ export default function CollaboratorBox({
   onOpenChange: controlledOnOpenChange,
 }) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
-  const isModalOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+  const isModalOpen =
+    controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
   const setIsModalOpen = controlledOnOpenChange || setInternalIsOpen;
 
   const [mounted, setMounted] = useState(false);
@@ -209,7 +213,8 @@ export default function CollaboratorBox({
                   </span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  ค้นหาเพื่อนเพื่อชวนมาร่วมแชร์ทริปและค่าใช้จ่ายด้วยกัน สไตล์ GitHub
+                  ค้นหาเพื่อนเพื่อชวนมาร่วมแชร์ทริปและค่าใช้จ่ายด้วยกัน สไตล์
+                  GitHub
                 </p>
               </div>
             </div>
@@ -228,7 +233,7 @@ export default function CollaboratorBox({
             {/* Search Input & Floating Dropdown */}
             <div className="relative">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 block">
-                ค้นหาผู้ใช้ 
+                ค้นหาผู้ใช้
               </label>
               <div className="relative flex items-center">
                 <Search className="absolute left-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -260,7 +265,8 @@ export default function CollaboratorBox({
                     </span>
                     {isSearching && (
                       <span className="flex items-center gap-1.5 text-[11px] text-indigo-600 font-medium">
-                        <Loader2 className="h-3 w-3 animate-spin" /> กำลังค้นหา...
+                        <Loader2 className="h-3 w-3 animate-spin" />{" "}
+                        กำลังค้นหา...
                       </span>
                     )}
                   </div>
@@ -291,7 +297,9 @@ export default function CollaboratorBox({
                                 <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
                                   @{u.name}
                                 </p>
-                                <p className="text-xs text-slate-400 truncate">{u.email}</p>
+                                <p className="text-xs text-slate-400 truncate">
+                                  {u.email}
+                                </p>
                               </div>
                             </div>
 
@@ -337,7 +345,9 @@ export default function CollaboratorBox({
                   ผู้ร่วมทริปในขณะนี้ ({collaborators.length + 1} ท่าน)
                 </span>
                 <span className="text-[11px] text-indigo-600 font-medium">
-                  {collaborators.length > 0 ? `คุณ 1 + Collab ${collaborators.length}` : "คุณ 1 คน"}
+                  {collaborators.length > 0
+                    ? `คุณ 1 + Collab ${collaborators.length}`
+                    : "คุณ 1 คน"}
                 </span>
               </div>
 
@@ -386,7 +396,10 @@ export default function CollaboratorBox({
                 <div className="flex flex-wrap items-center gap-1.5 pt-2.5 border-t border-slate-200/60">
                   {/* Owner Chip */}
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 py-0.5 pl-1 pr-2 text-xs font-bold text-indigo-800 border border-indigo-200/60 shadow-2xs">
-                    <UserAvatar user={currentUser || { name: "คุณ" }} size="xs" />
+                    <UserAvatar
+                      user={currentUser || { name: "คุณ" }}
+                      size="xs"
+                    />
                     <span>{currentUser?.name || "คุณ"}</span>
                     <span
                       title="Owner"
@@ -403,7 +416,9 @@ export default function CollaboratorBox({
                       className="inline-flex items-center gap-1.5 rounded-full bg-white py-0.5 pl-1 pr-2 text-xs font-medium text-slate-700 border border-slate-200 shadow-2xs hover:border-rose-300 transition-colors"
                     >
                       <UserAvatar user={collab} size="xs" />
-                      <span className="font-semibold text-slate-900">@{collab.name}</span>
+                      <span className="font-semibold text-slate-900">
+                        @{collab.name}
+                      </span>
                       <button
                         type="button"
                         onClick={() => handleRemove(collab)}
@@ -417,7 +432,6 @@ export default function CollaboratorBox({
                 </div>
               </div>
             </div>
-
           </div>
 
           {/* Modal Footer */}
@@ -456,65 +470,69 @@ export default function CollaboratorBox({
   return (
     <>
       <div className="mb-4 rounded-2xl border border-slate-200/90 bg-slate-50/60 p-3.5">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
-                <Users className="h-4 w-4" />
-              </span>
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  ผู้ร่วมทริป (Collab)
-                </span>
-              </div>
-            </div>
-
-            <span className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
-              {collaborators.length + 1} คน
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+              <Users className="h-4 w-4" />
             </span>
-          </div>
-
-          {/* Avatar Stack & Action Button */}
-          <div className="flex items-center justify-between gap-2 pt-1">
-            {/* Overlapping Avatars */}
-            <div className="flex items-center -space-x-2 py-0.5">
-              {/* Owner Avatar */}
-              <div title={`${currentUser?.name || "คุณ"} (Owner)`}>
-                <UserAvatar
-                  user={currentUser || { name: "คุณ" }}
-                  size="md"
-                  showCrown
-                />
-              </div>
-
-              {/* Collaborators Avatars */}
-              {collaborators.slice(0, 3).map((collab) => (
-                <div key={collab.id} title={`@${collab.name}`}>
-                  <UserAvatar user={collab} size="md" />
-                </div>
-              ))}
-
-              {collaborators.length > 3 && (
-                <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600 ring-2 ring-white shadow-xs">
-                  +{collaborators.length - 3}
-                </div>
-              )}
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                ผู้ร่วมทริป (Collab)
+              </span>
             </div>
-
-            {/* Modal Trigger Button (Circular with dashed border) */}
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              title={collaborators.length > 0 ? "จัดการ / ชวนเพิ่ม" : "ชวนเพื่อน (Collab)"}
-              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-indigo-300 bg-white text-indigo-600 hover:border-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
-            >
-              <UserPlus className="h-4 w-4" />
-            </button>
           </div>
+
+          <span className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-bold text-white">
+            {collaborators.length + 1} คน
+          </span>
         </div>
 
-        {/* Render Modal into document.body */}
-        {mounted && isModalOpen && createPortal(renderModal(), document.body)}
-      </>
-    );
+        {/* Avatar Stack & Action Button */}
+        <div className="flex items-center justify-between gap-2 pt-1">
+          {/* Overlapping Avatars */}
+          <div className="flex items-center -space-x-2 py-0.5">
+            {/* Owner Avatar */}
+            <div title={`${currentUser?.name || "คุณ"} (Owner)`}>
+              <UserAvatar
+                user={currentUser || { name: "คุณ" }}
+                size="md"
+                showCrown
+              />
+            </div>
+
+            {/* Collaborators Avatars */}
+            {collaborators.slice(0, 3).map((collab) => (
+              <div key={collab.id} title={`@${collab.name}`}>
+                <UserAvatar user={collab} size="md" />
+              </div>
+            ))}
+
+            {collaborators.length > 3 && (
+              <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600 ring-2 ring-white shadow-xs">
+                +{collaborators.length - 3}
+              </div>
+            )}
+          </div>
+
+          {/* Modal Trigger Button (Circular with dashed border) */}
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            title={
+              collaborators.length > 0
+                ? "จัดการ / ชวนเพิ่ม"
+                : "ชวนเพื่อน (Collab)"
+            }
+            className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-indigo-300 bg-white text-indigo-600 hover:border-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
+          >
+            <UserPlus className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Render Modal into document.body */}
+      {mounted && isModalOpen && createPortal(renderModal(), document.body)}
+    </>
+  );
 }
