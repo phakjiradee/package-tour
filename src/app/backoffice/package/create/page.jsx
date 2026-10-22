@@ -44,6 +44,8 @@ import { locationService } from "@/service/location";
 import { employeeService } from "@/service/employee";
 
 import PackageInsurancePicker from "@/components/package/PackageInsurancePicker";
+import PackageCostEditor, { serializePackageCosts } from "@/components/package/PackageCostEditor";
+import { api } from "@/lib/axios";
 import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import Dropdown, { GuideDropdown } from "@/components/ui/Dropdown";
@@ -87,6 +89,9 @@ export default function CreatePackagePage() {
     bus_ids: [],
     insurance_plan_id: null,
     price: "",
+    target_travelers: "",
+    minimum_travelers: "",
+    cost_items: [],
     status: "Draft",
     booking_start_date: "",
     booking_end_date: "",
@@ -943,14 +948,10 @@ export default function CreatePackagePage() {
       const payload = {
         ...packageData,
         price: parseFloat(unformatPrice(packageData.price)) || 0,
+        ...serializePackageCosts(packageData),
       };
-      const res = await fetch("http://localhost:4000/api/packages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (res.ok) {
+      const { data } = await api.post("/packages", payload);
+      if (data.success) {
         showFeedback({
           type: "success",
           title: "สร้างแพ็กเกจสำเร็จเรียบร้อยแล้ว!",
@@ -974,7 +975,7 @@ export default function CreatePackagePage() {
       showFeedback({
         type: "error",
         title: "เกิดข้อผิดพลาด",
-        message: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ",
+        message: error.response?.data?.message || "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ",
       });
     } finally {
       setIsSaving(false);
@@ -1528,6 +1529,8 @@ export default function CreatePackagePage() {
           </section>
 
           <PackageInsurancePicker selected={packageData.insurance_plan_id} onChange={(insurance_plan_id) => setPackageData((prev) => ({ ...prev, insurance_plan_id }))} startDate={packageData.start_date || packageData.days[0]?.dt} endDate={packageData.end_date || packageData.days.at(-1)?.dt} />
+
+          <PackageCostEditor value={packageData} onChange={setPackageData} price={packageData.price} />
 
           {/* SECTION: Add-on Packages */}
           <section id="addons" className="scroll-mt-44">

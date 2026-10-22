@@ -27,6 +27,7 @@ import Link from "next/link";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import PageHeader from "@/components/backoffice/PageHeader";
 import StatCard from "@/components/backoffice/StatCard";
+import { api } from "@/lib/axios";
 
 export default function PackagePage() {
   const [packages, setPackages] = useState([]);
@@ -61,7 +62,8 @@ export default function PackagePage() {
   };
 
   useEffect(() => {
-    fetchPackages();
+    const load = async () => { await fetchPackages(); };
+    load();
   }, []);
 
   // Extract unique destinations for filter dropdown
@@ -165,10 +167,8 @@ export default function PackagePage() {
       onConfirm: async () => {
         setFeedbackModal((prev) => ({ ...prev, isOpen: false }));
         try {
-          const res = await fetch(`http://localhost:4000/api/packages/${item.id}`, {
-            method: "DELETE",
-          });
-          if (res.ok) {
+          const res = await api.delete(`/packages/${item.id}`);
+          if (res.status === 200) {
             fetchPackages();
           }
         } catch (error) {
