@@ -36,7 +36,7 @@ const categories = {
   LIABILITY: "ความรับผิดต่อบุคคลภายนอก",
   OTHER: "อื่น ๆ",
 };
-const blankPlan = { insurer_name: "", plan_name: "", master_policy_no: "", terms_url: "", premium: "", min_age: "", max_age: "", active: false };
+const blankPlan = { insurer_name: "", plan_name: "", master_policy_no: "", terms_url: "", premium: "", min_age: "", max_age: "", min_trip_days: "", max_trip_days: "", active: false };
 const pageSize = 100;
 const localDateTime = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
@@ -92,8 +92,9 @@ export default function InsurancePage() {
       const loaded = data || [];
       setPlans(loaded);
       if (loaded.length) {
-        setSelectedPlanId(loaded[0].id);
-        setPlan({ ...loaded[0], premium: String(loaded[0].premium_satang / 100) });
+        const initial = loaded.find((item) => !item.is_demo) || loaded[0];
+        setSelectedPlanId(initial.id);
+        setPlan({ ...initial, premium: String(initial.premium_satang / 100) });
       }
     }).catch(() => {});
   }, []);
@@ -117,7 +118,9 @@ export default function InsurancePage() {
     event.preventDefault();
     await run(async () => {
       const premium_satang = Math.round(Number(plan.premium) * 100);
-      const payload = { ...plan, premium_satang, min_age: Number(plan.min_age), max_age: Number(plan.max_age) };
+      const payload = { ...plan, premium_satang, min_age: Number(plan.min_age), max_age: Number(plan.max_age),
+        min_trip_days: plan.min_trip_days === "" || plan.min_trip_days == null ? null : Number(plan.min_trip_days),
+        max_trip_days: plan.max_trip_days === "" || plan.max_trip_days == null ? null : Number(plan.max_trip_days) };
       const res = selectedPlanId ? await insuranceService.updatePlan(selectedPlanId, payload) : await insuranceService.createPlan(payload);
       setPlan({ ...res.data, premium: String(res.data.premium_satang / 100) });
       setSelectedPlanId(res.data.id);
@@ -203,10 +206,11 @@ export default function InsurancePage() {
         <button type="button" onClick={() => { setSelectedPlanId(null); setPlan(blankPlan); }} className="h-9 rounded-md border border-zinc-200 px-3 text-xs font-semibold">เพิ่มแผนใหม่</button>
       </div>
       {plan.is_demo && <p className="mb-3 rounded-md bg-amber-50 p-3 text-xs text-amber-800">แผนตัวอย่างใช้ทดสอบหน้าจอเท่านั้น เปิดขายไม่ได้ กรุณาเพิ่มแผนใหม่จากบริษัทประกันจริง</p>}
+      {!plan.is_demo && !plan.active && selectedPlanId && <p className="mb-3 rounded-md bg-amber-50 p-3 text-xs text-amber-800">ข้อมูลเบี้ยและแผนนี้อ้างอิงจากเว็บไซต์บริษัทประกัน ยังไม่เปิดขายผ่าน Zentura จนกว่าจะมีข้อตกลงการจำหน่ายและวิธีออกกรมธรรม์ที่บริษัทประกันยืนยัน</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[["insurer_name", "บริษัทประกัน"], ["plan_name", "ชื่อแผน"], ["master_policy_no", "เลขกรมธรรม์กลุ่ม/อ้างอิง"], ["premium", "เบี้ยต่อคน (บาท)"], ["min_age", "อายุต่ำสุด"], ["max_age", "อายุสูงสุด"], ["terms_url", "ลิงก์เงื่อนไข HTTPS"]].map(([key, label]) => <label key={key} className={key === "terms_url" ? "sm:col-span-2" : ""}>
+        {[["insurer_name", "บริษัทประกัน"], ["plan_name", "ชื่อแผน"], ["master_policy_no", "เลขกรมธรรม์กลุ่ม/อ้างอิง"], ["premium", "เบี้ยต่อคน (บาท)"], ["min_age", "อายุต่ำสุด"], ["max_age", "อายุสูงสุด"], ["min_trip_days", "จำนวนวันทริปขั้นต่ำ"], ["max_trip_days", "จำนวนวันทริปสูงสุด"], ["terms_url", "ลิงก์ข้อมูลแผน/เงื่อนไข HTTPS"]].map(([key, label]) => <label key={key} className={key === "terms_url" ? "sm:col-span-2" : ""}>
           <span className="mb-1 block text-xs font-medium text-zinc-600">{label}</span>
-          <input required={key !== "master_policy_no"} type={["premium", "min_age", "max_age"].includes(key) ? "number" : "text"} min={key === "premium" ? "0.01" : "0"} step={key === "premium" ? "0.01" : "1"} value={plan[key] ?? ""} onChange={(e) => setPlan({ ...plan, [key]: e.target.value })} className="h-9 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-blue-500" />
+          <input required={key !== "master_policy_no" && (!key.endsWith("trip_days") || plan.active)} type={["premium", "min_age", "max_age", "min_trip_days", "max_trip_days"].includes(key) ? "number" : "text"} min={key === "premium" ? "0.01" : key.endsWith("trip_days") ? "1" : "0"} step={key === "premium" ? "0.01" : "1"} value={plan[key] ?? ""} onChange={(e) => setPlan({ ...plan, [key]: e.target.value })} className="h-9 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-blue-500" />
         </label>)}
       </div>
       <label className="mt-4 flex items-center gap-2 text-xs text-zinc-700"><input type="checkbox" checked={Boolean(plan.active)} disabled={plan.is_demo} onChange={(e) => setPlan({ ...plan, active: e.target.checked })} /> เปิดใช้แผนนี้เมื่อยืนยันกรมธรรม์และช่องทางส่งรายชื่อกับบริษัทประกันแล้ว</label>
@@ -268,7 +272,7 @@ export default function InsurancePage() {
           <div className="flex items-center gap-2 text-sky-800"><ShieldCheck size={20} /><h2 id="insurance-info-title" className="text-base font-semibold">สถานะแผนประกัน</h2></div>
           <button type="button" onClick={() => setShowInsuranceInfo(false)} aria-label="ปิดรายละเอียดประกัน" className="rounded-md p-1 text-zinc-500 hover:bg-zinc-100"><X size={18} /></button>
         </div>
-        <p className="mt-4 text-sm leading-6 text-zinc-700">{plans.some((item) => item.active && !item.is_demo) ? `มีแผนจากบริษัทประกันจริงที่เปิดใช้งาน ${plans.filter((item) => item.active && !item.is_demo).length} แผน ลูกค้าจะเลือกซื้อได้เมื่อแพ็กเกจกำหนดแผนนั้น` : "ยังไม่มีแผนจากบริษัทประกันจริงที่เปิดใช้งาน ลูกค้ายังจองแพ็กเกจโดยไม่ซื้อประกันได้"}</p>
+        <p className="mt-4 text-sm leading-6 text-zinc-700">{plans.some((item) => item.active && !item.is_demo) ? `มีแผนจากบริษัทประกันจริงที่เปิดใช้งาน ${plans.filter((item) => item.active && !item.is_demo).length} แผน ลูกค้าจะเลือกซื้อได้เมื่อแพ็กเกจกำหนดแผนนั้น` : `บันทึกข้อมูลแผนจากบริษัทประกันจริงแล้ว ${plans.filter((item) => !item.is_demo).length} แผน แต่ยังไม่เปิดขายผ่าน Zentura ลูกค้าจองแพ็กเกจโดยไม่ซื้อประกันได้จนกว่าจะมีข้อตกลงและช่องทางออกกรมธรรม์กับบริษัทประกัน`}</p>
         <p className="mt-4 rounded-lg bg-sky-50 p-3 text-xs leading-5 text-sky-900">การบันทึกเคลมในหน้านี้เป็นการแจ้งเหตุภายใน Zentura ต้องส่งเรื่องและหลักฐานให้บริษัทประกันแยกต่างหาก</p>
         <div className="mt-5 flex justify-end"><button type="button" onClick={() => setShowInsuranceInfo(false)} className="rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">เข้าใจแล้ว</button></div>
       </div>

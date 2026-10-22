@@ -436,7 +436,11 @@ export default function PackageBookingPage({ params }) {
     (sum, item) => sum + (item.price || 0),
     0,
   );
-  const insuranceTotal = insuranceSelected && insurancePlan ? insurancePlan.premium_satang * totalPeople / 100 : 0;
+  const insuranceCanPurchase = Boolean(
+    insurancePlan?.active && !insurancePlan?.is_demo &&
+    insurancePlan.id === packageData?.insurance_plan_id,
+  );
+  const insuranceTotal = insuranceSelected && insuranceCanPurchase ? insurancePlan.premium_satang * totalPeople / 100 : 0;
   const grandTotal = baseTotal + addonsTotal + insuranceTotal;
 
   // Handle Form Submit
@@ -492,8 +496,8 @@ export default function PackageBookingPage({ params }) {
       return;
     }
 
-    if (insuranceSelected && (!insurancePlan || insurancePlan.id !== packageData?.insurance_plan_id)) {
-      setErrorMessage("ยังไม่เปิดแผนประกันสำหรับทริปนี้ กรุณาติดต่อเจ้าหน้าที่");
+    if (insuranceSelected && !insuranceCanPurchase) {
+      setErrorMessage("แผนประกันนี้เป็นแผนตัวอย่างหรือยังไม่เปิดขาย กรุณายกเลิกการเลือกประกันก่อนจอง");
       return;
     }
     if (insuranceSelected && !insuranceTermsAcknowledged) {
@@ -951,7 +955,7 @@ export default function PackageBookingPage({ params }) {
                   </div>
                   <div>
                     <h2 className="text-base font-bold text-slate-900">ประกันการเดินทาง</h2>
-                    <p className="text-xs text-slate-500">เลือกซื้อสำหรับผู้ร่วมเดินทางทุกคนในรายการจองนี้</p>
+                    <p className="text-xs text-slate-500">{insuranceCanPurchase ? "เลือกซื้อสำหรับผู้ร่วมเดินทางทุกคนในรายการจองนี้" : "แผนประกันที่กำหนดให้แพ็กเกจนี้"}</p>
                   </div>
                 </div>
                 <label className={`flex items-start gap-3 rounded-xl border p-4 ${insuranceSelected ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200"}`}>
@@ -966,11 +970,12 @@ export default function PackageBookingPage({ params }) {
                     className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
                   />
                   <span className="text-sm text-slate-700">
-                    <span className="block font-semibold">ซื้อประกันการเดินทาง</span>
-                    {insurancePlan ? <span className="mt-1 block text-xs text-slate-500">{insurancePlan.insurer_name} · {insurancePlan.plan_name} · ฿{(insurancePlan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน</span> : <span className="mt-1 block text-xs text-amber-700">{insuranceReady ? "แพ็กเกจนี้ยังไม่มีแผนประกันที่เปิดใช้งาน สามารถจองโดยไม่ซื้อประกันได้" : "กำลังโหลดแผนประกัน..."}</span>}
+                    <span className="block font-semibold">{insurancePlan && !insuranceCanPurchase ? "ทดลองเลือกแผนประกัน" : "ซื้อประกันการเดินทาง"}</span>
+                    {insurancePlan ? <span className="mt-1 block text-xs text-slate-500">{insurancePlan.insurer_name} · {insurancePlan.plan_name} · {insuranceCanPurchase ? "฿" : "ราคาอ้างอิง ฿"}{(insurancePlan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน</span> : <span className="mt-1 block text-xs text-amber-700">{insuranceReady ? "แพ็กเกจนี้ยังไม่ได้เลือกแผนประกัน สามารถจองโดยไม่ซื้อประกันได้" : "กำลังโหลดแผนประกัน..."}</span>}
                   </span>
                 </label>
-                {insuranceSelected && insurancePlan && <label className="mt-4 flex items-start gap-2 text-xs text-slate-600">
+                {insurancePlan && !insuranceCanPurchase && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{insurancePlan.is_demo ? "แผนนี้เป็นข้อมูลตัวอย่าง (DEMO)" : "แผนนี้เป็นข้อมูลจริงจากบริษัทประกัน แต่ยังไม่เปิดขายผ่าน Zentura"} ติ๊กเพื่อดูรายละเอียดได้ แต่ยังจองพร้อมประกันหรือชำระเบี้ยไม่ได้ กรุณายกเลิกการเลือกก่อนยืนยันการจอง{!insurancePlan.is_demo && <> · <a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="font-semibold underline">ดูข้อมูลจากบริษัทประกัน</a></>}</p>}
+                {insuranceSelected && insuranceCanPurchase && <label className="mt-4 flex items-start gap-2 text-xs text-slate-600">
                   <input type="checkbox" checked={insuranceTermsAcknowledged} onChange={(event) => setInsuranceTermsAcknowledged(event.target.checked)} className="mt-0.5" />
                   <span>ฉันอ่านและรับทราบ<a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="mx-1 font-semibold text-indigo-600 underline">เงื่อนไขกรมธรรม์</a>และการส่งข้อมูลผู้เดินทางให้บริษัทประกันแล้ว</span>
                 </label>}
@@ -1168,15 +1173,15 @@ export default function PackageBookingPage({ params }) {
 
                   <div className="flex justify-between gap-2 border-t border-dashed border-slate-200 pt-2 text-xs">
                     <span>ประกันการเดินทาง ({totalPeople} คน)</span>
-                    <span className="font-semibold text-slate-900">{insuranceSelected ? `+฿${insuranceTotal.toLocaleString("th-TH")}` : "ไม่ได้เลือก"}</span>
+                    <span className="font-semibold text-slate-900">{insuranceSelected ? insuranceCanPurchase ? `+฿${insuranceTotal.toLocaleString("th-TH")}` : "ตัวอย่าง · ยังไม่คิดเงิน" : "ไม่ได้เลือก"}</span>
                   </div>
                   {insurancePlan && (
                     <p className="text-[11px] text-slate-500">
-                      {insurancePlan.insurer_name} · {insurancePlan.plan_name} · ฿{(insurancePlan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน · อายุ {insurancePlan.min_age}–{insurancePlan.max_age} ปี ·{" "}
-                      <a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">เงื่อนไขกรมธรรม์</a>
+                      {insurancePlan.insurer_name} · {insurancePlan.plan_name} · {insuranceCanPurchase ? "฿" : "ราคาอ้างอิง ฿"}{(insurancePlan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน · อายุ {insurancePlan.min_age}–{insurancePlan.max_age} ปี{insurancePlan.min_trip_days && insurancePlan.max_trip_days ? ` · ทริป ${insurancePlan.min_trip_days}–${insurancePlan.max_trip_days} วัน` : ""}
+                      {insuranceCanPurchase && <> · <a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">เงื่อนไขกรมธรรม์</a></>}
                     </p>
                   )}
-                  {!insurancePlan && <p className="text-[11px] text-slate-500">ยังไม่มีแผนประกันที่เปิดใช้งานสำหรับแพ็กเกจนี้</p>}
+                  {!insurancePlan && <p className="text-[11px] text-slate-500">ยังไม่ได้เลือกแผนประกันสำหรับแพ็กเกจนี้</p>}
 
                   <div className="flex justify-between pt-3 border-t border-slate-100 text-sm font-medium">
                     <span className="text-slate-700">ยอดรวมทั้งสิ้น:</span>
@@ -1208,7 +1213,7 @@ export default function PackageBookingPage({ params }) {
                 {/* Submit CTA Button */}
                 <button
                   type="submit"
-                  disabled={isSubmitting || !insuranceReady || (insuranceSelected && (!insurancePlan || insurancePlan.id !== packageData?.insurance_plan_id || !insuranceTermsAcknowledged))}
+                  disabled={isSubmitting || !insuranceReady || (insuranceSelected && (!insuranceCanPurchase || !insuranceTermsAcknowledged))}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.99] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { RefreshCw, ShieldCheck } from "lucide-react";
 import insuranceService from "@/service/insurance";
 
-export default function PackageInsurancePicker({ selected, onChange }) {
+export default function PackageInsurancePicker({ selected, onChange, startDate, endDate }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,6 +26,11 @@ export default function PackageInsurancePicker({ selected, onChange }) {
   useEffect(() => { void Promise.resolve().then(loadPlans); }, [loadPlans]);
 
   const plan = plans.find((item) => item.id === Number(selected));
+  const tripDays = startDate && endDate
+    ? Math.round((Date.parse(String(endDate).slice(0, 10)) - Date.parse(String(startDate).slice(0, 10))) / 86400000) + 1
+    : null;
+  const supportsTrip = (item) => !tripDays || item.min_trip_days == null || item.max_trip_days == null ||
+    (tripDays >= item.min_trip_days && tripDays <= item.max_trip_days);
 
   return (
     <section id="insurance" className="scroll-mt-44">
@@ -41,7 +46,7 @@ export default function PackageInsurancePicker({ selected, onChange }) {
             แผนประกันของแพ็กเกจ
             <select value={selected ?? ""} onChange={(event) => onChange(event.target.value ? Number(event.target.value) : null)} disabled={loading} className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 outline-none focus:border-indigo-500 disabled:opacity-60">
               <option value="">{loading ? "กำลังโหลดแผนประกัน..." : "เลือกแผนประกัน"}</option>
-              {plans.map((item) => <option key={item.id} value={item.id}>{item.plan_name} · {item.insurer_name}{item.is_demo ? " (ตัวอย่าง)" : item.active ? " (เปิดใช้งาน)" : " (ยังไม่เปิดใช้งาน)"}</option>)}
+              {plans.map((item) => <option key={item.id} value={item.id} disabled={!supportsTrip(item)}>{item.plan_name} · {item.insurer_name}{item.is_demo ? " (ตัวอย่าง)" : !supportsTrip(item) ? " (จำนวนวันไม่ตรง)" : item.active ? " (เปิดใช้งาน)" : " (ยังไม่เปิดใช้งาน)"}</option>)}
             </select>
           </label>
           <button type="button" onClick={loadPlans} aria-label="รีเฟรชแผนประกัน" className="rounded-lg border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"><RefreshCw size={17} /></button>
@@ -50,10 +55,12 @@ export default function PackageInsurancePicker({ selected, onChange }) {
         {error && <p role="alert" className="mt-3 text-sm text-rose-700">{error}</p>}
         {!loading && plans.length === 0 && !error && <p className="mt-3 text-sm text-amber-700">ยังไม่มีแผนประกัน กรุณาสร้างแผนในหน้าประกันการเดินทางก่อน</p>}
         {!loading && plans.length > 0 && !selected && <p className="mt-3 text-sm text-amber-700">กรุณาเลือกหนึ่งแผนก่อนบันทึกแพ็กเกจ ลูกค้าจะซื้อประกันไม่ได้จนกว่าจะมีแผนจริงที่เปิดใช้งาน</p>}
+        {plan && !supportsTrip(plan) && <p role="alert" className="mt-3 text-sm text-rose-700">แผนที่เลือกไม่รองรับทริป {tripDays} วัน กรุณาเปลี่ยนแผนก่อนบันทึก</p>}
         {plan && <div className={`mt-4 rounded-xl border p-4 text-sm ${plan.active && !plan.is_demo ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
           <p className="font-semibold">{plan.insurer_name} · {plan.plan_name}</p>
-          <p className="mt-1">เบี้ย ฿{(plan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน · อายุที่รับ {plan.min_age}–{plan.max_age} ปี</p>
-          {plan.is_demo ? <p className="mt-2">แผนตัวอย่างสำหรับเตรียมระบบ ยังไม่ใช่กรมธรรม์จริงและลูกค้ายังเลือกซื้อไม่ได้</p> : !plan.active ? <p className="mt-2">แผนนี้ยังไม่เปิดใช้งาน ลูกค้ายังเลือกซื้อประกันไม่ได้จนกว่าแผนจะพร้อม</p> : <a href={plan.terms_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold underline">อ่านเงื่อนไขกรมธรรม์</a>}
+          <p className="mt-1">เบี้ย ฿{(plan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน · อายุที่รับ {plan.min_age}–{plan.max_age} ปี{plan.min_trip_days && plan.max_trip_days ? ` · ทริป ${plan.min_trip_days}–${plan.max_trip_days} วัน` : ""}</p>
+          {plan.is_demo ? <p className="mt-2">แผนตัวอย่างสำหรับเตรียมระบบ ยังไม่ใช่กรมธรรม์จริงและลูกค้ายังเลือกซื้อไม่ได้</p> : !plan.active ? <p className="mt-2">ข้อมูลแผนจากบริษัทประกันจริง แต่ยังไม่เปิดขายผ่าน Zentura จนกว่าจะมีข้อตกลงและช่องทางออกกรมธรรม์</p> : null}
+          {!plan.is_demo && <a href={plan.terms_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold underline">{plan.active ? "อ่านเงื่อนไขกรมธรรม์" : "ดูข้อมูลแผนจากบริษัทประกัน"}</a>}
         </div>}
       </div>
     </section>

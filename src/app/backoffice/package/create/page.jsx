@@ -1527,7 +1527,7 @@ export default function CreatePackagePage() {
             </div>
           </section>
 
-          <PackageInsurancePicker selected={packageData.insurance_plan_id} onChange={(insurance_plan_id) => setPackageData((prev) => ({ ...prev, insurance_plan_id }))} />
+          <PackageInsurancePicker selected={packageData.insurance_plan_id} onChange={(insurance_plan_id) => setPackageData((prev) => ({ ...prev, insurance_plan_id }))} startDate={packageData.start_date || packageData.days[0]?.dt} endDate={packageData.end_date || packageData.days.at(-1)?.dt} />
 
           {/* SECTION: Add-on Packages */}
           <section id="addons" className="scroll-mt-44">
