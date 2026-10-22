@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import {
   clearBackofficeAuth,
-  getBackofficeAuth,
   getBackofficeToken,
   setBackofficeAuth,
 } from "@/lib/backoffice-auth";
@@ -31,21 +30,29 @@ export function UserDropdown() {
     authService
       .getMe()
       .then((res) => {
-        if (isMounted && res?.user) {
+        if (isMounted && res?.user?.isEmployee === true) {
           setUser(res.user);
           const currentToken = getBackofficeToken();
           if (currentToken) {
             setBackofficeAuth(res.user, currentToken);
           }
+        } else if (isMounted) {
+          clearBackofficeAuth();
+          router.replace("/backoffice/login");
         }
       })
-      .catch(() => {
-        if (isMounted) setUser(getBackofficeAuth());
+      .catch((err) => {
+        if (!isMounted) return;
+        setUser(null);
+        if ([401, 403, 404].includes(err.response?.status)) {
+          clearBackofficeAuth();
+          router.replace("/backoffice/login");
+        }
       });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [router]);
 
   const handleSignOut = () => {
     clearBackofficeAuth();
@@ -63,12 +70,12 @@ export function UserDropdown() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const name = user?.name || "Admin User";
-  const email = user?.email || "admin@zentura.com";
+  const name = user?.name || "กำลังตรวจสอบบัญชี";
+  const email = user?.email || "";
   const role =
     typeof user?.role === "object"
-      ? user?.role?.name || "Admin"
-      : user?.role || user?.position || user?.Role?.name || "Admin";
+      ? user?.role?.name || ""
+      : user?.role || user?.position || user?.Role?.name || "";
   const initials = (name || "AD").slice(0, 2).toUpperCase();
 
   return (
@@ -117,28 +124,6 @@ export function UserDropdown() {
             >
               <UserRound className="h-3.5 w-3.5 text-zinc-400" />
               <span>โปรไฟล์ของฉัน</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                router.push("/backoffice/employee");
-              }}
-              className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs text-zinc-700 hover:bg-zinc-100 cursor-pointer transition-colors"
-            >
-              <UserRound className="h-3.5 w-3.5 text-zinc-400" />
-              <span>ข้อมูลพนักงาน</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                router.push("/backoffice/position");
-              }}
-              className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs text-zinc-700 hover:bg-zinc-100 cursor-pointer transition-colors"
-            >
-              <Shield className="h-3.5 w-3.5 text-zinc-400" />
-              <span>สิทธิ์การใช้งาน</span>
             </button>
           </div>
 

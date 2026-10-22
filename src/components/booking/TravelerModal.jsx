@@ -66,6 +66,7 @@ function TravelerForm({
     title: traveler?.title || "นาย",
     full_name: initialName,
     id_card_or_passport: formatIdCardOrPassport(traveler?.id_card_or_passport || ""),
+    date_of_birth: traveler?.date_of_birth || "",
     phone: formatPhoneNumber(traveler?.phone || ""),
   });
 
@@ -263,6 +264,20 @@ function TravelerForm({
           <p className="text-[11px] text-slate-500 mt-1">
             ข้อมูลนี้จำเป็นต้องใช้ในการออกตั๋วโดยสารและลงทะเบียนประกันอุบัติเหตุ
           </p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            วันเกิดตามเอกสาร <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="date"
+            value={formData.date_of_birth}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => handleFieldChange("date_of_birth", e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:border-indigo-600 focus:outline-none"
+          />
+          <p className="text-[11px] text-slate-500 mt-1">ใช้ตรวจช่วงอายุที่กรมธรรม์รับประกัน</p>
         </div>
 
         {/* Field 4: เบอร์โทรศัพท์ (ไม่บังคับ) */}
@@ -464,7 +479,7 @@ export default function TravelerModal({
             {travelers.map((t, idx) => {
               const active = idx === travelerIndex;
               const isFilled =
-                Boolean(t.full_name?.trim()) && Boolean(t.id_card_or_passport?.trim());
+                Boolean(t.full_name?.trim()) && Boolean(t.id_card_or_passport?.trim()) && Boolean(t.date_of_birth);
 
               return (
                 <button

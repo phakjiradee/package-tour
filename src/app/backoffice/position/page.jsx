@@ -394,16 +394,15 @@ export default function PositionPage() {
             }}
           >
             <Table
-              className="flex-1 flex flex-col overflow-hidden [&_.ant-spin-nested-loading]:flex-1 [&_.ant-spin-nested-loading]:flex [&_.ant-spin-nested-loading]:flex-col [&_.ant-spin-container]:flex-1 [&_.ant-spin-container]:flex [&_.ant-spin-container]:flex-col [&_.ant-table]:flex-1 [&_.ant-table-container]:flex-1 [&_.ant-table-container]:flex [&_.ant-table-container]:flex-col [&_.ant-table-body]:flex-1 [&_.ant-table-body]:overflow-y-auto"
+              className="flex-1 flex flex-col overflow-hidden [&_.ant-spin]:flex-1 [&_.ant-spin]:min-h-0 [&_.ant-spin]:flex [&_.ant-spin]:flex-col [&_.ant-spin-container]:flex-1 [&_.ant-spin-container]:flex [&_.ant-spin-container]:flex-col [&_.ant-table]:flex-1 [&_.ant-table]:min-h-0 [&_.ant-table]:flex [&_.ant-table]:flex-col [&_.ant-table-container]:flex-1 [&_.ant-table-container]:flex [&_.ant-table-container]:flex-col [&_.ant-table-body]:flex-1 [&_.ant-table-body]:min-h-0 [&_.ant-table-body]:overflow-y-auto"
               columns={columns}
               dataSource={filteredPositions}
               rowKey="id"
               loading={loading}
               scroll={{ x: 1000, y: "calc(100vh - 295px)" }}
               pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                pageSizeOptions: ["10", "20", "50"],
+                pageSize: 100,
+                showSizeChanger: false,
                 showTotal: (total, range) => (
                   <div className="flex items-center gap-3 text-xs text-slate-500">
                     <span>
@@ -416,7 +415,7 @@ export default function PositionPage() {
                     )}
                   </div>
                 ),
-                className: "!px-5 !py-3 !m-0 border-t border-slate-200 shrink-0",
+                className: "!px-5 !py-3 !m-0 border-t border-slate-200 shrink-0 [&_.ant-pagination-total-text]:!mr-auto",
               }}
             />
           </ConfigProvider>

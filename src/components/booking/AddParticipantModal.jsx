@@ -65,6 +65,7 @@ export default function AddParticipantModal({
     title: "นาย",
     full_name: "",
     id_card_or_passport: "",
+    date_of_birth: "",
     phone: "",
   });
 
@@ -147,8 +148,8 @@ export default function AddParticipantModal({
   // Submit Manual Participant
   const handleSubmitManual = (e) => {
     e.preventDefault();
-    if (!manualData.full_name?.trim()) {
-      alert("กรุณากรอกชื่อ - นามสกุล");
+    if (!manualData.full_name?.trim() || !manualData.id_card_or_passport?.trim() || !manualData.date_of_birth) {
+      alert("กรุณากรอกชื่อ เลขบัตร/Passport และวันเกิดให้ครบ");
       return;
     }
     if (onAddManual) {
@@ -353,6 +354,21 @@ export default function AddParticipantModal({
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3.5 text-xs sm:text-sm font-medium text-slate-800 placeholder-slate-400 focus:border-indigo-600 focus:outline-none focus:ring-3 focus:ring-indigo-100 transition-all"
                   />
                 </div>
+              </div>
+
+              {/* วันเกิดสำหรับตรวจสิทธิ์ประกัน */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  วันเกิดตามเอกสาร <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={manualData.date_of_birth}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setManualData((prev) => ({ ...prev, date_of_birth: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:border-indigo-600 focus:outline-none"
+                />
               </div>
 
               {/* เบอร์โทรศัพท์ */}

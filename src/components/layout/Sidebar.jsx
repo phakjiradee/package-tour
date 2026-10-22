@@ -20,7 +20,8 @@ import {
   Settings,
   UserCheck,
   UsersRound,
-  Store
+  Store,
+  ShieldCheck,
 } from "lucide-react";
 import { clearBackofficeAuth } from "@/lib/backoffice-auth";
 
@@ -39,6 +40,12 @@ const NAV_GROUPS = [
         labelEn: "Bookings",
         href: "/backoffice/booking",
         icon: CalendarCheck,
+      },
+      {
+        label: "ประกันการเดินทาง",
+        labelEn: "Insurance",
+        href: "/backoffice/insurance",
+        icon: ShieldCheck,
       },
       {
         label: "จัดที่นั่ง",
@@ -75,12 +82,6 @@ const NAV_GROUPS = [
         labelEn: "Guide Tour",
         href: "/backoffice/assignment",
         icon: Compass,
-      },
-      {
-        label: "โปรไฟล์ผู้ใช้งาน",
-        labelEn: "Profile",
-        href: "/backoffice/profile",
-        icon: UserCheck,
       },
     ],
   },

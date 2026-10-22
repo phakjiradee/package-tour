@@ -1,6 +1,15 @@
 import { api } from "../lib/axios";
 
 export const bookingService = {
+  async getInsurancePlan() {
+    const response = await api.get("/insurance/plan");
+    return response.data;
+  },
+
+  async getMyInsurance(code) {
+    const response = await api.get(`/insurance/my/${encodeURIComponent(code)}`);
+    return response.data;
+  },
   // สร้างรายการจองใหม่
   async create(payload) {
     const response = await api.post("/booking", payload);

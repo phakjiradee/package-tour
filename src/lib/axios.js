@@ -22,13 +22,15 @@ api.interceptors.request.use((config) => {
     const boToken = window.localStorage.getItem("bo_token");
     const supplierPortal = config.url?.startsWith("/supplier/") &&
       !config.url?.startsWith("/supplier/admin/");
-    const token = supplierPortal
+    const inBackoffice = window.location.pathname.startsWith("/backoffice");
+    const inSupplier = window.location.pathname.startsWith("/supplier");
+    const token = supplierPortal || inSupplier
       ? window.localStorage.getItem("sp_token")
-      : boToken || window.localStorage.getItem("pt_token");
+      : inBackoffice ? boToken : window.localStorage.getItem("pt_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    if (boToken && !supplierPortal) {
+    if (inBackoffice && boToken && !supplierPortal) {
       config.headers["x-is-employee"] = "true";
     }
   }
