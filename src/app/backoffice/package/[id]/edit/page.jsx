@@ -41,13 +41,15 @@ import PartnerModal from "@/components/partner/PartnerModal";
 import { partnerService, partnerTypeService } from "@/service/partner";
 import { locationService } from "@/service/location";
 import { employeeService } from "@/service/employee";
-import { busService } from "@/service/bus";
-import PackageBusPicker from "@/components/package/PackageBusPicker";
+
 import PackageInsurancePicker from "@/components/package/PackageInsurancePicker";
 import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import Dropdown, { GuideDropdown } from "@/components/ui/Dropdown";
 import { formatThaiDateRange } from "@/lib/date";
+import { DatePicker, ConfigProvider } from "antd";
+const { RangePicker } = DatePicker;
+import dayjs from "dayjs";
 
 const formatPrice = (val) => {
   if (val === null || val === undefined || val === "") return "";
@@ -102,7 +104,7 @@ export default function EditPackagePage({ params }) {
   const [partnerTypes, setPartnerTypes] = useState([]);
   const [locationsList, setLocationsList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
-  const [busesList, setBusesList] = useState([]);
+
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -146,14 +148,13 @@ export default function EditPackagePage({ params }) {
     async function loadData() {
       if (!id) return;
       try {
-        const [pkgRes, partners, types, locations, employees, buses] =
+        const [pkgRes, partners, types, locations, employees] =
           await Promise.all([
             fetch(`http://localhost:4000/api/packages/${id}`),
             partnerService.getAll().catch(() => []),
             partnerTypeService.getAll().catch(() => []),
             locationService.getAll().catch(() => []),
             employeeService.getAll().catch(() => []),
-            busService.getAll().catch(() => []),
           ]);
 
         if (!ignore) {
@@ -161,7 +162,6 @@ export default function EditPackagePage({ params }) {
           setPartnerTypes(Array.isArray(types) ? types : []);
           setLocationsList(Array.isArray(locations) ? locations : []);
           setEmployeesList(Array.isArray(employees) ? employees : []);
-          setBusesList(Array.isArray(buses) ? buses : []);
         }
 
         if (pkgRes.ok) {
@@ -299,6 +299,285 @@ export default function EditPackagePage({ params }) {
 
       return { ...prev, [field]: value };
     });
+  };
+
+  // Helper to generate array of YYYY-MM-DD from start to end in UTC
+  const getDatesInRange = (startDateStr, endDateStr) => {
+    if (!startDateStr) return [];
+    if (!endDateStr) return [startDateStr];
+
+    const [sy, sm, sd] = startDateStr.split("-").map(Number);
+    const [ey, em, ed] = endDateStr.split("-").map(Number);
+
+    const start = new Date(Date.UTC(sy, sm - 1, sd));
+    const end = new Date(Date.UTC(ey, em - 1, ed));
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+    if (end < start) return [startDateStr];
+
+    const dates = [];
+    const current = new Date(start);
+    let count = 0;
+    while (current <= end && count < 60) {
+      const y = current.getUTCFullYear();
+      const m = String(current.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(current.getUTCDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${d}`);
+      current.setUTCDate(current.getUTCDate() + 1);
+      count++;
+    }
+    return dates;
+  };
+
+  const handleTravelDateRangeChange = (newStartDate, newEndDate) => {
+    setPackageData((prev) => {
+      const dateList = getDatesInRange(newStartDate, newEndDate);
+
+      const newDays = dateList.map((dtStr, idx) => {
+        const existing = prev.days && prev.days[idx];
+        if (existing) {
+          return {
+            ...existing,
+            day_num: idx + 1,
+            dt: dtStr,
+          };
+        }
+        return {
+          id: Date.now() + idx,
+          day_num: idx + 1,
+          title: "",
+          dt: dtStr,
+          description: "",
+          hotel: "",
+          id_location: "",
+          meals: [],
+          activities: [],
+          isExpanded: true,
+        };
+      });
+
+      let bStart = prev.booking_start_date;
+      let bEnd = prev.booking_end_date;
+      if (bEnd && bEnd > newStartDate) {
+        bEnd = newStartDate;
+      }
+      if (bStart && bStart > newStartDate) {
+        bStart = newStartDate;
+      }
+
+      return {
+        ...prev,
+        start_date: newStartDate,
+        end_date: newEndDate,
+        booking_start_date: bStart,
+        booking_end_date: bEnd,
+        days: newDays,
+      };
+    });
+  };
+
+  const handleBookingDateRangeChange = (newStart, newEnd) => {
+    setPackageData((prev) => {
+      const travelStart = prev.start_date || prev.days[0]?.dt;
+      let finalEnd = newEnd;
+      if (travelStart && finalEnd > travelStart) {
+        finalEnd = travelStart;
+        showFeedback({
+          type: "warning",
+          title: "วันสิ้นสุดการจองไม่ถูกต้อง",
+          message: `วันสิ้นสุดการจองต้องไม่เกินวันเริ่มเดินทาง (${travelStart}) ระบบได้ปรับให้เป็นวันที่ ${travelStart} โดยอัตโนมัติ`,
+        });
+      }
+      let finalStart = newStart;
+      if (travelStart && finalStart > travelStart) {
+        finalStart = travelStart;
+      }
+      return {
+        ...prev,
+        booking_start_date: finalStart,
+        booking_end_date: finalEnd,
+      };
+    });
+  };
+
+  const handleTravelStartDateChange = (newStartDate) => {
+    if (!newStartDate) {
+      setPackageData((prev) => ({
+        ...prev,
+        start_date: "",
+        days: prev.days.map((d) => ({ ...d, dt: "" })),
+      }));
+      return;
+    }
+
+    setPackageData((prev) => {
+      let newEndDate = prev.end_date;
+      const dayCount = prev.days?.length || 1;
+
+      // ถ้ายังไม่มีวันสิ้นสุด หรือวันสิ้นสุดน้อยกว่าวันเริ่มต้น ให้คำนวณวันสิ้นสุดตามจำนวนวันเดิม
+      if (!newEndDate || newEndDate < newStartDate) {
+        const [sy, sm, sd] = newStartDate.split("-").map(Number);
+        const endD = new Date(Date.UTC(sy, sm - 1, sd + (dayCount - 1)));
+        const ey = endD.getUTCFullYear();
+        const em = String(endD.getUTCMonth() + 1).padStart(2, "0");
+        const ed = String(endD.getUTCDate()).padStart(2, "0");
+        newEndDate = `${ey}-${em}-${ed}`;
+      }
+
+      const dateList = getDatesInRange(newStartDate, newEndDate);
+
+      const newDays = dateList.map((dtStr, idx) => {
+        const existing = prev.days && prev.days[idx];
+        if (existing) {
+          return {
+            ...existing,
+            day_num: idx + 1,
+            dt: dtStr,
+          };
+        }
+        return {
+          id: Date.now() + idx,
+          day_num: idx + 1,
+          title: "",
+          dt: dtStr,
+          description: "",
+          hotel: "",
+          id_location: "",
+          meals: [],
+          activities: [],
+          isExpanded: true,
+        };
+      });
+
+      let bStart = prev.booking_start_date;
+      let bEnd = prev.booking_end_date;
+      if (bEnd && bEnd > newStartDate) {
+        bEnd = newStartDate;
+      }
+      if (bStart && bStart > newStartDate) {
+        bStart = newStartDate;
+      }
+
+      return {
+        ...prev,
+        start_date: newStartDate,
+        end_date: newEndDate,
+        booking_start_date: bStart,
+        booking_end_date: bEnd,
+        days: newDays,
+      };
+    });
+  };
+
+  const handleTravelEndDateChange = (newEndDate) => {
+    if (!newEndDate) {
+      setPackageData((prev) => ({
+        ...prev,
+        end_date: "",
+      }));
+      return;
+    }
+
+    setPackageData((prev) => {
+      let effectiveStartDate = prev.start_date;
+      if (!effectiveStartDate || effectiveStartDate > newEndDate) {
+        effectiveStartDate = newEndDate;
+      }
+
+      const dateList = getDatesInRange(effectiveStartDate, newEndDate);
+
+      const newDays = dateList.map((dtStr, idx) => {
+        const existing = prev.days && prev.days[idx];
+        if (existing) {
+          return {
+            ...existing,
+            day_num: idx + 1,
+            dt: dtStr,
+          };
+        }
+        return {
+          id: Date.now() + idx,
+          day_num: idx + 1,
+          title: "",
+          dt: dtStr,
+          description: "",
+          hotel: "",
+          id_location: "",
+          meals: [],
+          activities: [],
+          isExpanded: true,
+        };
+      });
+
+      let bStart = prev.booking_start_date;
+      let bEnd = prev.booking_end_date;
+      if (bEnd && bEnd > effectiveStartDate) {
+        bEnd = effectiveStartDate;
+      }
+      if (bStart && bStart > effectiveStartDate) {
+        bStart = effectiveStartDate;
+      }
+
+      return {
+        ...prev,
+        start_date: effectiveStartDate,
+        end_date: newEndDate,
+        booking_start_date: bStart,
+        booking_end_date: bEnd,
+        days: newDays,
+      };
+    });
+  };
+
+  const handleClearTravelDates = () => {
+    setPackageData((prev) => ({
+      ...prev,
+      start_date: "",
+      end_date: "",
+      days: prev.days.map((d) => ({ ...d, dt: "" })),
+    }));
+  };
+
+  const handleBookingStartDateChange = (val) => {
+    setPackageData((prev) => {
+      const travelStart = prev.start_date || prev.days[0]?.dt;
+      if (val && travelStart && val > travelStart) {
+        showFeedback({
+          type: "warning",
+          title: "วันเปิดรับจองไม่ถูกต้อง",
+          message: `วันที่เปิดรับจองต้องอยู่ก่อนวันเริ่มเดินทาง (${travelStart})`,
+        });
+        return { ...prev, booking_start_date: travelStart };
+      }
+      let bEnd = prev.booking_end_date;
+      if (val && bEnd && val > bEnd) {
+        bEnd = val;
+      }
+      return { ...prev, booking_start_date: val, booking_end_date: bEnd };
+    });
+  };
+
+  const handleBookingEndDateChange = (val) => {
+    setPackageData((prev) => {
+      const travelStart = prev.start_date || prev.days[0]?.dt;
+      if (val && travelStart && val > travelStart) {
+        showFeedback({
+          type: "warning",
+          title: "วันสิ้นสุดการจองไม่ถูกต้อง",
+          message: `วันสิ้นสุดการจองต้องไม่เกินวันเริ่มเดินทาง (${travelStart}) ระบบได้ปรับให้เป็นวันที่ ${travelStart} โดยอัตโนมัติ`,
+        });
+        return { ...prev, booking_end_date: travelStart };
+      }
+      return { ...prev, booking_end_date: val };
+    });
+  };
+
+  const handleClearBookingDates = () => {
+    setPackageData((prev) => ({
+      ...prev,
+      booking_start_date: "",
+      booking_end_date: "",
+    }));
   };
 
   const handleTogglePartner = (partnerId) => {
@@ -895,57 +1174,7 @@ export default function EditPackagePage({ params }) {
         </div>
       </header>
 
-      {/* Quick Navigation Anchor Bar */}
-      <div className="sticky top-28 z-20 bg-white/95 backdrop-blur-xs border-b border-slate-200 px-6 py-2 flex items-center gap-2 overflow-x-auto text-xs font-semibold shadow-xs">
-        <a
-          href="#overview"
-          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-        >
-          1. ข้อมูลพื้นฐาน
-        </a>
-        <a
-          href="#gallery"
-          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-        >
-          2. รูปภาพ ({packageData.images?.length || 0})
-        </a>
-        <a
-          href="#partners"
-          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-        >
-          3. ผู้ให้บริการร่วม ({packageData.partner_ids?.length || 0})
-        </a>
-        <a
-          href="#buses"
-          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-        >
-          รถบัส ({packageData.bus_ids.length})
-        </a>
-        <a
-          href="#guides"
-          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-        >
-          4. ไกด์ประจำแพ็กเกจ ({packageData.guides?.length || 0})
-        </a>
-        <a
-          href="#insurance"
-          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-        >
-          5. ประกันการเดินทาง
-        </a>
-        <a
-          href="#addons"
-          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-        >
-          6. บริการเสริมพิเศษ ({packageData.addons?.length || 0})
-        </a>
-        <a
-          href="#itinerary"
-          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-        >
-          7. แผนการเดินทาง ({packageData.days?.length || 0} วัน)
-        </a>
-      </div>
+
 
       {/* Main Layout Workspace */}
       <div className="w-full p-6 lg:flex lg:gap-8 lg:p-8">
@@ -1207,7 +1436,6 @@ export default function EditPackagePage({ params }) {
             </div>
           </section>
 
-          <PackageBusPicker buses={busesList} selected={packageData.bus_ids} onChange={(bus_ids) => setPackageData((prev) => ({ ...prev, bus_ids }))} />
 
           {/* SECTION: Tour Guides & Staff Assignment */}
           <section id="guides" className="scroll-mt-44">
@@ -1529,6 +1757,155 @@ export default function EditPackagePage({ params }) {
             </div>
           </section>
 
+          {/* SECTION: กำหนดช่วงเวลาเปิดรับจองและช่วงเวลาเดินทาง */}
+          <section id="schedule" className="scroll-mt-44">
+            <div className="flex items-center justify-between mb-4 mt-8">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-indigo-600" />
+                  ช่วงเวลาเปิดรับจองและกำหนดการเดินทาง
+                </h2>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  กำหนดช่วงเวลาเปิดให้ลูกค้าทำการจอง และช่วงเวลาเดินทางของทัวร์ (ระบบจะสร้างและเรียงไทม์ไลน์วันเดินทางให้อัตโนมัติ)
+                </p>
+              </div>
+            </div>
+
+            <ConfigProvider
+              theme={{
+                token: {
+                  colorPrimary: "#4f46e5",
+                  borderRadius: 12,
+                  fontFamily: "var(--font-anuphan), sans-serif",
+                },
+              }}
+            >
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* กล่องย่อยที่ 1: ช่วงเวลาเปิดรับจอง (Booking Period) */}
+                  <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-indigo-600" />
+                        <span>ช่วงเวลาเปิดรับจอง</span>
+                      </label>
+                      {(packageData.booking_start_date ||
+                        packageData.booking_end_date) && (
+                        <button
+                          type="button"
+                          onClick={handleClearBookingDates}
+                          className="text-[11px] font-medium text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        >
+                          ล้างวันที่
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="block text-xs font-medium text-slate-600">
+                          ระบุช่วงวันที่เปิดรับจอง
+                        </span>
+                        {(packageData.start_date || packageData.days[0]?.dt) && (
+                          <span className="text-[10px] text-amber-700 font-semibold">
+                            ล็อคไม่เกินวันเริ่มเดินทาง
+                          </span>
+                        )}
+                      </div>
+                      <RangePicker
+                        value={[
+                          packageData.booking_start_date
+                            ? dayjs(packageData.booking_start_date)
+                            : null,
+                          packageData.booking_end_date
+                            ? dayjs(packageData.booking_end_date)
+                            : null,
+                        ]}
+                        onChange={(dates) => {
+                          if (!dates || !dates[0] || !dates[1]) {
+                            handleClearBookingDates();
+                            return;
+                          }
+                          handleBookingDateRangeChange(
+                            dates[0].format("YYYY-MM-DD"),
+                            dates[1].format("YYYY-MM-DD"),
+                          );
+                        }}
+                        disabledDate={(current) => {
+                          if (!current) return false;
+                          const travelStart =
+                            packageData.start_date || packageData.days[0]?.dt;
+                          if (!travelStart) return false;
+                          return current.isAfter(dayjs(travelStart), "day");
+                        }}
+                        format="DD/MM/YYYY"
+                        placeholder={["เปิดรับจองตั้งแต่วันที่", "สิ้นสุดการจอง"]}
+                        size="large"
+                        className="w-full rounded-xl py-2.5 px-3 text-xs shadow-2xs border-slate-300"
+                        allowClear
+                      />
+                    </div>
+                  </div>
+
+                  {/* กล่องย่อยที่ 2: ช่วงเวลาเดินทาง (Travel Period) */}
+                  <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200/70">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                        <Plane className="h-4 w-4 text-indigo-600" />
+                        <span>ช่วงเวลาเดินทาง (สร้างไทม์ไลน์อัตโนมัติ)</span>
+                      </label>
+                      {(packageData.start_date || packageData.end_date) && (
+                        <button
+                          type="button"
+                          onClick={handleClearTravelDates}
+                          className="text-[11px] font-medium text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        >
+                          ล้างวันเดินทาง
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="block text-xs font-medium text-slate-600">
+                          ระบุช่วงเวลาเดินทาง (วันเริ่ม → วันสิ้นสุด)
+                        </span>
+                        <span className="text-[10px] text-indigo-600 font-semibold">
+                          สร้าง Timeline อัตโนมัติ
+                        </span>
+                      </div>
+                      <RangePicker
+                        value={[
+                          packageData.start_date
+                            ? dayjs(packageData.start_date)
+                            : null,
+                          packageData.end_date
+                            ? dayjs(packageData.end_date)
+                            : null,
+                        ]}
+                        onChange={(dates) => {
+                          if (!dates || !dates[0] || !dates[1]) {
+                            handleClearTravelDates();
+                            return;
+                          }
+                          handleTravelDateRangeChange(
+                            dates[0].format("YYYY-MM-DD"),
+                            dates[1].format("YYYY-MM-DD"),
+                          );
+                        }}
+                        format="DD/MM/YYYY"
+                        placeholder={["วันเริ่มเดินทาง", "วันสิ้นสุดเดินทาง"]}
+                        size="large"
+                        className="w-full rounded-xl py-2.5 px-3 text-xs shadow-2xs border-slate-300"
+                        allowClear
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ConfigProvider>
+          </section>
+
           {/* SECTION: Itinerary Builder */}
           <section id="itinerary" className="scroll-mt-44">
             <div className="flex items-center justify-between mb-4 mt-8">
@@ -1647,24 +2024,29 @@ export default function EditPackagePage({ params }) {
                                     </span>
                                   )}
                               </div>
-                              <input
-                                type="date"
-                                value={day.dt || ""}
-                                min={
-                                  dayIndex > 0
-                                    ? packageData.days[dayIndex - 1]?.dt ||
-                                      packageData.days[0]?.dt ||
-                                      undefined
-                                    : undefined
-                                }
-                                onChange={(e) =>
+                              <DatePicker
+                                value={day.dt ? dayjs(day.dt) : null}
+                                onChange={(date) =>
                                   handleDayChange(
                                     dayIndex,
                                     "dt",
-                                    e.target.value,
+                                    date ? date.format("YYYY-MM-DD") : "",
                                   )
                                 }
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                format="DD/MM/YYYY"
+                                placeholder="เลือกวันที่เดินทาง"
+                                size="middle"
+                                className="w-full rounded-lg border-slate-300 py-1.5 px-3 text-sm"
+                                minDate={
+                                  dayIndex > 0 &&
+                                  (packageData.days[dayIndex - 1]?.dt ||
+                                    packageData.days[0]?.dt)
+                                    ? dayjs(
+                                        packageData.days[dayIndex - 1]?.dt ||
+                                          packageData.days[0]?.dt,
+                                      )
+                                    : undefined
+                                }
                               />
                             </div>
                             <div className="md:col-span-2">
@@ -1889,21 +2271,7 @@ export default function EditPackagePage({ params }) {
                   </div>
                 ))}
 
-                <div className="flex items-center justify-center pt-4">
-                  <button
-                    type="button"
-                    onClick={addDay}
-                    className="flex-1 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 py-8 text-indigo-600 transition-colors hover:border-indigo-400 hover:bg-indigo-50"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 mb-2">
-                      <Plus className="h-5 w-5" />
-                    </div>
-                    <span className="font-semibold">เพิ่มวันเดินทางถัดไป</span>
-                    <span className="text-xs text-indigo-400 mt-1">
-                      ขยายโปรแกรมการเดินทางสำหรับวันต่อไป
-                    </span>
-                  </button>
-                </div>
+
               </div>
             </div>
           </section>
@@ -2031,145 +2399,55 @@ export default function EditPackagePage({ params }) {
                 </div>
               </div>
 
-              {/* ช่วงเวลาเปิดรับจอง (Booking Period) */}
-              {/* Booking Window & Travel Dates Card */}
+              {/* สรุปกำหนดวันเดินทาง & วันเปิดจอง (Quick Link) */}
               <div className="mt-5 border-t border-slate-100 pt-4">
-                {/* Real Travel Dates Display synced from Dayplans */}
-                {(packageData.start_date || packageData.days[0]?.dt) && (
-                  <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50/70 p-3 text-xs">
-                    <div className="flex items-center justify-between font-bold text-indigo-900 mb-1">
-                      <span className="flex items-center gap-1.5">
-                        <Plane className="h-4 w-4 text-indigo-600" />
-                        <span>วันเดินทางของแพ็กเกจ</span>
-                      </span>
-                    </div>
-                    <p className="font-extrabold text-slate-900 text-sm">
-                      {formatThaiDateRange(
-                        packageData.start_date || packageData.days[0]?.dt,
-                        packageData.end_date ||
-                          [...packageData.days].reverse().find((d) => d.dt)?.dt,
-                      )}
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      วันเปิดรับจองจะถูกล็อคให้เลือกได้เฉพาะวันที่ยังไม่ถึงวันเริ่มเดินทาง
-                      ({packageData.days[0]?.dt})
-                    </p>
-                  </div>
-                )}
-
-                <div className="mb-2.5 flex items-center justify-between">
+                <div className="flex items-center justify-between mb-2.5">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>ช่วงเวลาเปิดรับจอง</span>
+                    <span>กำหนดการและวันจอง</span>
                   </label>
-                  {(packageData.booking_start_date ||
-                    packageData.booking_end_date) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handlePackageChange("booking_start_date", "");
-                        handlePackageChange("booking_end_date", "");
-                      }}
-                      className="text-[11px] font-medium text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                    >
-                      ล้างวันที่
-                    </button>
-                  )}
+                  <a
+                    href="#schedule"
+                    className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                  >
+                    ตั้งค่า
+                  </a>
                 </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="block text-[11px] font-medium text-slate-500">
-                        เปิดให้จองตั้งแต่วันที่
-                      </span>
-                      {(packageData.start_date || packageData.days[0]?.dt) && (
-                        <span className="text-[10px] text-indigo-600 font-semibold">
-                          ต้องก่อนวันเดินทาง
-                        </span>
-                      )}
+                <div className="space-y-2 text-xs">
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-3">
+                    <div className="flex items-center gap-1.5 font-bold text-indigo-900 mb-0.5">
+                      <Plane className="h-3.5 w-3.5 text-indigo-600" />
+                      <span>วันเดินทาง ({packageData.days?.length || 0} วัน)</span>
                     </div>
-                    <input
-                      type="date"
-                      value={packageData.booking_start_date || ""}
-                      max={
-                        packageData.booking_end_date ||
-                        packageData.days[0]?.dt ||
-                        undefined
-                      }
-                      onChange={(e) =>
-                        handlePackageChange(
-                          "booking_start_date",
-                          e.target.value,
-                        )
-                      }
-                      className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-medium text-slate-800 shadow-2xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="block text-[11px] font-medium text-slate-500">
-                        เปิดให้จองถึงวันที่ (สิ้นสุดการจอง)
-                      </span>
-                      {(packageData.start_date || packageData.days[0]?.dt) && (
-                        <span className="text-[10px] text-amber-700 font-semibold">
-                          ล็อคไม่เกินวันเริ่มเดินทาง
-                        </span>
-                      )}
-                    </div>
-                    <input
-                      type="date"
-                      value={packageData.booking_end_date || ""}
-                      min={packageData.booking_start_date || undefined}
-                      max={packageData.days[0]?.dt || undefined}
-                      onChange={(e) =>
-                        handlePackageChange("booking_end_date", e.target.value)
-                      }
-                      className="w-full rounded-xl border border-slate-300 bg-white py-2 px-3 text-xs font-medium text-slate-800 shadow-2xs outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                    />
-                  </div>
-                </div>
-
-                {/* Helper / Status Summary */}
-                <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/90 p-2.5 text-xs text-slate-600">
-                  {!packageData.booking_start_date &&
-                  !packageData.booking_end_date ? (
-                    <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                      <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <span>ไม่จำกัดช่วงเวลา (เปิดให้จองได้ตลอดเวลา)</span>
+                    <p className="font-semibold text-slate-800 text-xs">
+                      {packageData.start_date || packageData.days[0]?.dt
+                        ? formatThaiDateRange(
+                            packageData.start_date || packageData.days[0]?.dt,
+                            packageData.end_date ||
+                              [...packageData.days]
+                                .reverse()
+                                .find((d) => d.dt)?.dt,
+                          )
+                        : "ยังไม่ได้ระบุวันเดินทาง"}
                     </p>
-                  ) : (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5 font-semibold text-indigo-900 text-[11px]">
-                        <Calendar className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                        <span>
-                          {packageData.booking_start_date
-                            ? new Date(
-                                packageData.booking_start_date,
-                              ).toLocaleDateString("th-TH", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "เริ่มต้นทันที"}
-                          {" — "}
-                          {packageData.booking_end_date
-                            ? new Date(
-                                packageData.booking_end_date,
-                              ).toLocaleDateString("th-TH", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "ไม่กำหนดสิ้นสุด"}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500">
-                        ระบบล็อคให้จองได้เฉพาะก่อนถึงวันออกเดินทาง
-                      </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-3">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-700 mb-0.5">
+                      <Clock className="h-3.5 w-3.5 text-slate-500" />
+                      <span>ช่วงเปิดรับจอง</span>
                     </div>
-                  )}
+                    <p className="font-medium text-slate-600 text-xs">
+                      {packageData.booking_start_date ||
+                      packageData.booking_end_date
+                        ? formatThaiDateRange(
+                            packageData.booking_start_date,
+                            packageData.booking_end_date,
+                          )
+                        : "เปิดรับจองตลอดเวลา"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
