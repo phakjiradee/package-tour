@@ -9,7 +9,7 @@ import AuthButton from "@/components/auth/AuthButton";
 const navLinks = [
   { href: "/feed", label: "Feeds" },
   { href: "/package", label: "Products" },
-  { href: "/package?tab=promotion", label: "Promotion" },
+  // { href: "/package?tab=promotion", label: "Promotion" },
 ];
 
 function isActivePath(pathname, href) {
