@@ -44,6 +44,7 @@ import { locationService } from "@/service/location";
 import { employeeService } from "@/service/employee";
 import { busService } from "@/service/bus";
 import PackageBusPicker from "@/components/package/PackageBusPicker";
+import PackageInsurancePicker from "@/components/package/PackageInsurancePicker";
 import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import Dropdown, { GuideDropdown } from "@/components/ui/Dropdown";
@@ -82,6 +83,7 @@ export default function CreatePackagePage() {
     partner_id: "",
     partner_ids: [],
     bus_ids: [],
+    insurance_plan_id: null,
     price: "",
     status: "Draft",
     booking_start_date: "",
@@ -597,6 +599,15 @@ export default function CreatePackagePage() {
       return;
     }
 
+    if (!packageData.insurance_plan_id) {
+      showFeedback({
+        type: "warning",
+        title: "กรุณาเลือกแผนประกัน",
+        message: "แพ็กเกจหนึ่งรายการต้องเลือกแผนประกันหนึ่งแผนก่อนบันทึก",
+      });
+      return;
+    }
+
     // ตรวจสอบบุคลากร: ต้องเป็น role 'ไกด์' เท่านั้น และไม่มีงานซ้อนในวันเวลาเดียวกัน
     if (Array.isArray(packageData.guides) && packageData.guides.length > 0) {
       const selectedEmpIds = packageData.guides
@@ -812,16 +823,22 @@ export default function CreatePackagePage() {
           4. ไกด์และทีมงาน ({packageData.guides?.length || 0})
         </a>
         <a
+          href="#insurance"
+          className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
+          5. ประกันการเดินทาง
+        </a>
+        <a
           href="#addons"
           className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
         >
-          5. บริการเสริมพิเศษ ({packageData.addons?.length || 0})
+          6. บริการเสริมพิเศษ ({packageData.addons?.length || 0})
         </a>
         <a
           href="#itinerary"
           className="rounded-lg px-3 py-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
         >
-          6. แผนการเดินทาง ({packageData.days?.length || 0} วัน)
+          7. แผนการเดินทาง ({packageData.days?.length || 0} วัน)
         </a>
       </div>
 
@@ -1282,6 +1299,8 @@ export default function CreatePackagePage() {
             </div>
           </section>
 
+          <PackageInsurancePicker selected={packageData.insurance_plan_id} onChange={(insurance_plan_id) => setPackageData((prev) => ({ ...prev, insurance_plan_id }))} />
+
           {/* SECTION: Add-on Packages */}
           <section id="addons" className="scroll-mt-44">
             <div className="flex items-center justify-between mb-4 mt-8">
@@ -1292,7 +1311,7 @@ export default function CreatePackagePage() {
                 </h2>
                 <p className="text-sm text-slate-500 mt-0.5">
                   ระบุบริการที่ลูกค้าสามารถเลือกซื้อเพิ่มได้ระหว่างทำการจอง
-                  (เช่น ประกันภัย, อุปกรณ์พิเศษ, รถรับส่ง)
+                  (เช่น อุปกรณ์พิเศษหรือรถรับส่ง)
                 </p>
               </div>
               <button
@@ -1337,7 +1356,7 @@ export default function CreatePackagePage() {
                           onChange={(e) =>
                             updateAddon(index, "addon_name", e.target.value)
                           }
-                          placeholder="เช่น ประกันอุบัติเหตุการเดินทาง, รถตู้รับ-ส่งสนามบิน"
+                          placeholder="เช่น รถตู้รับ-ส่งสนามบิน, อุปกรณ์พิเศษ"
                           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>

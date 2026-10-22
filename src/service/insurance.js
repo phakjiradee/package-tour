@@ -4,6 +4,15 @@ const insuranceService = {
   async getPlan() {
     return (await api.get("/insurance/admin/plan")).data;
   },
+  async getPlans() {
+    return (await api.get("/insurance/plans")).data;
+  },
+  async createPlan(data) {
+    return (await api.post("/insurance/admin/plans", data)).data;
+  },
+  async updatePlan(id, data) {
+    return (await api.put(`/insurance/admin/plans/${id}`, data)).data;
+  },
   async savePlan(data) {
     return (await api.put("/insurance/admin/plan", data)).data;
   },

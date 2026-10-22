@@ -171,6 +171,7 @@ export default function PackageBookingPage({ params }) {
   const [packageData, setPackageData] = useState(null);
   const [insurancePlan, setInsurancePlan] = useState(null);
   const [insuranceReady, setInsuranceReady] = useState(false);
+  const [insuranceSelected, setInsuranceSelected] = useState(false);
   const [insuranceTermsAcknowledged, setInsuranceTermsAcknowledged] = useState(false);
   const [isLoadingPackage, setIsLoadingPackage] = useState(true);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -287,11 +288,18 @@ export default function PackageBookingPage({ params }) {
   }, [packageId]);
 
   useEffect(() => {
-    bookingService.getInsurancePlan()
-      .then((res) => setInsurancePlan(res.data || null))
-      .catch(() => setInsurancePlan(null))
-      .finally(() => setInsuranceReady(true));
-  }, []);
+    let current = true;
+    Promise.resolve().then(() => {
+      setInsuranceReady(false);
+      setInsurancePlan(null);
+      setInsuranceSelected(false);
+      setInsuranceTermsAcknowledged(false);
+      return bookingService.getInsurancePlan(packageId);
+    }).then((res) => { if (current) setInsurancePlan(res.data || null); })
+      .catch(() => { if (current) setInsurancePlan(null); })
+      .finally(() => { if (current) setInsuranceReady(true); });
+    return () => { current = false; };
+  }, [packageId]);
 
   // Load initial collabs from query string if provided
   useEffect(() => {
@@ -428,7 +436,7 @@ export default function PackageBookingPage({ params }) {
     (sum, item) => sum + (item.price || 0),
     0,
   );
-  const insuranceTotal = insurancePlan ? insurancePlan.premium_satang * totalPeople / 100 : 0;
+  const insuranceTotal = insuranceSelected && insurancePlan ? insurancePlan.premium_satang * totalPeople / 100 : 0;
   const grandTotal = baseTotal + addonsTotal + insuranceTotal;
 
   // Handle Form Submit
@@ -484,11 +492,11 @@ export default function PackageBookingPage({ params }) {
       return;
     }
 
-    if (!insurancePlan) {
+    if (insuranceSelected && (!insurancePlan || insurancePlan.id !== packageData?.insurance_plan_id)) {
       setErrorMessage("ยังไม่เปิดแผนประกันสำหรับทริปนี้ กรุณาติดต่อเจ้าหน้าที่");
       return;
     }
-    if (!insuranceTermsAcknowledged) {
+    if (insuranceSelected && !insuranceTermsAcknowledged) {
       setErrorMessage("กรุณาอ่านและรับทราบเงื่อนไขกรมธรรม์ก่อนจอง");
       return;
     }
@@ -526,8 +534,10 @@ export default function PackageBookingPage({ params }) {
       special_requests: specialRequests.trim() || null,
       travelers: finalTravelers,
       selected_addons: formattedAddons,
-      insurance_plan_updated_at: insurancePlan.updatedAt,
-      insurance_terms_acknowledged: insuranceTermsAcknowledged,
+      insurance_selected: insuranceSelected,
+      insurance_plan_id: insuranceSelected ? insurancePlan.id : null,
+      insurance_plan_updated_at: insuranceSelected ? insurancePlan.updatedAt : null,
+      insurance_terms_acknowledged: insuranceSelected && insuranceTermsAcknowledged,
       collab_ids: collaborators.map((c) => c.id),
     };
 
@@ -754,7 +764,7 @@ export default function PackageBookingPage({ params }) {
                         <span>รายชื่อผู้ร่วมเดินทาง</span>
                       </h2>
                       <p className="text-xs text-slate-500">
-                        ข้อมูลสำหรับทำประกันอุบัติเหตุและรายชื่อขึ้นยานพาหนะ
+                        ข้อมูลสำหรับรายชื่อขึ้นยานพาหนะ และใช้ทำประกันเมื่อเลือกซื้อ
                       </p>
                     </div>
                   </div>
@@ -932,6 +942,38 @@ export default function PackageBookingPage({ params }) {
                     </span>
                   </button>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex items-center gap-2.5 border-b border-slate-100 pb-4">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                    <ShieldCheck className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">ประกันการเดินทาง</h2>
+                    <p className="text-xs text-slate-500">เลือกซื้อสำหรับผู้ร่วมเดินทางทุกคนในรายการจองนี้</p>
+                  </div>
+                </div>
+                <label className={`flex items-start gap-3 rounded-xl border p-4 ${insuranceSelected ? "border-indigo-500 bg-indigo-50/40" : "border-slate-200"}`}>
+                  <input
+                    type="checkbox"
+                    checked={insuranceSelected}
+                    disabled={!insuranceReady || !insurancePlan}
+                    onChange={(event) => {
+                      setInsuranceSelected(event.target.checked);
+                      setInsuranceTermsAcknowledged(false);
+                    }}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                  />
+                  <span className="text-sm text-slate-700">
+                    <span className="block font-semibold">ซื้อประกันการเดินทาง</span>
+                    {insurancePlan ? <span className="mt-1 block text-xs text-slate-500">{insurancePlan.insurer_name} · {insurancePlan.plan_name} · ฿{(insurancePlan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน</span> : <span className="mt-1 block text-xs text-amber-700">{insuranceReady ? "แพ็กเกจนี้ยังไม่มีแผนประกันที่เปิดใช้งาน สามารถจองโดยไม่ซื้อประกันได้" : "กำลังโหลดแผนประกัน..."}</span>}
+                  </span>
+                </label>
+                {insuranceSelected && insurancePlan && <label className="mt-4 flex items-start gap-2 text-xs text-slate-600">
+                  <input type="checkbox" checked={insuranceTermsAcknowledged} onChange={(event) => setInsuranceTermsAcknowledged(event.target.checked)} className="mt-0.5" />
+                  <span>ฉันอ่านและรับทราบ<a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="mx-1 font-semibold text-indigo-600 underline">เงื่อนไขกรมธรรม์</a>และการส่งข้อมูลผู้เดินทางให้บริษัทประกันแล้ว</span>
+                </label>}
               </div>
 
               {/* Card 4: บริการเสริม (Addon Packages) */}
@@ -1125,19 +1167,16 @@ export default function PackageBookingPage({ params }) {
                   )}
 
                   <div className="flex justify-between gap-2 border-t border-dashed border-slate-200 pt-2 text-xs">
-                    <span>ประกันการเดินทางบังคับ ({totalPeople} คน)</span>
-                    <span className="font-semibold text-slate-900">{insurancePlan ? `฿${insuranceTotal.toLocaleString()}` : "รอตั้งค่าแผน"}</span>
+                    <span>ประกันการเดินทาง ({totalPeople} คน)</span>
+                    <span className="font-semibold text-slate-900">{insuranceSelected ? `+฿${insuranceTotal.toLocaleString("th-TH")}` : "ไม่ได้เลือก"}</span>
                   </div>
                   {insurancePlan && (
                     <p className="text-[11px] text-slate-500">
-                      {insurancePlan.insurer_name} · {insurancePlan.plan_name} · ฿{(insurancePlan.premium_satang / 100).toLocaleString()} ต่อคน · อายุ {insurancePlan.min_age}–{insurancePlan.max_age} ปี ·{" "}
+                      {insurancePlan.insurer_name} · {insurancePlan.plan_name} · ฿{(insurancePlan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน · อายุ {insurancePlan.min_age}–{insurancePlan.max_age} ปี ·{" "}
                       <a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">เงื่อนไขกรมธรรม์</a>
                     </p>
                   )}
-                  {insurancePlan && <label className="flex items-start gap-2 text-[11px] text-slate-600">
-                    <input type="checkbox" checked={insuranceTermsAcknowledged} onChange={(e) => setInsuranceTermsAcknowledged(e.target.checked)} className="mt-0.5" />
-                    <span>ฉันอ่านและรับทราบเงื่อนไขกรมธรรม์และการส่งข้อมูลผู้เดินทางให้บริษัทประกันแล้ว</span>
-                  </label>}
+                  {!insurancePlan && <p className="text-[11px] text-slate-500">ยังไม่มีแผนประกันที่เปิดใช้งานสำหรับแพ็กเกจนี้</p>}
 
                   <div className="flex justify-between pt-3 border-t border-slate-100 text-sm font-medium">
                     <span className="text-slate-700">ยอดรวมทั้งสิ้น:</span>
@@ -1169,7 +1208,7 @@ export default function PackageBookingPage({ params }) {
                 {/* Submit CTA Button */}
                 <button
                   type="submit"
-                  disabled={isSubmitting || !insuranceReady || !insurancePlan || !insuranceTermsAcknowledged}
+                  disabled={isSubmitting || !insuranceReady || (insuranceSelected && (!insurancePlan || insurancePlan.id !== packageData?.insurance_plan_id || !insuranceTermsAcknowledged))}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.99] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (

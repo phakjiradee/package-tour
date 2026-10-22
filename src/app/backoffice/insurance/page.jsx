@@ -9,6 +9,7 @@ import insuranceService from "@/service/insurance";
 
 const statusLabels = {
   LEGACY: ["จองก่อนมีระบบประกัน", "neutral"],
+  DECLINED: ["ไม่ได้ซื้อประกัน", "neutral"],
   AWAITING_PAYMENT: ["รอชำระเงิน", "warning"],
   PENDING_ISSUANCE: ["รอบริษัทออกกรมธรรม์", "info"],
   ISSUANCE_FAILED: ["ออกกรมธรรม์ไม่สำเร็จ", "danger"],
@@ -41,6 +42,8 @@ const localDateTime = () => new Date(Date.now() - new Date().getTimezoneOffset()
 
 export default function InsurancePage() {
   const [plan, setPlan] = useState(blankPlan);
+  const [plans, setPlans] = useState([]);
+  const [selectedPlanId, setSelectedPlanId] = useState(null);
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -85,8 +88,13 @@ export default function InsurancePage() {
   }, []);
   useEffect(() => { if (rowsRef.current) rowsRef.current.scrollTop = 0; }, [page, search, status]);
   useEffect(() => {
-    insuranceService.getPlan().then(({ data }) => {
-      if (data) setPlan({ ...data, premium: String(data.premium_satang / 100) });
+    insuranceService.getPlans().then(({ data }) => {
+      const loaded = data || [];
+      setPlans(loaded);
+      if (loaded.length) {
+        setSelectedPlanId(loaded[0].id);
+        setPlan({ ...loaded[0], premium: String(loaded[0].premium_satang / 100) });
+      }
     }).catch(() => {});
   }, []);
   useEffect(() => {
@@ -109,8 +117,11 @@ export default function InsurancePage() {
     event.preventDefault();
     await run(async () => {
       const premium_satang = Math.round(Number(plan.premium) * 100);
-      const res = await insuranceService.savePlan({ ...plan, premium_satang, min_age: Number(plan.min_age), max_age: Number(plan.max_age) });
+      const payload = { ...plan, premium_satang, min_age: Number(plan.min_age), max_age: Number(plan.max_age) };
+      const res = selectedPlanId ? await insuranceService.updatePlan(selectedPlanId, payload) : await insuranceService.createPlan(payload);
       setPlan({ ...res.data, premium: String(res.data.premium_satang / 100) });
+      setSelectedPlanId(res.data.id);
+      setPlans((current) => [...current.filter((item) => item.id !== res.data.id), res.data].sort((a, b) => a.id - b.id));
       setShowPlan(false);
     }, "บันทึกแผนประกันแล้ว");
   };
@@ -174,23 +185,31 @@ export default function InsurancePage() {
 
   return <div className="mx-auto max-w-7xl">
     <PageHeader title="ประกันการเดินทาง" description="รายชื่อผู้เดินทาง สถานะกรมธรรม์ และเหตุเคลมรายคน" actions={<>
-      <button type="button" onClick={() => setShowInsuranceInfo(true)} aria-label={plan.active ? "ดูสถานะแผนประกัน" : "ดูแจ้งเตือนแผนประกันยังไม่เปิด"} aria-haspopup="dialog" className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-sky-200 bg-white text-sky-700 shadow-2xs hover:bg-sky-50">
+      <button type="button" onClick={() => setShowInsuranceInfo(true)} aria-label={plans.some((item) => item.active && !item.is_demo) ? "ดูสถานะแผนประกัน" : "ดูแจ้งเตือนแผนประกันยังไม่เปิด"} aria-haspopup="dialog" className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-sky-200 bg-white text-sky-700 shadow-2xs hover:bg-sky-50">
         <ShieldCheck size={17} />
-        <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${plan.active ? "bg-emerald-500" : "bg-amber-500"}`} />
+        <span className={`absolute right-1 top-1 h-1.5 w-1.5 rounded-full ${plans.some((item) => item.active && !item.is_demo) ? "bg-emerald-500" : "bg-amber-500"}`} />
       </button>
       <button type="button" onClick={downloadPending} disabled={busy} className="inline-flex h-9 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold hover:bg-zinc-50 disabled:opacity-50"><Download size={15} /> ส่งออกรายชื่อรอออกกรมธรรม์</button>
       <button type="button" onClick={() => setShowPlan(!showPlan)} className="h-9 rounded-md bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">ตั้งค่าแผนประกัน</button>
     </>} />
 
     {showPlan && <form onSubmit={savePlan} className="mb-5 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-3 text-sm font-semibold">แผนที่ใช้กับการจองใหม่ทุกคน</h2>
+      <h2 className="mb-3 text-sm font-semibold">แผนประกันสำหรับเลือกในแต่ละแพ็กเกจ</h2>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <select value={selectedPlanId ?? ""} onChange={(event) => { const id = Number(event.target.value); const selected = plans.find((item) => item.id === id); setSelectedPlanId(id || null); setPlan(selected ? { ...selected, premium: String(selected.premium_satang / 100) } : blankPlan); }} className="h-9 min-w-52 rounded-md border border-zinc-200 bg-white px-2 text-xs">
+          <option value="">เพิ่มแผนใหม่</option>
+          {plans.map((item) => <option key={item.id} value={item.id}>{item.plan_name} · {item.insurer_name}{item.is_demo ? " (ตัวอย่าง)" : ""}</option>)}
+        </select>
+        <button type="button" onClick={() => { setSelectedPlanId(null); setPlan(blankPlan); }} className="h-9 rounded-md border border-zinc-200 px-3 text-xs font-semibold">เพิ่มแผนใหม่</button>
+      </div>
+      {plan.is_demo && <p className="mb-3 rounded-md bg-amber-50 p-3 text-xs text-amber-800">แผนตัวอย่างใช้ทดสอบหน้าจอเท่านั้น เปิดขายไม่ได้ กรุณาเพิ่มแผนใหม่จากบริษัทประกันจริง</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[["insurer_name", "บริษัทประกัน"], ["plan_name", "ชื่อแผน"], ["master_policy_no", "เลขกรมธรรม์กลุ่ม/อ้างอิง"], ["premium", "เบี้ยต่อคน (บาท)"], ["min_age", "อายุต่ำสุด"], ["max_age", "อายุสูงสุด"], ["terms_url", "ลิงก์เงื่อนไข HTTPS"]].map(([key, label]) => <label key={key} className={key === "terms_url" ? "sm:col-span-2" : ""}>
           <span className="mb-1 block text-xs font-medium text-zinc-600">{label}</span>
           <input required={key !== "master_policy_no"} type={["premium", "min_age", "max_age"].includes(key) ? "number" : "text"} min={key === "premium" ? "0.01" : "0"} step={key === "premium" ? "0.01" : "1"} value={plan[key] ?? ""} onChange={(e) => setPlan({ ...plan, [key]: e.target.value })} className="h-9 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-blue-500" />
         </label>)}
       </div>
-      <label className="mt-4 flex items-center gap-2 text-xs text-zinc-700"><input type="checkbox" checked={Boolean(plan.active)} onChange={(e) => setPlan({ ...plan, active: e.target.checked })} /> เปิดรับจองเมื่อยืนยันแผนและช่องทางส่งรายชื่อกับบริษัทประกันแล้ว</label>
+      <label className="mt-4 flex items-center gap-2 text-xs text-zinc-700"><input type="checkbox" checked={Boolean(plan.active)} disabled={plan.is_demo} onChange={(e) => setPlan({ ...plan, active: e.target.checked })} /> เปิดใช้แผนนี้เมื่อยืนยันกรมธรรม์และช่องทางส่งรายชื่อกับบริษัทประกันแล้ว</label>
       <button disabled={busy} className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">บันทึกแผน</button>
     </form>}
 
@@ -209,13 +228,13 @@ export default function InsurancePage() {
       {loading ? <p className="p-8 text-center text-sm text-zinc-500">กำลังโหลดข้อมูล...</p> : rows.length === 0 ? <p className="p-8 text-center text-sm text-zinc-500">ไม่พบผู้เดินทาง</p> : <div className="divide-y divide-zinc-100">
         {rows.map((row) => {
           const coverage = row.insuranceEnrollment;
-          const [label, tone] = statusLabels[coverage?.status || "LEGACY"] || statusLabels.LEGACY;
+          const [label, tone] = statusLabels[coverage?.status || (row.booking.insurance_opted_in === false ? "DECLINED" : "LEGACY")] || statusLabels.LEGACY;
           return <div key={row.id} className="p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2"><strong className="text-sm text-zinc-900">{row.full_name}</strong><StatusChip label={label} tone={tone} /></div>
                 <p className="mt-1 text-xs text-zinc-500">{row.booking.booking_code} · {row.booking.package?.name} · {row.passenger_type === "child" ? "เด็ก" : "ผู้ใหญ่"}</p>
-                <p className="mt-1 text-xs text-zinc-500">{coverage ? `${coverage.insurer_name} · ${coverage.plan_name} · เลขรับรอง ${coverage.certificate_no || "ยังไม่มี"}` : "การจองเดิม ไม่มีรายการประกันในระบบ"}</p>
+                <p className="mt-1 text-xs text-zinc-500">{coverage ? `${coverage.insurer_name} · ${coverage.plan_name} · เลขรับรอง ${coverage.certificate_no || "ยังไม่มี"}` : row.booking.insurance_opted_in === false ? "ลูกค้าเลือกไม่ซื้อประกันในการจองนี้" : "การจองเดิม ไม่มีรายการประกันในระบบ"}</p>
                 {coverage?.failure_reason && <p className="mt-1 text-xs text-rose-700">สาเหตุ: {coverage.failure_reason}</p>}
                 {coverage?.events?.length > 0 && <details className="mt-1 text-[11px] text-zinc-500"><summary className="cursor-pointer">ประวัติกรมธรรม์</summary>{coverage.events.map((event) => <p key={event.id} className="ml-3 border-l border-zinc-200 pl-2">{new Date(event.createdAt).toLocaleString("th-TH")} · {event.action} {event.detail || ""}</p>)}</details>}
               </div>
@@ -246,11 +265,10 @@ export default function InsurancePage() {
     {showInsuranceInfo && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowInsuranceInfo(false); }}>
       <div role="dialog" aria-modal="true" aria-labelledby="insurance-info-title" className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 text-sky-800"><ShieldCheck size={20} /><h2 id="insurance-info-title" className="text-base font-semibold">{plan.active ? "สถานะแผนประกัน" : "ยังไม่เปิดแผนประกัน"}</h2></div>
+          <div className="flex items-center gap-2 text-sky-800"><ShieldCheck size={20} /><h2 id="insurance-info-title" className="text-base font-semibold">สถานะแผนประกัน</h2></div>
           <button type="button" onClick={() => setShowInsuranceInfo(false)} aria-label="ปิดรายละเอียดประกัน" className="rounded-md p-1 text-zinc-500 hover:bg-zinc-100"><X size={18} /></button>
         </div>
-        <p className="mt-4 text-sm leading-6 text-zinc-700">{plan.active ? `${plan.insurer_name} · ${plan.plan_name} เบี้ย ฿${plan.premium} ต่อผู้เดินทาง อายุที่รับประกัน ${plan.min_age}–${plan.max_age} ปี` : "การจองใหม่จะยังทำไม่ได้จนกว่าจะตั้งค่าและเปิดแผนจากบริษัทประกันจริง"}</p>
-        {plan.active && plan.terms_url && <a href={plan.terms_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm text-blue-600 underline">อ่านเงื่อนไขกรมธรรม์</a>}
+        <p className="mt-4 text-sm leading-6 text-zinc-700">{plans.some((item) => item.active && !item.is_demo) ? `มีแผนจากบริษัทประกันจริงที่เปิดใช้งาน ${plans.filter((item) => item.active && !item.is_demo).length} แผน ลูกค้าจะเลือกซื้อได้เมื่อแพ็กเกจกำหนดแผนนั้น` : "ยังไม่มีแผนจากบริษัทประกันจริงที่เปิดใช้งาน ลูกค้ายังจองแพ็กเกจโดยไม่ซื้อประกันได้"}</p>
         <p className="mt-4 rounded-lg bg-sky-50 p-3 text-xs leading-5 text-sky-900">การบันทึกเคลมในหน้านี้เป็นการแจ้งเหตุภายใน Zentura ต้องส่งเรื่องและหลักฐานให้บริษัทประกันแยกต่างหาก</p>
         <div className="mt-5 flex justify-end"><button type="button" onClick={() => setShowInsuranceInfo(false)} className="rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">เข้าใจแล้ว</button></div>
       </div>

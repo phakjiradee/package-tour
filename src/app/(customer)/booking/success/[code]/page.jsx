@@ -564,6 +564,8 @@ function BookingSuccessContent({ params }) {
           </div>
         )}
 
+        {booking.insurance_opted_in === false && <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">การจองนี้ไม่ได้ซื้อประกันการเดินทาง</div>}
+
         {booking.insurance_total_satang > 0 && (
           <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-sm border border-slate-200/80 mb-6">
             <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 mb-2">

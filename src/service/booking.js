@@ -1,8 +1,8 @@
 import { api } from "../lib/axios";
 
 export const bookingService = {
-  async getInsurancePlan() {
-    const response = await api.get("/insurance/plan");
+  async getInsurancePlan(packageId) {
+    const response = await api.get("/insurance/plan", { params: { package_id: packageId } });
     return response.data;
   },
 
