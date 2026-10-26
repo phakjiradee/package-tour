@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
+  BusFront,
   Calendar,
   CalendarCheck,
   Check,
@@ -16,8 +18,11 @@ import {
   MapPin,
   Phone,
   RefreshCw,
+  ReceiptText,
   Search,
+  Target,
   Users,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import { bookingService } from "@/service/booking";
@@ -204,6 +209,8 @@ export default function BackofficeBookingPage() {
 
   const selectedPackage = packages.find((pkg) => String(pkg.id) === String(selectedPackageId));
   const summary = selectedPackage?.summary;
+  const missingToMinimum = summary?.minimumTravelers == null ? null : Math.max(0, summary.minimumTravelers - summary.paidTravelers);
+  const afterDepositSatang = !summary?.costConfigured || summary.totalDepositSatang == null ? null : summary.receivedSatang - summary.totalDepositSatang;
   const visiblePackages = packages.filter((pkg) =>
     (packageStatus === "ALL" || pkg.status === packageStatus) &&
     `${pkg.name} ${pkg.location?.name || ""}`.toLowerCase().includes(packageSearch.toLowerCase().trim()));
@@ -263,38 +270,23 @@ export default function BackofficeBookingPage() {
       {selectedPackageId && !overviewLoading && !selectedPackage && <p role="alert" className="rounded-lg bg-rose-50 p-4 text-rose-700">ไม่พบแพ็กเกจนี้</p>}
 
       {/* Package summary, calculated from every booking and approved payment */}
-      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="จำนวนผู้จอง"
-          label="จำนวนผู้จอง"
-          value={summary ? `${summary.reservedTravelers} คน` : "-"}
-          icon={CalendarCheck}
-          subtitle={summary ? `${summary.bookingCount} รายการ · ชำระแล้ว ${summary.paidTravelers} คน` : "กำลังโหลด"}
-        />
-        <StatCard
-          title="จุดคุ้มทุน"
-          label="จุดคุ้มทุน"
-          value={summary?.breakEvenAdults != null ? `${summary.breakEvenAdults} คน` : "-"}
-          icon={Users}
-          subtitle={!summary?.costConfigured ? "ยังไม่ตั้งต้นทุนในแพ็กเกจ" : summary?.breakEvenAdults == null ? "ราคาขายไม่สูงกว่าต้นทุนต่อคน" : "ผู้ใหญ่ชำระเงินตามราคาปัจจุบัน"}
-        />
-        <StatCard
-          title="ขาดอีก"
-          label="ขาดอีก"
-          value={summary?.moreAdultsNeeded != null ? `${summary.moreAdultsNeeded} คน` : "-"}
-          icon={Users}
-          subtitle={summary?.canBreakEvenAtCapacity === false && summary?.costConfigured ? "จำนวนที่รองรับอาจไม่พอให้คุ้มทุน" : `รอชำระเงิน ${summary?.pendingPaymentCount ?? 0} รายการ`}
-        />
-        <StatCard
-          title="ยอดชำระที่บันทึก"
-          label="ยอดชำระที่บันทึก"
-          value={summary ? `฿${formatPrice(summary.receivedSatang / 100)}` : "-"}
-          icon={DollarSign}
-          subtitle="ไม่รวมรายการจำลองและการจองที่ยกเลิก"
-        />
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard title="จำนวนจอง" value={summary ? `${summary.bookingCount} รายการ` : "-"} icon={CalendarCheck} subtitle={summary ? `รวมผู้เดินทาง ${summary.reservedTravelers} คน` : "กำลังโหลด"} />
+        <StatCard title="ชำระจริง" value={summary ? `${summary.paidTravelers} คน` : "-"} icon={Users} subtitle={summary ? `${summary.paidBookingCount} รายการที่ชำระครบและยืนยันแล้ว` : "กำลังโหลด"} />
+        <StatCard title="เป้าหมายขั้นต่ำ" value={summary?.minimumTravelers != null ? `${summary.minimumTravelers} คน` : "ยังไม่ตั้ง"} icon={Target} subtitle={summary?.breakEvenAdults != null ? `จุดคุ้มทุนประมาณ ${summary.breakEvenAdults} ผู้ใหญ่` : "กำหนดในหน้าแก้ไขแพ็กเกจ"} />
+        <StatCard title="ขาดจากเป้า" value={missingToMinimum != null ? `${missingToMinimum} คน` : "-"} icon={Users} tone={missingToMinimum > 0 ? "danger" : missingToMinimum === 0 ? "success" : undefined} subtitle="เทียบกับผู้เดินทางที่ชำระจริง" />
+        <StatCard title="ที่นั่งรถที่เลือก" value={summary?.targetTravelers != null ? `${summary.targetTravelers} ที่นั่ง` : "-"} icon={BusFront} subtitle="ความจุรวมของรถในแพ็กเกจ" />
+        <StatCard title="รายรับยืนยันแล้ว" value={summary ? `฿${formatPrice(summary.receivedSatang / 100)}` : "-"} icon={DollarSign} subtitle="ไม่รวมรายการชำระที่ตรวจสอบไม่ได้" />
+        <StatCard title="มัดจำที่ตกลง" value={summary?.costConfigured && summary.totalDepositSatang != null ? `฿${formatPrice(summary.totalDepositSatang / 100)}` : "ยังไม่ตั้ง"} icon={Wallet} subtitle="รวมมัดจำผู้ให้บริการตามแผน" />
+        <StatCard title="ส่วนต่างรายรับ–มัดจำ" value={afterDepositSatang != null ? `${afterDepositSatang < 0 ? "−" : ""}฿${formatPrice(Math.abs(afterDepositSatang) / 100)}` : "-"} icon={DollarSign} tone={afterDepositSatang < 0 ? "danger" : afterDepositSatang > 0 ? "success" : undefined} subtitle="รายรับยืนยัน − มัดจำที่ตกลง" />
+        <StatCard title="ต้นทุนรวมตามเป้า" value={summary?.costConfigured && summary.costAtMinimumSatang != null ? `฿${formatPrice(summary.costAtMinimumSatang / 100)}` : "ยังไม่ตั้ง"} icon={ReceiptText} subtitle="คำนวณตามเป้าหมายขั้นต่ำ" />
+        <StatCard title="จ่ายผู้ให้บริการแล้ว" value={summary ? `฿${formatPrice(summary.supplierPaidSatang / 100)}` : "-"} icon={Wallet} subtitle="รวมมัดจำและยอดจ่ายส่วนที่เหลือ" />
       </div>
 
-      {summary && <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600"><div className="flex flex-wrap gap-x-6 gap-y-2"><span>ที่นั่งรถที่เลือก <strong>{summary.targetTravelers ?? "-"} ที่นั่ง</strong></span><span>ขั้นต่ำที่วางแผน <strong>{summary.minimumTravelers ?? "-"} คน</strong></span><span>ต้นทุนรวม <strong>{summary.costConfigured && summary.costAtTargetSatang != null ? `฿${formatPrice(summary.costAtTargetSatang / 100)}` : "ยังไม่ตั้ง"}</strong></span><span>จ่ายผู้ให้บริการแล้ว <strong>฿{formatPrice(summary.supplierPaidSatang / 100)}</strong></span></div>{summary.unverifiedBookingCount > 0 && <p className="mt-2 text-amber-700">มี {summary.unverifiedBookingCount} รายการชำระแบบทดสอบหรือข้อมูลเก่าที่ยังยืนยันไม่ได้ ระบบไม่นับเป็นเงินรับและคนที่จ่ายจริง</p>}{summary.exceptionCount > 0 && <p className="mt-2 text-amber-700">มีข้อมูลเก่า {summary.exceptionCount} รายการในสถานะรอตรวจสอบ โปรดตรวจสอบการชำระเงินจริงก่อนเปลี่ยนสถานะ</p>}<p className="mt-2 text-xs text-zinc-400">ยอดชำระในระบบยังไม่ใช่รายงานกระทบยอดธนาคาร</p></div>}
+      {summary && <div className="space-y-2">
+        {(summary.unverifiedBookingCount > 0 || summary.exceptionCount > 0) && <div role="status" className="flex gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><AlertTriangle size={17} className="mt-0.5 shrink-0" /><div>{summary.unverifiedBookingCount > 0 && <p>มี {summary.unverifiedBookingCount} รายการชำระแบบทดสอบหรือข้อมูลเก่าที่ยังยืนยันไม่ได้ ระบบไม่นับเป็นเงินรับและคนที่จ่ายจริง</p>}{summary.exceptionCount > 0 && <p>มีข้อมูลเก่า {summary.exceptionCount} รายการในสถานะรอตรวจสอบ โปรดตรวจสอบการชำระเงินจริงก่อนเปลี่ยนสถานะ</p>}</div></div>}
+        <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500">ยอดชำระในระบบยังไม่ใช่รายงานกระทบยอดธนาคาร</p>
+      </div>}
 
       {/* Search and Filters */}
       <div className="rounded-lg border border-zinc-200/90 bg-white p-3.5 shadow-2xs space-y-3">
