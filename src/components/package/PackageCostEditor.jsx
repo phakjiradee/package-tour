@@ -38,6 +38,7 @@ const itineraryCategory = (name, activity = "", hotel = false) => {
 export function serializePackageCosts(data) {
   return {
     minimum_travelers: data.minimum_travelers === "" ? null : Number(data.minimum_travelers),
+    target_bookings: data.target_bookings === "" ? null : Number(data.target_bookings),
     cost_items: (data.cost_items || []).filter(hasAmounts).map((item) => ({
       location_id: item.location_id || null,
       partner_id: item.partner_id || null,
@@ -53,6 +54,7 @@ export function serializePackageCosts(data) {
 export function hydratePackageCosts(data) {
   return {
     minimum_travelers: data.minimum_travelers ?? "",
+    target_bookings: data.target_bookings ?? data.minimum_travelers ?? "",
     cost_items: (data.costItems || []).map((item) => ({
       location_id: item.location_id,
       partner_id: item.partner_id,
@@ -102,9 +104,13 @@ export default function PackageCostEditor({ value, onChange, price, buses = [], 
       <h2 className="mb-1 flex items-center gap-2 text-xl font-bold text-slate-900"><Wallet className="h-5 w-5 text-indigo-600" />ต้นทุนและการจ่ายผู้ให้บริการ</h2>
       <p className="mb-4 text-sm text-slate-500">กรอกต้นทุนแยกตามร้านอาหาร โรงแรม และสถานที่ท่องเที่ยวในกำหนดการ ข้อมูลนี้แสดงเฉพาะหลังบ้าน</p>
       <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <label className="text-sm font-medium text-slate-700">จำนวนขั้นต่ำที่วางแผน (คน)
             <input type="number" min="1" max={capacity || undefined} step="1" disabled={!capacity} value={value.minimum_travelers ?? ""} onChange={(e) => onChange({ ...value, minimum_travelers: e.target.value === "" ? "" : String(Math.min(capacity, Math.max(1, Math.floor(Number(e.target.value))))) })} placeholder={capacity ? `ไม่เกิน ${capacity}` : "เลือกรถบัสก่อน"} className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 disabled:bg-slate-100" />
+          </label>
+          <label className="text-sm font-medium text-slate-700">เป้าจำนวนการจอง (รายการ)
+            <input type="number" min="1" max={capacity || undefined} step="1" disabled={!capacity} value={value.target_bookings ?? ""} onChange={(e) => onChange({ ...value, target_bookings: e.target.value === "" ? "" : String(Math.min(capacity, Math.max(1, Math.floor(Number(e.target.value))))) })} placeholder={capacity ? `ไม่เกิน ${capacity}` : "เลือกรถบัสก่อน"} className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 disabled:bg-slate-100" />
+            <span className="mt-1 block text-xs font-normal text-slate-500">ใช้เทียบกับรายการจองที่ยืนยันแล้ว</span>
           </label>
           <div className="rounded-lg bg-indigo-50 p-3 text-sm text-indigo-900"><span className="font-semibold">ที่นั่งจากรถบัสที่เลือก: {capacity} ที่นั่ง</span><p className="mt-1 text-xs">นับจากผังที่นั่งจริงของรถทุกคันในแพ็กเกจ</p></div>
         </div>
