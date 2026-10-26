@@ -47,7 +47,7 @@ import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import Dropdown, { GuideDropdown } from "@/components/ui/Dropdown";
 import { formatThaiDateRange } from "@/lib/date";
-import { DatePicker, ConfigProvider } from "antd";
+import { DatePicker, ConfigProvider, Select } from "antd";
 const { RangePicker } = DatePicker;
 import dayjs from "dayjs";
 
@@ -2123,32 +2123,38 @@ export default function EditPackagePage({ params }) {
                                 <Utensils className="h-3.5 w-3.5" />{" "}
                                 มื้ออาหารที่รวมในทริป
                               </label>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                {[
-                                  { key: "Breakfast", label: "อาหารเช้า" },
-                                  { key: "Lunch", label: "อาหารกลางวัน" },
-                                  { key: "Dinner", label: "อาหารเย็น" },
-                                ].map(({ key, label }) => {
-                                  const isSelected = day.meals.includes(key);
-                                  return (
-                                    <button
-                                      key={key}
-                                      type="button"
-                                      onClick={() => toggleMeal(dayIndex, key)}
-                                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
-                                        isSelected
-                                          ? "border-indigo-600 bg-indigo-600 text-white"
-                                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                                      }`}
-                                    >
-                                      {isSelected && (
-                                        <Check className="h-3 w-3" />
-                                      )}
-                                      {label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
+                              <ConfigProvider
+                                theme={{
+                                  token: {
+                                    colorPrimary: "#4f46e5",
+                                    borderRadius: 8,
+                                    fontFamily:
+                                      "var(--font-anuphan), sans-serif",
+                                  },
+                                }}
+                              >
+                                <Select
+                                  mode="multiple"
+                                  allowClear
+                                  placeholder="เลือกมื้ออาหารที่รวมในวันนี้"
+                                  value={day.meals || []}
+                                  onChange={(selectedMeals) =>
+                                    handleDayChange(
+                                      dayIndex,
+                                      "meals",
+                                      selectedMeals,
+                                    )
+                                  }
+                                  options={[
+                                    { value: "Breakfast", label: "อาหารเช้า" },
+                                    { value: "Lunch", label: "อาหารกลางวัน" },
+                                    { value: "Dinner", label: "อาหารเย็น" },
+                                  ]}
+                                  maxTagCount="responsive"
+                                  size="middle"
+                                  className="w-full text-sm"
+                                />
+                              </ConfigProvider>
                             </div>
                           </div>
 

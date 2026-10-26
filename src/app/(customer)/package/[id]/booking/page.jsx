@@ -28,9 +28,14 @@ import {
   Plane,
   Pencil,
   UserPlus,
+  Bus,
+  Check,
+  X,
 } from "lucide-react";
 import bookingService from "@/service/booking";
+import busService from "@/service/bus";
 import authService from "@/service/auth";
+import SeatMap from "@/components/bus/SeatMap";
 import TravelerModal from "@/components/booking/TravelerModal";
 import AddParticipantModal from "@/components/booking/AddParticipantModal";
 import { UserAvatar } from "@/components/package/CollaboratorBox";
@@ -248,6 +253,45 @@ export default function PackageBookingPage({ params }) {
     return list;
   });
 
+  // Bus Seating State
+  const [buses, setBuses] = useState([]);
+  const [takenSeats, setTakenSeats] = useState([]);
+  const [isLoadingBuses, setIsLoadingBuses] = useState(false);
+  const [seatAssignments, setSeatAssignments] = useState({}); // { [travelerIndex]: { bus_id: number, seat_code: string } }
+  const [seatMapModal, setSeatMapModal] = useState({
+    isOpen: false,
+    travelerIndex: null,
+    busId: null,
+  });
+
+  const handleTravelerBusChange = (travelerIndex, busId) => {
+    setSeatAssignments((prev) => ({
+      ...prev,
+      [travelerIndex]: {
+        bus_id: Number(busId),
+        seat_code: "",
+      },
+    }));
+  };
+
+  const handleTravelerSeatChange = (travelerIndex, busId, seatCode) => {
+    setSeatAssignments((prev) => ({
+      ...prev,
+      [travelerIndex]: {
+        bus_id: Number(busId),
+        seat_code: seatCode ? seatCode.trim().toLowerCase() : "",
+      },
+    }));
+  };
+
+  const handleClearTravelerSeat = (travelerIndex) => {
+    setSeatAssignments((prev) => {
+      const next = { ...prev };
+      delete next[travelerIndex];
+      return next;
+    });
+  };
+
   // Derived adult and child counts dynamically from travelers
   const adultCount = Math.max(
     1,
@@ -300,6 +344,32 @@ export default function PackageBookingPage({ params }) {
       .finally(() => { if (current) setInsuranceReady(true); });
     return () => { current = false; };
   }, [packageId]);
+
+  // Load package buses and taken seats
+  useEffect(() => {
+    let ignore = false;
+    async function loadPackageBuses() {
+      if (!packageId) return;
+      try {
+        setIsLoadingBuses(true);
+        const effectiveDate =
+          travelDate || packageData?.start_date || packageData?.dayplans?.[0]?.dt;
+        const res = await busService.getPackageBuses(packageId, effectiveDate);
+        if (!ignore && res?.success) {
+          setBuses(res.buses || []);
+          setTakenSeats(res.taken || []);
+        }
+      } catch (err) {
+        console.error("Load package buses error:", err);
+      } finally {
+        if (!ignore) setIsLoadingBuses(false);
+      }
+    }
+    loadPackageBuses();
+    return () => {
+      ignore = true;
+    };
+  }, [packageId, travelDate, packageData?.start_date, packageData?.dayplans]);
 
   // Load initial collabs from query string if provided
   useEffect(() => {
@@ -520,10 +590,24 @@ export default function PackageBookingPage({ params }) {
       quantity: 1,
     }));
 
+    const formattedSeatAssignments = Object.entries(seatAssignments)
+      .filter(([_, item]) => item && item.bus_id && item.seat_code)
+      .map(([idx, item]) => ({
+        passenger_index: parseInt(idx, 10),
+        bus_id: Number(item.bus_id),
+        seat_code: item.seat_code.trim().toLowerCase(),
+      }));
+
     // Lead traveler may use the account name; every other name must be explicit.
     const finalTravelers = travelers.map((t, idx) => ({
       ...t,
       full_name: t.full_name?.trim() || (idx === 0 ? activeContactName : ""),
+      seat_code: seatAssignments[idx]?.seat_code
+        ? seatAssignments[idx].seat_code.trim().toLowerCase()
+        : null,
+      bus_id: seatAssignments[idx]?.bus_id
+        ? Number(seatAssignments[idx].bus_id)
+        : null,
     }));
 
     const payload = {
@@ -538,6 +622,7 @@ export default function PackageBookingPage({ params }) {
       special_requests: specialRequests.trim() || null,
       travelers: finalTravelers,
       selected_addons: formattedAddons,
+      seat_assignments: formattedSeatAssignments,
       insurance_selected: insuranceSelected,
       insurance_plan_id: insuranceSelected ? insurancePlan.id : null,
       insurance_plan_updated_at: insuranceSelected ? insurancePlan.updatedAt : null,
@@ -1037,6 +1122,162 @@ export default function PackageBookingPage({ params }) {
                 </div>
               )}
 
+              {/* Card: ระบุที่นั่งบนรถบัส (Seat Selection) */}
+              <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/80">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                      <Bus className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <span>ระบุที่นั่งบนรถบัส</span>
+                        <span className="text-[11px] font-medium text-slate-400 font-normal">
+                          (อ้างอิงรถบัสประจำแพ็กเกจ)
+                        </span>
+                      </h2>
+                      <p className="text-xs text-slate-500">
+                        เลือกหรือระบุที่นั่งล่วงหน้าสำหรับผู้เดินทางแต่ละท่านก่อนชำระเงิน
+                      </p>
+                    </div>
+                  </div>
+                  {buses.length > 0 && (
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                      รถ {buses.length} คัน
+                    </span>
+                  )}
+                </div>
+
+                {isLoadingBuses ? (
+                  <div className="py-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                    <span>กำลังโหลดข้อมูลรถบัสและที่นั่ง...</span>
+                  </div>
+                ) : buses.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500">
+                    <p>แพ็กเกจนี้ยังไม่มีข้อมูลรถบัสประจำทริป</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      เจ้าหน้าที่จะทำการจัดที่นั่งให้หลังชำระเงินเรียบร้อยแล้ว
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {travelers.map((traveler, idx) => {
+                      const currentAssignment = seatAssignments[idx];
+                      const currentBusId =
+                        currentAssignment?.bus_id || buses[0]?.id;
+                      const selectedBus =
+                        buses.find((b) => b.id === currentBusId) || buses[0];
+                      const travelerName =
+                        traveler.full_name?.trim() ||
+                        (idx === 0
+                          ? activeContactName || "ผู้จองหลัก"
+                          : `ผู้เดินทางคนที่ ${idx + 1}`);
+
+                      return (
+                        <div
+                          key={idx}
+                          className="rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all hover:border-slate-300"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="h-8 w-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                              #{idx + 1}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-slate-900 truncate">
+                                {travelerName}
+                              </p>
+                              <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                <span>
+                                  {traveler.passenger_type === "child"
+                                    ? "เด็ก"
+                                    : "ผู้ใหญ่"}
+                                </span>
+                                {currentAssignment?.seat_code ? (
+                                  <span className="font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded uppercase">
+                                    ที่นั่ง {currentAssignment.seat_code} ·{" "}
+                                    {selectedBus?.name}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">
+                                    ยังไม่ระบุที่นั่ง
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* เลือกรถบัส (กรณีมีมากกว่า 1 คัน) */}
+                            {buses.length > 1 && (
+                              <select
+                                value={currentBusId}
+                                onChange={(e) =>
+                                  handleTravelerBusChange(idx, e.target.value)
+                                }
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-indigo-500"
+                              >
+                                {buses.map((b) => (
+                                  <option key={b.id} value={b.id}>
+                                    {b.name} ({b.plate || "ไม่ระบุทะเบียน"})
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+
+                            {/* Input ระบุที่นั่ง */}
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                placeholder="เช่น a1, b2"
+                                value={
+                                  currentAssignment?.seat_code?.toUpperCase() ||
+                                  ""
+                                }
+                                onChange={(e) =>
+                                  handleTravelerSeatChange(
+                                    idx,
+                                    currentBusId,
+                                    e.target.value,
+                                  )
+                                }
+                                className="w-24 uppercase rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 text-center outline-none focus:border-indigo-500 placeholder:normal-case placeholder:font-normal placeholder:text-slate-400"
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSeatMapModal({
+                                    isOpen: true,
+                                    travelerIndex: idx,
+                                    busId: currentBusId,
+                                  })
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition-colors cursor-pointer"
+                              >
+                                <Bus className="h-3.5 w-3.5" />
+                                <span>ผังที่นั่ง</span>
+                              </button>
+
+                              {currentAssignment?.seat_code && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleClearTravelerSeat(idx)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md transition-colors"
+                                  title="ล้างที่นั่ง"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Card 5: คำขอพิเศษ */}
               <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/80">
                 <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100 mb-4">
@@ -1175,6 +1416,47 @@ export default function PackageBookingPage({ params }) {
                     <span>ประกันการเดินทาง ({totalPeople} คน)</span>
                     <span className="font-semibold text-slate-900">{insuranceSelected ? insuranceCanPurchase ? `+฿${insuranceTotal.toLocaleString("th-TH")}` : "ตัวอย่าง · ยังไม่คิดเงิน" : "ไม่ได้เลือก"}</span>
                   </div>
+
+                  {/* ที่นั่งบนรถบัส */}
+                  {buses.length > 0 && (
+                    <div className="pt-2 border-t border-dashed border-slate-200 text-xs">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                          <Bus className="h-3.5 w-3.5 text-indigo-600" />
+                          ที่นั่งบนรถบัส:
+                        </span>
+                        <span className="text-[11px] font-bold text-indigo-600">
+                          {
+                            Object.values(seatAssignments).filter(
+                              (s) => s?.seat_code,
+                            ).length
+                          }{" "}
+                          / {totalPeople} ที่นั่ง
+                        </span>
+                      </div>
+                      <div className="space-y-1 pl-2 text-[11px] text-slate-600">
+                        {travelers.map((t, idx) => {
+                          const seat = seatAssignments[idx];
+                          const bus = buses.find((b) => b.id === seat?.bus_id);
+                          return (
+                            <div key={idx} className="flex justify-between">
+                              <span className="truncate max-w-[140px]">
+                                ท่านที่ {idx + 1} (
+                                {t.full_name ||
+                                  (idx === 0 ? activeContactName : "ไม่ระบุ")}
+                                )
+                              </span>
+                              <span className="font-semibold text-slate-800">
+                                {seat?.seat_code
+                                  ? `${bus?.name || "บัส"} - ${seat.seat_code.toUpperCase()}`
+                                  : "ยังไม่ระบุ"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {insurancePlan && (
                     <p className="text-[11px] text-slate-500">
                       {insurancePlan.insurer_name} · {insurancePlan.plan_name} · {insuranceCanPurchase ? "฿" : "ราคาอ้างอิง ฿"}{(insurancePlan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน · อายุ {insurancePlan.min_age}–{insurancePlan.max_age} ปี{insurancePlan.min_trip_days && insurancePlan.max_trip_days ? ` · ทริป ${insurancePlan.min_trip_days}–${insurancePlan.max_trip_days} วัน` : ""}
@@ -1265,6 +1547,162 @@ export default function PackageBookingPage({ params }) {
         onDeleteTraveler={handleDeleteTraveler}
         onSelectTravelerIndex={(idx) => setEditingTravelerIndex(idx)}
       />
+
+      {/* Modal: ผังที่นั่งเลือกรถบัส */}
+      {seatMapModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/70">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+                  <Bus className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    ผังที่นั่ง -{" "}
+                    {buses.find((b) => b.id === seatMapModal.busId)?.name ||
+                      "รถบัส"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    เลือกที่นั่งสำหรับ ผู้เดินทางท่านที่{" "}
+                    {seatMapModal.travelerIndex + 1}
+                    {travelers[seatMapModal.travelerIndex]?.full_name
+                      ? ` (${travelers[seatMapModal.travelerIndex].full_name})`
+                      : ""}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setSeatMapModal({
+                    isOpen: false,
+                    travelerIndex: null,
+                    busId: null,
+                  })
+                }
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Bus selector if multiple buses */}
+            {buses.length > 1 && (
+              <div className="px-5 pt-4 flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-600">
+                  เลือกรถบัส:
+                </span>
+                <div className="flex gap-2">
+                  {buses.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() =>
+                        setSeatMapModal((prev) => ({ ...prev, busId: b.id }))
+                      }
+                      className={`px-3 py-1 text-xs rounded-lg font-semibold border transition cursor-pointer ${
+                        seatMapModal.busId === b.id
+                          ? "border-indigo-600 bg-indigo-600 text-white"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {b.name} ({b.plate || "ไม่ระบุทะเบียน"})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SeatMap Legend */}
+            <div className="px-5 pt-3 flex flex-wrap items-center gap-4 text-xs text-slate-600">
+              <div className="flex items-center gap-1.5">
+                <span className="h-4 w-4 rounded border border-slate-300 bg-white" />
+                <span>ที่นั่งว่าง (คลิกเลือกได้)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-4 w-4 rounded border border-cyan-600 bg-cyan-500 text-white" />
+                <span>ที่นั่งที่เลือก</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-4 w-4 rounded border border-slate-300 bg-slate-300" />
+                <span>มีผู้จองแล้ว</span>
+              </div>
+            </div>
+
+            {/* SeatMap Canvas Body */}
+            <div className="p-5 overflow-y-auto flex-1 flex justify-center">
+              {(() => {
+                const activeBus =
+                  buses.find((b) => b.id === seatMapModal.busId) || buses[0];
+                if (!activeBus)
+                  return (
+                    <p className="text-sm text-slate-400">ไม่พบผังที่นั่ง</p>
+                  );
+
+                // Taken seats for this bus from backend
+                const dbTaken = takenSeats
+                  .filter((t) => t.bus_id === activeBus.id)
+                  .map((t) => t.seat_code.toLowerCase());
+
+                // Seats taken by OTHER travelers in this booking on this bus
+                const otherTravelersTaken = Object.entries(seatAssignments)
+                  .filter(
+                    ([idx, item]) =>
+                      parseInt(idx, 10) !== seatMapModal.travelerIndex &&
+                      item?.bus_id === activeBus.id &&
+                      item?.seat_code,
+                  )
+                  .map(([_, item]) => item.seat_code.toLowerCase());
+
+                const combinedTaken = [
+                  ...new Set([...dbTaken, ...otherTravelersTaken]),
+                ];
+                const currentSeat =
+                  seatAssignments[seatMapModal.travelerIndex]?.bus_id ===
+                  activeBus.id
+                    ? seatAssignments[
+                        seatMapModal.travelerIndex
+                      ]?.seat_code?.toLowerCase()
+                    : null;
+
+                return (
+                  <SeatMap
+                    layout={activeBus.layout}
+                    taken={combinedTaken}
+                    selected={currentSeat ? [currentSeat] : []}
+                    onToggle={(code) => {
+                      handleTravelerSeatChange(
+                        seatMapModal.travelerIndex,
+                        activeBus.id,
+                        code,
+                      );
+                    }}
+                  />
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/70 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setSeatMapModal({
+                    isOpen: false,
+                    travelerIndex: null,
+                    busId: null,
+                  })
+                }
+                className="rounded-xl px-4 py-2 text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition cursor-pointer"
+              >
+                บันทึกและปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

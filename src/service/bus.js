@@ -16,6 +16,12 @@ export const busService = {
     return response.data;
   },
 
+  async getPackageBuses(packageId, travelDate) {
+    const params = travelDate ? { travel_date: travelDate } : {};
+    const response = await api.get(`/packages/${packageId}/buses`, { params });
+    return response.data;
+  },
+
   async delete(id) {
     const response = await api.delete(`/bus/${id}`);
     return response.data;

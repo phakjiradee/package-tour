@@ -48,7 +48,7 @@ import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import Dropdown, { GuideDropdown } from "@/components/ui/Dropdown";
 import { formatThaiDateRange } from "@/lib/date";
-import { DatePicker, ConfigProvider } from "antd";
+import { DatePicker, ConfigProvider, Select } from "antd";
 const { RangePicker } = DatePicker;
 import dayjs from "dayjs";
 
@@ -61,7 +61,7 @@ const formatPrice = (val) => {
   const parts = clean.split(".");
   const intPart = (parts[0].replace(/^0+(?=\d)/, "") || "0").replace(
     /\B(?=(\d{3})+(?!\d))/g,
-    ","
+    ",",
   );
   if (parts.length > 1) {
     const decPart = parts.slice(1).join("").slice(0, 2);
@@ -1069,8 +1069,6 @@ export default function CreatePackagePage() {
         </div>
       </header>
 
-
-
       {/* Main Layout Workspace */}
       <div className="w-full p-6 lg:flex lg:gap-8 lg:p-8">
         {/* Left Column: Canvas (Overview + Partners + Timeline Builder) */}
@@ -1331,7 +1329,6 @@ export default function CreatePackagePage() {
             </div>
           </section>
 
-
           {/* SECTION: Tour Guides & Staff Assignment */}
           <section id="guides" className="scroll-mt-44">
             <div className="flex items-center justify-between gap-4 mb-4 mt-8">
@@ -1527,7 +1524,14 @@ export default function CreatePackagePage() {
             </div>
           </section>
 
-          <PackageInsurancePicker selected={packageData.insurance_plan_id} onChange={(insurance_plan_id) => setPackageData((prev) => ({ ...prev, insurance_plan_id }))} startDate={packageData.start_date || packageData.days[0]?.dt} endDate={packageData.end_date || packageData.days.at(-1)?.dt} />
+          <PackageInsurancePicker
+            selected={packageData.insurance_plan_id}
+            onChange={(insurance_plan_id) =>
+              setPackageData((prev) => ({ ...prev, insurance_plan_id }))
+            }
+            startDate={packageData.start_date || packageData.days[0]?.dt}
+            endDate={packageData.end_date || packageData.days.at(-1)?.dt}
+          />
 
           {/* SECTION: Add-on Packages */}
           <section id="addons" className="scroll-mt-44">
@@ -1668,7 +1672,8 @@ export default function CreatePackagePage() {
                   ช่วงเวลาเปิดรับจองและกำหนดการเดินทาง
                 </h2>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  กำหนดช่วงเวลาเปิดให้ลูกค้าทำการจอง และช่วงเวลาเดินทางของทัวร์ (ระบบจะสร้างและเรียงไทม์ไลน์วันเดินทางให้อัตโนมัติ)
+                  กำหนดช่วงเวลาเปิดให้ลูกค้าทำการจอง และช่วงเวลาเดินทางของทัวร์
+                  (ระบบจะสร้างและเรียงไทม์ไลน์วันเดินทางให้อัตโนมัติ)
                 </p>
               </div>
             </div>
@@ -1708,7 +1713,8 @@ export default function CreatePackagePage() {
                         <span className="block text-xs font-medium text-slate-600">
                           ระบุช่วงวันที่เปิดรับจอง
                         </span>
-                        {(packageData.start_date || packageData.days[0]?.dt) && (
+                        {(packageData.start_date ||
+                          packageData.days[0]?.dt) && (
                           <span className="text-[10px] text-amber-700 font-semibold">
                             ล็อคไม่เกินวันเริ่มเดินทาง
                           </span>
@@ -1741,7 +1747,10 @@ export default function CreatePackagePage() {
                           return current.isAfter(dayjs(travelStart), "day");
                         }}
                         format="DD/MM/YYYY"
-                        placeholder={["เปิดรับจองตั้งแต่วันที่", "สิ้นสุดการจอง"]}
+                        placeholder={[
+                          "เปิดรับจองตั้งแต่วันที่",
+                          "สิ้นสุดการจอง",
+                        ]}
                         size="large"
                         className="w-full rounded-xl py-2.5 px-3 text-xs shadow-2xs border-slate-300"
                         allowClear
@@ -1826,13 +1835,6 @@ export default function CreatePackagePage() {
               <div className="space-y-6 relative z-10">
                 {packageData.days.map((day, dayIndex) => (
                   <div key={day.id} className="flex gap-4 sm:gap-6">
-                    {/* Day indicator node */}
-                    <div className="hidden sm:flex flex-col items-center pt-5">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border-4 border-white bg-indigo-600 text-white shadow-md font-bold text-sm">
-                        D{day.day_num}
-                      </div>
-                    </div>
-
                     {/* Day Card */}
                     <div className="flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300">
                       {/* Card Header */}
@@ -2025,32 +2027,38 @@ export default function CreatePackagePage() {
                                 <Utensils className="h-3.5 w-3.5" />{" "}
                                 มื้ออาหารที่รวมในทริป
                               </label>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                {[
-                                  { key: "Breakfast", label: "อาหารเช้า" },
-                                  { key: "Lunch", label: "อาหารกลางวัน" },
-                                  { key: "Dinner", label: "อาหารเย็น" },
-                                ].map(({ key, label }) => {
-                                  const isSelected = day.meals.includes(key);
-                                  return (
-                                    <button
-                                      key={key}
-                                      type="button"
-                                      onClick={() => toggleMeal(dayIndex, key)}
-                                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
-                                        isSelected
-                                          ? "border-indigo-600 bg-indigo-600 text-white"
-                                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                                      }`}
-                                    >
-                                      {isSelected && (
-                                        <Check className="h-3 w-3" />
-                                      )}
-                                      {label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
+                              <ConfigProvider
+                                theme={{
+                                  token: {
+                                    colorPrimary: "#4f46e5",
+                                    borderRadius: 8,
+                                    fontFamily:
+                                      "var(--font-anuphan), sans-serif",
+                                  },
+                                }}
+                              >
+                                <Select
+                                  mode="multiple"
+                                  allowClear
+                                  placeholder="เลือกมื้ออาหารที่รวมในวันนี้"
+                                  value={day.meals || []}
+                                  onChange={(selectedMeals) =>
+                                    handleDayChange(
+                                      dayIndex,
+                                      "meals",
+                                      selectedMeals,
+                                    )
+                                  }
+                                  options={[
+                                    { value: "Breakfast", label: "อาหารเช้า" },
+                                    { value: "Lunch", label: "อาหารกลางวัน" },
+                                    { value: "Dinner", label: "อาหารเย็น" },
+                                  ]}
+                                  maxTagCount="responsive"
+                                  size="middle"
+                                  className="w-full text-sm"
+                                />
+                              </ConfigProvider>
                             </div>
                           </div>
 
@@ -2172,8 +2180,6 @@ export default function CreatePackagePage() {
                     </div>
                   </div>
                 ))}
-
-
               </div>
             </div>
           </section>
@@ -2320,16 +2326,17 @@ export default function CreatePackagePage() {
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-3">
                     <div className="flex items-center gap-1.5 font-bold text-indigo-900 mb-0.5">
                       <Plane className="h-3.5 w-3.5 text-indigo-600" />
-                      <span>วันเดินทาง ({packageData.days?.length || 0} วัน)</span>
+                      <span>
+                        วันเดินทาง ({packageData.days?.length || 0} วัน)
+                      </span>
                     </div>
                     <p className="font-semibold text-slate-800 text-xs">
                       {packageData.start_date || packageData.days[0]?.dt
                         ? formatThaiDateRange(
                             packageData.start_date || packageData.days[0]?.dt,
                             packageData.end_date ||
-                              [...packageData.days]
-                                .reverse()
-                                .find((d) => d.dt)?.dt,
+                              [...packageData.days].reverse().find((d) => d.dt)
+                                ?.dt,
                           )
                         : "ยังไม่ได้ระบุวันเดินทาง"}
                     </p>
