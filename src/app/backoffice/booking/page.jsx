@@ -209,7 +209,7 @@ export default function BackofficeBookingPage() {
 
   const selectedPackage = packages.find((pkg) => String(pkg.id) === String(selectedPackageId));
   const summary = selectedPackage?.summary;
-  const bookingGap = summary?.bookingGap;
+  const travelerGap = summary?.travelerGap;
   const afterDepositSatang = !summary?.costConfigured || summary.totalDepositSatang == null ? null : summary.receivedSatang - summary.totalDepositSatang;
   const visiblePackages = packages.filter((pkg) =>
     (packageStatus === "ALL" || pkg.status === packageStatus) &&
@@ -273,8 +273,8 @@ export default function BackofficeBookingPage() {
       <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard title="จำนวนจอง" value={summary ? `${summary.bookingCount} รายการ` : "-"} icon={CalendarCheck} subtitle={summary ? `รวมผู้เดินทาง ${summary.reservedTravelers} คน` : "กำลังโหลด"} />
         <StatCard title="ยืนยันแล้ว" value={summary ? `${summary.confirmedBookingCount} รายการ` : "-"} icon={Users} subtitle={summary ? `รวมผู้เดินทาง ${summary.confirmedTravelers} คน` : "กำลังโหลด"} />
-        <StatCard title="เป้าจำนวนจอง" value={summary?.targetBookings != null ? `${summary.targetBookings} รายการ` : "ยังไม่ตั้ง"} icon={Target} subtitle={summary?.bookingTargetInferred ? "ใช้ค่าเดิมชั่วคราว · ตั้งเป้าในหน้าแก้ไขแพ็กเกจ" : "ตั้งเป้าในหน้าแก้ไขแพ็กเกจ"} />
-        <StatCard title="ส่วนต่างจากเป้า" value={bookingGap != null ? `${bookingGap > 0 ? "+" : bookingGap < 0 ? "−" : ""}${Math.abs(bookingGap)} รายการ` : "-"} icon={Users} tone={bookingGap < 0 ? "danger" : bookingGap >= 0 ? "success" : undefined} subtitle="รายการยืนยันแล้ว − เป้าจำนวนจอง" />
+        <StatCard title="เป้าผู้เดินทาง" value={summary?.minimumTravelers != null ? `${summary.minimumTravelers} คน` : "ยังไม่ตั้ง"} icon={Target} subtitle="ตั้งขั้นต่ำในหน้าแก้ไขแพ็กเกจ" />
+        <StatCard title="ส่วนต่างจากเป้า" value={travelerGap != null ? `${travelerGap > 0 ? "+" : travelerGap < 0 ? "−" : ""}${Math.abs(travelerGap)} คน` : "-"} icon={Users} tone={travelerGap < 0 ? "danger" : travelerGap >= 0 ? "success" : undefined} subtitle="ผู้เดินทางที่ยืนยันแล้ว − เป้าผู้เดินทาง" />
         <StatCard title="ที่นั่งรถที่เลือก" value={summary?.targetTravelers != null ? `${summary.targetTravelers} ที่นั่ง` : "-"} icon={BusFront} subtitle="ความจุรวมของรถในแพ็กเกจ" />
         <StatCard title="รายรับที่ตรวจสอบได้" value={summary ? `฿${formatPrice(summary.receivedSatang / 100)}` : "-"} icon={DollarSign} subtitle="ไม่รวมรายการชำระที่ตรวจสอบไม่ได้" />
         <StatCard title="มัดจำที่ตกลง" value={summary?.costConfigured && summary.totalDepositSatang != null ? `฿${formatPrice(summary.totalDepositSatang / 100)}` : "ยังไม่ตั้ง"} icon={Wallet} subtitle="รวมมัดจำผู้ให้บริการตามแผน" />

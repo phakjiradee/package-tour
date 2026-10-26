@@ -92,7 +92,6 @@ export default function CreatePackagePage() {
     insurance_plan_id: null,
     price: "",
     minimum_travelers: "",
-    target_bookings: "",
     cost_items: [],
     status: "Draft",
     booking_start_date: "",
@@ -1537,7 +1536,7 @@ export default function CreatePackagePage() {
 
           <PackageBusPicker buses={busesList} selected={packageData.bus_ids} onChange={(bus_ids) => setPackageData((prev) => {
             const capacity = busesList.filter((bus) => bus_ids.includes(bus.id)).reduce((sum, bus) => sum + bus.seat_count, 0);
-            return { ...prev, bus_ids, minimum_travelers: prev.minimum_travelers && capacity ? String(Math.min(Number(prev.minimum_travelers), capacity)) : "", target_bookings: prev.target_bookings && capacity ? String(Math.min(Number(prev.target_bookings), capacity)) : "" };
+            return { ...prev, bus_ids, minimum_travelers: prev.minimum_travelers && capacity ? String(Math.min(Number(prev.minimum_travelers), capacity)) : "" };
           })} />
           <PackageCostEditor value={packageData} onChange={setPackageData} price={packageData.price} buses={busesList} locations={locationsList} partners={partnersList} />
 
