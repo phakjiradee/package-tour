@@ -35,6 +35,7 @@ export default function StatCard({
   };
   const toneStyles = {
     success: { frame: "border-emerald-300 bg-emerald-50", body: "border-emerald-200 bg-emerald-50/70", text: "text-emerald-800", icon: "border-emerald-200 bg-white text-emerald-700" },
+    blue: { frame: "border-blue-300 bg-blue-50", body: "border-blue-200 bg-blue-50/70", text: "text-blue-800", icon: "border-blue-200 bg-white text-blue-700" },
     warning: { frame: "border-amber-300 bg-amber-50", body: "border-amber-200 bg-amber-50/70", text: "text-amber-900", icon: "border-amber-200 bg-white text-amber-700" },
     danger: { frame: "border-rose-300 bg-rose-50", body: "border-rose-200 bg-rose-50/70", text: "text-rose-800", icon: "border-rose-200 bg-white text-rose-700" },
   };
