@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
+  BusFront,
   Calendar,
   CalendarCheck,
   Check,
@@ -16,8 +18,11 @@ import {
   MapPin,
   Phone,
   RefreshCw,
+  ReceiptText,
   Search,
+  Target,
   Users,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import { bookingService } from "@/service/booking";
@@ -31,16 +36,20 @@ import Image from "next/image";
 const STATUS_TABS = [
   { label: "ทั้งหมด", value: "ALL" },
   { label: "รอชำระเงิน", value: "PENDING_PAYMENT" },
-  { label: "รอตรวจสอบ", value: "AWAITING_VERIFICATION" },
   { label: "ยืนยันแล้ว", value: "CONFIRMED" },
   { label: "ยกเลิกแล้ว", value: "CANCELLED" },
 ];
 
 export default function BackofficeBookingPage() {
+  const [packages, setPackages] = useState([]);
+  const [selectedPackageId, setSelectedPackageId] = useState(null);
+  const [packageSearch, setPackageSearch] = useState("");
+  const [packageStatus, setPackageStatus] = useState("ALL");
+  const [overviewLoading, setOverviewLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: 100,
     total: 0,
     totalPages: 1,
   });
@@ -69,6 +78,37 @@ export default function BackofficeBookingPage() {
     }, 3500);
   };
 
+  const fetchOverview = useCallback(async () => {
+    try {
+      setOverviewLoading(true);
+      const response = await bookingService.getPackageOverview();
+      setPackages(response.data || []);
+    } catch (error) {
+      console.error("Fetch booking packages error:", error);
+      showToast("ไม่สามารถโหลดรายชื่อแพ็กเกจได้", "error");
+    } finally { setOverviewLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    const readSelection = () => setSelectedPackageId(new URLSearchParams(window.location.search).get("packageId"));
+    readSelection();
+    window.addEventListener("popstate", readSelection);
+    const load = async () => { await fetchOverview(); };
+    load();
+    return () => window.removeEventListener("popstate", readSelection);
+  }, [fetchOverview]);
+
+  const selectPackage = (id) => {
+    const url = id ? `/backoffice/booking?packageId=${id}` : "/backoffice/booking";
+    window.history.pushState({}, "", url);
+    setSelectedPackageId(id ? String(id) : null);
+    setSearch("");
+    setStatusFilter("ALL");
+    setBookings([]);
+    setLoading(true);
+    setPagination({ page: 1, limit: 100, total: 0, totalPages: 1 });
+  };
+
   const handleCopy = (code) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
@@ -77,12 +117,13 @@ export default function BackofficeBookingPage() {
 
   // Fetch bookings from backend
   const fetchBookings = useCallback(
-    async (page = 1, currentSearch = search, currentStatus = statusFilter) => {
+    async (page = 1, currentSearch = "", currentStatus = "ALL") => {
       try {
         setRefreshing(true);
         const params = {
           page,
-          limit: 10,
+          limit: 100,
+          package_id: selectedPackageId,
         };
         if (currentSearch.trim()) {
           params.search = currentSearch.trim();
@@ -106,19 +147,13 @@ export default function BackofficeBookingPage() {
         setRefreshing(false);
       }
     },
-    [search, statusFilter],
+    [selectedPackageId],
   );
 
   useEffect(() => {
-    let ignore = false;
-    const run = async () => {
-      await fetchBookings(1, search, statusFilter);
-    };
-    run();
-    return () => {
-      ignore = true;
-    };
-  }, [fetchBookings, statusFilter]);
+    const load = async () => { if (selectedPackageId) await fetchBookings(1, "", "ALL"); };
+    load();
+  }, [fetchBookings, selectedPackageId]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -141,38 +176,11 @@ export default function BackofficeBookingPage() {
       if (selectedBooking && selectedBooking.id === bookingId) {
         setSelectedBooking((prev) => ({ ...prev, status: newStatus }));
       }
+      await Promise.all([fetchBookings(pagination.page, search, statusFilter), fetchOverview()]);
     } catch (err) {
       console.error("Update status error:", err);
       showToast(
         err.response?.data?.message || "ไม่สามารถอัปเดตสถานะได้",
-        "error",
-      );
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
-
-  // Mock payment handler for Backoffice
-  const handleMockPay = async (bookingCode) => {
-    try {
-      setUpdatingStatus(true);
-      const res = await bookingService.mockPay(bookingCode);
-      showToast("จำลองการชำระเงินสำเร็จแล้ว");
-
-      // Refetch table data
-      fetchBookings(pagination.page, search, statusFilter);
-
-      // Refresh currently open modal booking
-      if (selectedBooking && selectedBooking.booking_code === bookingCode) {
-        const fresh = await bookingService.getByCode(bookingCode);
-        if (fresh?.data) {
-          setSelectedBooking(fresh.data);
-        }
-      }
-    } catch (err) {
-      console.error("Backoffice mock pay error:", err);
-      showToast(
-        err.response?.data?.message || "ไม่สามารถจำลองการชำระเงินได้",
         "error",
       );
     } finally {
@@ -199,31 +207,37 @@ export default function BackofficeBookingPage() {
     return Number(val || 0).toLocaleString("th-TH");
   };
 
-  // Calculate high-level stats from current list & total
-  const statsOverview = useMemo(() => {
-    const totalCount = pagination.total || bookings.length;
-    let pendingCount = 0;
-    let awaitingCount = 0;
-    let confirmedCount = 0;
-    let totalRevenue = 0;
+  const selectedPackage = packages.find((pkg) => String(pkg.id) === String(selectedPackageId));
+  const summary = selectedPackage?.summary;
+  const travelerGap = summary?.travelerGap;
+  const afterDepositSatang = !summary?.costConfigured || summary.totalDepositSatang == null ? null : summary.receivedSatang - summary.totalDepositSatang;
+  const visiblePackages = packages.filter((pkg) =>
+    (packageStatus === "ALL" || pkg.status === packageStatus) &&
+    `${pkg.name} ${pkg.location?.name || ""}`.toLowerCase().includes(packageSearch.toLowerCase().trim()));
 
-    bookings.forEach((b) => {
-      if (b.status === "PENDING_PAYMENT") pendingCount++;
-      if (b.status === "AWAITING_VERIFICATION") awaitingCount++;
-      if (b.status === "CONFIRMED") {
-        confirmedCount++;
-        totalRevenue += Number(b.total_price || 0);
-      }
-    });
-
-    return {
-      total: totalCount,
-      pending: pendingCount,
-      awaiting: awaitingCount,
-      confirmed: confirmedCount,
-      revenue: totalRevenue,
-    };
-  }, [bookings, pagination.total]);
+  if (!selectedPackageId) return (
+    <div className="space-y-6">
+      <PageHeader title="จัดการการจอง" titleEn="Bookings" description="เลือกแพ็กเกจเพื่อดูจำนวนผู้เดินทาง รายรับ และจุดคุ้มทุน" actions={<button type="button" onClick={fetchOverview} className="btn-secondary h-8 rounded-lg px-3 text-xs"><RefreshCw size={13} /> รีเฟรช</button>} />
+      {toastMessage && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{toastMessage.message}</p>}
+      <div className="space-y-3 rounded-lg border border-zinc-200 bg-white p-3.5 shadow-2xs">
+        <div className="flex flex-wrap gap-1 border-b border-zinc-100 pb-2.5">
+          {[["ALL", "ทั้งหมด"], ["Published", "เปิดขาย"], ["Draft", "ฉบับร่าง"], ["Closed", "ปิดรับจอง"], ["Archived", "เก็บถาวร"]].map(([value, label]) =>
+            <button key={value} type="button" onClick={() => setPackageStatus(value)} className={`rounded-md px-3 py-1 text-xs font-semibold ${packageStatus === value ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}>{label} <span className="opacity-70">{value === "ALL" ? packages.length : packages.filter((pkg) => pkg.status === value).length}</span></button>)}
+        </div>
+        <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" /><input value={packageSearch} onChange={(e) => setPackageSearch(e.target.value)} placeholder="ค้นหาชื่อแพ็กเกจหรือจุดหมาย..." className="h-9 w-full rounded-md border border-zinc-200 bg-zinc-50 pl-9 pr-3 text-xs outline-none focus:border-blue-500" /></div>
+        <p className="border-t border-zinc-100 pt-2 text-xs text-zinc-500">แสดง {visiblePackages.length} จากทั้งหมด {packages.length} แพ็กเกจ</p>
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-2xs">
+        <table className="w-full min-w-205 text-left text-sm">
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-[11px] font-bold text-zinc-500"><tr><th className="px-5 py-3">แพ็กเกจท่องเที่ยว</th><th className="px-5 py-3">จุดหมายปลายทาง</th><th className="px-5 py-3">วันเดินทาง</th><th className="px-5 py-3">สถานะ</th><th className="px-5 py-3">การจอง</th><th className="px-5 py-3 text-right">จัดการ</th></tr></thead>
+          <tbody className="divide-y divide-zinc-100">
+            {overviewLoading ? <tr><td colSpan={6} className="p-12 text-center text-zinc-500">กำลังโหลดแพ็กเกจ...</td></tr> : visiblePackages.length === 0 ? <tr><td colSpan={6} className="p-12 text-center text-zinc-500">ไม่พบแพ็กเกจ</td></tr> : visiblePackages.map((pkg) =>
+              <tr key={pkg.id} className="hover:bg-zinc-50"><td className="px-5 py-3"><div className="flex items-center gap-3">{pkg.image ? <Image src={pkg.image} alt="" width={40} height={40} className="size-10 rounded-lg object-cover" /> : <div className="size-10 rounded-lg bg-zinc-100" />}<span className="font-semibold text-zinc-900">{pkg.name}</span></div></td><td className="px-5 py-3 text-zinc-600">{pkg.location?.name || "-"}</td><td className="px-5 py-3 text-zinc-600">{formatDate(pkg.start_date)}</td><td className="px-5 py-3"><StatusChip status={pkg.status} label={{ Published: "เปิดขาย", Draft: "ฉบับร่าง", Closed: "ปิดรับจอง", Archived: "เก็บถาวร" }[pkg.status] || pkg.status} tone={{ Published: "success", Draft: "warning", Closed: "danger" }[pkg.status] || "neutral"} /></td><td className="px-5 py-3 font-semibold text-zinc-800">{pkg.summary.bookingCount} รายการ · {pkg.summary.reservedTravelers} คน</td><td className="px-5 py-3 text-right"><button type="button" onClick={() => selectPackage(pkg.id)} className="btn-secondary rounded-md px-3 py-1.5 text-xs"><Eye size={13} /> ดูการจอง</button></td></tr>)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -245,70 +259,34 @@ export default function BackofficeBookingPage() {
 
       {/* Page Header */}
       <PageHeader
-        title="จัดการการจอง"
+        title={selectedPackage?.name || "กำลังโหลดแพ็กเกจ..."}
         titleEn="Bookings"
-        description="ตรวจสอบคำสั่งจองแพ็กเกจทัวร์ ตรวจสอบยอดเงิน และบริหารจัดการสถานะการเดินทาง"
+        description="ข้อมูลการจองและจุดคุ้มทุนเฉพาะแพ็กเกจนี้"
         actions={
-          <button
-            type="button"
-            onClick={() => fetchBookings(pagination.page, search, statusFilter)}
-            disabled={refreshing}
-            className="btn-secondary h-8 px-3 text-xs rounded-lg cursor-pointer"
-          >
-            <RefreshCw
-              size={13}
-              className={
-                refreshing ? "animate-spin text-zinc-500" : "text-zinc-500"
-              }
-            />
-            <span>รีเฟรช</span>
-          </button>
+          <div className="flex gap-2"><button type="button" onClick={() => selectPackage(null)} className="btn-secondary h-8 rounded-lg px-3 text-xs"><ChevronLeft size={13} /> แพ็กเกจทั้งหมด</button><button type="button" onClick={() => { fetchBookings(pagination.page, search, statusFilter); fetchOverview(); }} disabled={refreshing} className="btn-secondary h-8 rounded-lg px-3 text-xs"><RefreshCw size={13} className={refreshing ? "animate-spin" : ""} /> รีเฟรช</button></div>
         }
       />
 
-      {/* Stats Cards */}
-      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Bookings */}
-        <StatCard
-          title="การจองทั้งหมด"
-          label="การจองทั้งหมด"
-          value={statsOverview.total}
-          icon={CalendarCheck}
-          subtitle="รายการจองในระบบ"
-        />
+      {selectedPackageId && !overviewLoading && !selectedPackage && <p role="alert" className="rounded-lg bg-rose-50 p-4 text-rose-700">ไม่พบแพ็กเกจนี้</p>}
 
-        {/* Pending Payment */}
-        <StatCard
-          title="รอชำระเงิน"
-          label="รอชำระเงิน"
-          value={statsOverview.pending}
-          icon={Clock}
-          tone="warning"
-          subtitle="รอลูกค้าโอนเงิน"
-        />
-
-        {/* Confirmed */}
-        <StatCard
-          title="ยืนยันการจองแล้ว"
-          label="ยืนยันการจองแล้ว"
-          value={statsOverview.confirmed}
-          icon={CheckCircle2}
-          subtitle="พร้อมออกเดินทาง"
-          trendBadge={{
-            text: "สำเร็จ",
-            tone: "success",
-          }}
-        />
-
-        {/* Total Revenue */}
-        <StatCard
-          title="ยอดเงินที่ยืนยันแล้ว"
-          label="ยอดเงินที่ยืนยันแล้ว"
-          value={`฿${formatPrice(statsOverview.revenue)}`}
-          icon={DollarSign}
-          subtitle="จากรายการที่ยืนยันในหน้านี้"
-        />
+      {/* Package summary, calculated from every booking and approved payment */}
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard title="จำนวนจอง" value={summary ? `${summary.bookingCount} รายการ` : "-"} icon={CalendarCheck} subtitle={summary ? `รวมผู้เดินทาง ${summary.reservedTravelers} คน` : "กำลังโหลด"} />
+        <StatCard title="ยืนยันแล้ว" value={summary ? `${summary.confirmedBookingCount} รายการ` : "-"} icon={Users} subtitle={summary ? `รวมผู้เดินทาง ${summary.confirmedTravelers} คน` : "กำลังโหลด"} />
+        <StatCard title="เป้าผู้เดินทาง" value={summary?.minimumTravelers != null ? `${summary.minimumTravelers} คน` : "ยังไม่ตั้ง"} icon={Target} subtitle="ตั้งขั้นต่ำในหน้าแก้ไขแพ็กเกจ" />
+        <StatCard title="ส่วนต่างจากเป้า" value={travelerGap != null ? `${travelerGap > 0 ? "+" : travelerGap < 0 ? "−" : ""}${Math.abs(travelerGap)} คน` : "-"} icon={Users} tone={travelerGap < 0 ? "danger" : travelerGap >= 0 ? "success" : undefined} subtitle="ผู้เดินทางที่ยืนยันแล้ว − เป้าผู้เดินทาง" />
+        <StatCard title="ที่นั่งรถที่เลือก" value={summary?.targetTravelers != null ? `${summary.targetTravelers} ที่นั่ง` : "-"} icon={BusFront} subtitle="ความจุรวมของรถในแพ็กเกจ" />
+        <StatCard title="รายรับที่ตรวจสอบได้" value={summary ? `฿${formatPrice(summary.receivedSatang / 100)}` : "-"} icon={DollarSign} subtitle="ไม่รวมรายการชำระที่ตรวจสอบไม่ได้" />
+        <StatCard title="มัดจำที่ตกลง" value={summary?.costConfigured && summary.totalDepositSatang != null ? `฿${formatPrice(summary.totalDepositSatang / 100)}` : "ยังไม่ตั้ง"} icon={Wallet} subtitle="รวมมัดจำผู้ให้บริการตามแผน" />
+        <StatCard title="ส่วนต่างรายรับ–มัดจำ" value={afterDepositSatang != null ? `${afterDepositSatang < 0 ? "−" : ""}฿${formatPrice(Math.abs(afterDepositSatang) / 100)}` : "-"} icon={DollarSign} tone={afterDepositSatang < 0 ? "danger" : afterDepositSatang > 0 ? "success" : undefined} subtitle="รายรับยืนยัน − มัดจำที่ตกลง" />
+        <StatCard title="ต้นทุนรวมตามเป้า" value={summary?.costConfigured && summary.costAtMinimumSatang != null ? `฿${formatPrice(summary.costAtMinimumSatang / 100)}` : "ยังไม่ตั้ง"} icon={ReceiptText} subtitle="คำนวณตามเป้าหมายขั้นต่ำ" />
+        <StatCard title="จ่ายผู้ให้บริการแล้ว" value={summary ? `฿${formatPrice(summary.supplierPaidSatang / 100)}` : "-"} icon={Wallet} subtitle="รวมมัดจำและยอดจ่ายส่วนที่เหลือ" />
       </div>
+
+      {summary && <div className="space-y-2">
+        {(summary.unverifiedBookingCount > 0 || summary.exceptionCount > 0) && <div role="status" className="flex gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><AlertTriangle size={17} className="mt-0.5 shrink-0" /><div>{summary.unverifiedBookingCount > 0 && <p>มี {summary.unverifiedBookingCount} รายการชำระแบบทดสอบหรือข้อมูลเก่าที่ยังยืนยันแหล่งเงินไม่ได้ รายการยืนยันแล้วจะแสดงในยอดการจอง แต่ไม่รวมเป็นรายรับที่ตรวจสอบได้</p>}{summary.exceptionCount > 0 && <p>มีข้อมูลเก่า {summary.exceptionCount} รายการในสถานะรอตรวจสอบ โปรดตรวจสอบการชำระเงินจริงก่อนเปลี่ยนสถานะ</p>}</div></div>}
+        <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500">ยอดชำระในระบบยังไม่ใช่รายงานกระทบยอดธนาคาร</p>
+      </div>}
 
       {/* Search and Filters */}
       <div className="rounded-lg border border-zinc-200/90 bg-white p-3.5 shadow-2xs space-y-3">
@@ -320,7 +298,7 @@ export default function BackofficeBookingPage() {
               <button
                 key={tab.value}
                 type="button"
-                onClick={() => setStatusFilter(tab.value)}
+                onClick={() => { setStatusFilter(tab.value); fetchBookings(1, search, tab.value); }}
                 className={`rounded-md px-3 py-1 text-xs font-semibold transition cursor-pointer select-none ${
                   isActive
                     ? "bg-zinc-900 text-white shadow-2xs"
@@ -560,7 +538,6 @@ export default function BackofficeBookingPage() {
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         onUpdateStatus={handleUpdateStatus}
-        onMockPay={handleMockPay}
         updating={updatingStatus}
       />
     </div>

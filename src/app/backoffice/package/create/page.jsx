@@ -42,8 +42,12 @@ import PartnerModal from "@/components/partner/PartnerModal";
 import { partnerService, partnerTypeService } from "@/service/partner";
 import { locationService } from "@/service/location";
 import { employeeService } from "@/service/employee";
+import { busService } from "@/service/bus";
 
 import PackageInsurancePicker from "@/components/package/PackageInsurancePicker";
+import PackageBusPicker from "@/components/package/PackageBusPicker";
+import PackageCostEditor, { serializePackageCosts } from "@/components/package/PackageCostEditor";
+import { api } from "@/lib/axios";
 import PackageImageUploader from "@/components/package/PackageImageUploader";
 import FeedbackModal from "@/components/ui/FeedbackModal";
 import Dropdown, { GuideDropdown } from "@/components/ui/Dropdown";
@@ -87,6 +91,8 @@ export default function CreatePackagePage() {
     bus_ids: [],
     insurance_plan_id: null,
     price: "",
+    minimum_travelers: "",
+    cost_items: [],
     status: "Draft",
     booking_start_date: "",
     booking_end_date: "",
@@ -116,6 +122,7 @@ export default function CreatePackagePage() {
   const [partnerTypes, setPartnerTypes] = useState([]);
   const [locationsList, setLocationsList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
+  const [busesList, setBusesList] = useState([]);
 
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -158,17 +165,19 @@ export default function CreatePackagePage() {
     let ignore = false;
     async function loadInitialData() {
       try {
-        const [partners, types, locations, employees] = await Promise.all([
+        const [partners, types, locations, employees, buses] = await Promise.all([
           partnerService.getAll().catch(() => []),
           partnerTypeService.getAll().catch(() => []),
           locationService.getAll().catch(() => []),
           employeeService.getAll().catch(() => []),
+          busService.getAll().catch(() => []),
         ]);
         if (!ignore) {
           setPartnersList(Array.isArray(partners) ? partners : []);
           setPartnerTypes(Array.isArray(types) ? types : []);
           setLocationsList(Array.isArray(locations) ? locations : []);
           setEmployeesList(Array.isArray(employees) ? employees : []);
+          setBusesList(Array.isArray(buses) ? buses : []);
         }
       } catch (error) {
         console.error("Failed to load initial data", error);
@@ -943,14 +952,10 @@ export default function CreatePackagePage() {
       const payload = {
         ...packageData,
         price: parseFloat(unformatPrice(packageData.price)) || 0,
+        ...serializePackageCosts(packageData),
       };
-      const res = await fetch("http://localhost:4000/api/packages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (res.ok) {
+      const { data } = await api.post("/packages", payload);
+      if (data.success) {
         showFeedback({
           type: "success",
           title: "สร้างแพ็กเกจสำเร็จเรียบร้อยแล้ว!",
@@ -974,7 +979,7 @@ export default function CreatePackagePage() {
       showFeedback({
         type: "error",
         title: "เกิดข้อผิดพลาด",
-        message: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ",
+        message: error.response?.data?.message || "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่อ",
       });
     } finally {
       setIsSaving(false);
@@ -1532,6 +1537,12 @@ export default function CreatePackagePage() {
             startDate={packageData.start_date || packageData.days[0]?.dt}
             endDate={packageData.end_date || packageData.days.at(-1)?.dt}
           />
+
+          <PackageBusPicker buses={busesList} selected={packageData.bus_ids} onChange={(bus_ids) => setPackageData((prev) => {
+            const capacity = busesList.filter((bus) => bus_ids.includes(bus.id)).reduce((sum, bus) => sum + bus.seat_count, 0);
+            return { ...prev, bus_ids, minimum_travelers: prev.minimum_travelers && capacity ? String(Math.min(Number(prev.minimum_travelers), capacity)) : "" };
+          })} />
+          <PackageCostEditor value={packageData} onChange={setPackageData} price={packageData.price} buses={busesList} locations={locationsList} partners={partnersList} />
 
           {/* SECTION: Add-on Packages */}
           <section id="addons" className="scroll-mt-44">

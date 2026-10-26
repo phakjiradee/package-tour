@@ -33,6 +33,12 @@ export default function StatCard({
     danger: "bg-rose-50 text-rose-700 border-rose-200/80",
     neutral: "bg-zinc-100 text-zinc-600 border-zinc-200/80",
   };
+  const toneStyles = {
+    success: { frame: "border-emerald-300 bg-emerald-50", body: "border-emerald-200 bg-emerald-50/70", text: "text-emerald-800", icon: "border-emerald-200 bg-white text-emerald-700" },
+    warning: { frame: "border-amber-300 bg-amber-50", body: "border-amber-200 bg-amber-50/70", text: "text-amber-900", icon: "border-amber-200 bg-white text-amber-700" },
+    danger: { frame: "border-rose-300 bg-rose-50", body: "border-rose-200 bg-rose-50/70", text: "text-rose-800", icon: "border-rose-200 bg-white text-rose-700" },
+  };
+  const toneStyle = toneStyles[tone];
 
   // Resolve badge either from trendBadge object or badgeText
   const resolvedBadge = trendBadge
@@ -58,23 +64,23 @@ export default function StatCard({
   return (
     <div
       onClick={onClick}
-      className={`rounded-lg border bg-zinc-50/90 overflow-hidden shadow-2xs flex flex-col justify-between transition-all ${
+      className={`rounded-lg border overflow-hidden shadow-2xs flex flex-col justify-between transition-all ${
         onClick ? "cursor-pointer hover:border-zinc-300 hover:shadow-xs active:scale-[0.99]" : ""
       } ${
         active
           ? "border-zinc-900 ring-2 ring-zinc-900/10 bg-zinc-100/90"
-          : "border-zinc-200"
+          : toneStyle?.frame || "border-zinc-200 bg-zinc-50/90"
       } ${className}`}
     >
       {/* Layer 1: Header Bar with Icon & Title */}
       <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 min-h-9.5">
         <div className="flex items-center gap-2 min-w-0">
           {Icon && (
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-zinc-200/80 bg-white text-zinc-600 shadow-2xs">
+            <span className={`flex size-6 shrink-0 items-center justify-center rounded-md border shadow-2xs ${toneStyle?.icon || "border-zinc-200/80 bg-white text-zinc-600"}`}>
               <Icon size={13} />
             </span>
           )}
-          <span className="truncate text-xs font-semibold text-zinc-800">
+          <span className={`truncate text-xs font-semibold ${toneStyle?.text || "text-zinc-800"}`}>
             {displayTitle}
           </span>
         </div>
@@ -92,12 +98,12 @@ export default function StatCard({
       </div>
 
       {/* Layer 2: Inner Canvas with Metric Value */}
-      <div className="rounded-t-lg border-t border-zinc-200/90 bg-white p-3.5 flex flex-col justify-between flex-1">
+      <div className={`rounded-t-lg border-t p-3.5 flex flex-col justify-between flex-1 ${toneStyle?.body || "border-zinc-200/90 bg-white"}`}>
         {loading ? (
           <div className="h-8 w-24 animate-pulse rounded bg-zinc-100" />
         ) : (
           <div className="flex items-baseline justify-between flex-wrap gap-1.5">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 font-sans tabular-nums">
+            <span className={`text-xl sm:text-2xl font-bold tracking-tight font-sans tabular-nums ${toneStyle?.text || "text-zinc-900"}`}>
               {value}
             </span>
 
@@ -147,7 +153,7 @@ export default function StatCard({
 
         {/* Subtitle / Hint */}
         {displaySubtitle && !loading && (
-          <p className="mt-2 text-[11px] font-medium text-zinc-400">
+          <p className={`mt-2 text-[11px] font-medium ${toneStyle?.text || "text-zinc-400"}`}>
             {displaySubtitle}
           </p>
         )}

@@ -1,6 +1,10 @@
 import { api } from "../lib/axios";
 
 export const bookingService = {
+  async getPackageOverview() {
+    const response = await api.get("/booking/packages");
+    return response.data;
+  },
   async getInsurancePlan(packageId) {
     const response = await api.get("/insurance/plan", { params: { package_id: packageId } });
     return response.data;

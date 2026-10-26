@@ -301,6 +301,7 @@ export default function PackageBookingPage({ params }) {
     (t) => t.passenger_type === "child",
   ).length;
   const totalPeople = adultCount + childCount;
+  const bookingContactPhone = contactPhone || currentUser?.phone || travelers[0]?.phone || "";
 
   // Derived collaborators from travelers list
   const collaborators = travelers
@@ -510,7 +511,8 @@ export default function PackageBookingPage({ params }) {
     insurancePlan?.active && !insurancePlan?.is_demo &&
     insurancePlan.id === packageData?.insurance_plan_id,
   );
-  const insuranceTotal = insuranceSelected && insuranceCanPurchase ? insurancePlan.premium_satang * totalPeople / 100 : 0;
+  const purchasingInsurance = insuranceSelected && insuranceCanPurchase;
+  const insuranceTotal = purchasingInsurance ? insurancePlan.premium_satang * totalPeople / 100 : 0;
   const grandTotal = baseTotal + addonsTotal + insuranceTotal;
 
   // Handle Form Submit
@@ -523,11 +525,7 @@ export default function PackageBookingPage({ params }) {
       travelDate || travelStartDate || new Date().toISOString();
 
     const activeContactName = (contactName || currentUser?.name || "").trim();
-    const activeContactPhone = (
-      contactPhone ||
-      currentUser?.phone ||
-      ""
-    ).trim();
+    const activeContactPhone = bookingContactPhone.trim();
     const activeContactEmail = (
       contactEmail ||
       currentUser?.email ||
@@ -541,7 +539,7 @@ export default function PackageBookingPage({ params }) {
 
     if (!activeContactName || !activeContactPhone || !activeContactEmail) {
       setErrorMessage(
-        "กรุณากรอกข้อมูลผู้ติดต่อให้ครบถ้วนในบัญชีโปรไฟล์ (ชื่อ, เบอร์โทร, อีเมล)",
+        "กรุณากรอกชื่อและอีเมลในโปรไฟล์ และเบอร์โทรในโปรไฟล์หรือข้อมูลผู้เดินทางหลัก",
       );
       return;
     }
@@ -566,11 +564,7 @@ export default function PackageBookingPage({ params }) {
       return;
     }
 
-    if (insuranceSelected && !insuranceCanPurchase) {
-      setErrorMessage("แผนประกันนี้เป็นแผนตัวอย่างหรือยังไม่เปิดขาย กรุณายกเลิกการเลือกประกันก่อนจอง");
-      return;
-    }
-    if (insuranceSelected && !insuranceTermsAcknowledged) {
+    if (purchasingInsurance && !insuranceTermsAcknowledged) {
       setErrorMessage("กรุณาอ่านและรับทราบเงื่อนไขกรมธรรม์ก่อนจอง");
       return;
     }
@@ -794,8 +788,8 @@ export default function PackageBookingPage({ params }) {
                         เบอร์โทรศัพท์
                       </span>
                       <span className="font-bold text-slate-800 text-xs sm:text-sm truncate block">
-                        {contactPhone || currentUser?.phone ? (
-                          formatPhoneNumber(contactPhone || currentUser?.phone)
+                        {bookingContactPhone ? (
+                          formatPhoneNumber(bookingContactPhone)
                         ) : (
                           <span className="text-amber-600 font-sans italic text-xs">
                             ยังไม่ได้ระบุ
@@ -1059,7 +1053,7 @@ export default function PackageBookingPage({ params }) {
                     {insurancePlan ? <span className="mt-1 block text-xs text-slate-500">{insurancePlan.insurer_name} · {insurancePlan.plan_name} · {insuranceCanPurchase ? "฿" : "ราคาอ้างอิง ฿"}{(insurancePlan.premium_satang / 100).toLocaleString("th-TH")} ต่อคน</span> : <span className="mt-1 block text-xs text-amber-700">{insuranceReady ? "แพ็กเกจนี้ยังไม่ได้เลือกแผนประกัน สามารถจองโดยไม่ซื้อประกันได้" : "กำลังโหลดแผนประกัน..."}</span>}
                   </span>
                 </label>
-                {insurancePlan && !insuranceCanPurchase && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{insurancePlan.is_demo ? "แผนนี้เป็นข้อมูลตัวอย่าง (DEMO)" : "แผนนี้เป็นข้อมูลจริงจากบริษัทประกัน แต่ยังไม่เปิดขายผ่าน Zentura"} ติ๊กเพื่อดูรายละเอียดได้ แต่ยังจองพร้อมประกันหรือชำระเบี้ยไม่ได้ กรุณายกเลิกการเลือกก่อนยืนยันการจอง{!insurancePlan.is_demo && <> · <a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="font-semibold underline">ดูข้อมูลจากบริษัทประกัน</a></>}</p>}
+                {insurancePlan && !insuranceCanPurchase && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{insurancePlan.is_demo ? "แผนนี้เป็นข้อมูลตัวอย่าง (DEMO)" : "แผนนี้เป็นข้อมูลจริงจากบริษัทประกัน แต่ยังไม่เปิดขายผ่าน Zentura"} ติ๊กเพื่อดูรายละเอียดได้และยืนยันการจองแพ็กเกจต่อได้ โดยการจองนี้ไม่ซื้อประกัน ไม่คิดเบี้ย และไม่มีกรมธรรม์{!insurancePlan.is_demo && <> · <a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="font-semibold underline">ดูข้อมูลจากบริษัทประกัน</a></>}</p>}
                 {insuranceSelected && insuranceCanPurchase && <label className="mt-4 flex items-start gap-2 text-xs text-slate-600">
                   <input type="checkbox" checked={insuranceTermsAcknowledged} onChange={(event) => setInsuranceTermsAcknowledged(event.target.checked)} className="mt-0.5" />
                   <span>ฉันอ่านและรับทราบ<a href={insurancePlan.terms_url} target="_blank" rel="noopener noreferrer" className="mx-1 font-semibold text-indigo-600 underline">เงื่อนไขกรมธรรม์</a>และการส่งข้อมูลผู้เดินทางให้บริษัทประกันแล้ว</span>
@@ -1414,7 +1408,7 @@ export default function PackageBookingPage({ params }) {
 
                   <div className="flex justify-between gap-2 border-t border-dashed border-slate-200 pt-2 text-xs">
                     <span>ประกันการเดินทาง ({totalPeople} คน)</span>
-                    <span className="font-semibold text-slate-900">{insuranceSelected ? insuranceCanPurchase ? `+฿${insuranceTotal.toLocaleString("th-TH")}` : "ตัวอย่าง · ยังไม่คิดเงิน" : "ไม่ได้เลือก"}</span>
+                    <span className="font-semibold text-slate-900">{purchasingInsurance ? `+฿${insuranceTotal.toLocaleString("th-TH")}` : insuranceSelected ? "ยังไม่เปิดขาย · ไม่ซื้อประกัน" : "ไม่ได้เลือก"}</span>
                   </div>
 
                   {/* ที่นั่งบนรถบัส */}
@@ -1495,7 +1489,7 @@ export default function PackageBookingPage({ params }) {
                 {/* Submit CTA Button */}
                 <button
                   type="submit"
-                  disabled={isSubmitting || !insuranceReady || (insuranceSelected && (!insuranceCanPurchase || !insuranceTermsAcknowledged))}
+                  disabled={isSubmitting || !insuranceReady || (purchasingInsurance && !insuranceTermsAcknowledged)}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.99] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
@@ -1504,7 +1498,7 @@ export default function PackageBookingPage({ params }) {
                       <span>กำลังดำเนินการจอง...</span>
                     </>
                   ) : (
-                    <span>ยืนยันการจองแพ็กเกจ</span>
+                    <span>{insuranceSelected && !insuranceCanPurchase ? "ยืนยันการจองแพ็กเกจโดยไม่ซื้อประกัน" : "ยืนยันการจองแพ็กเกจ"}</span>
                   )}
                 </button>
 

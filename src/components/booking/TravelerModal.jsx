@@ -280,11 +280,11 @@ function TravelerForm({
           <p className="text-[11px] text-slate-500 mt-1">ใช้ตรวจช่วงอายุที่กรมธรรม์รับประกัน</p>
         </div>
 
-        {/* Field 4: เบอร์โทรศัพท์ (ไม่บังคับ) */}
+        {/* Field 4: เบอร์โทรศัพท์ */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-xs font-bold text-slate-700">
-              เบอร์โทรศัพท์ (ไม่บังคับ)
+              {isFirst && !currentUser?.phone ? "เบอร์โทรศัพท์สำหรับติดต่อ *" : "เบอร์โทรศัพท์ (ไม่บังคับ)"}
             </label>
             {formData.phone && (
               <span className={`text-[10px] font-medium ${

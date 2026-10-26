@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Calendar,
   CheckCircle2,
-  Clock,
   Copy,
   Check,
   CreditCard,
@@ -19,7 +18,6 @@ import {
   Users,
   X,
   XCircle,
-  Zap,
 } from "lucide-react";
 import { BookingStatusBadge } from "@/components/ui/Badges";
 
@@ -28,11 +26,9 @@ export default function BookingDetailModal({
   isOpen,
   onClose,
   onUpdateStatus,
-  onMockPay,
   updating = false,
 }) {
   const [copiedCode, setCopiedCode] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("");
 
   if (!isOpen || !booking) return null;
 
@@ -139,26 +135,13 @@ export default function BookingDetailModal({
                   ปรับปรุงสถานะการจอง (Admin Action)
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  เลือกเปลี่ยนสถานะเพื่อแจ้งลูกค้าและบันทึกในระบบ
+                  ยืนยันได้เมื่อระบบมีรายการชำระเงินที่อนุมัติครบยอด หรือยกเลิกการจอง
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {booking.status === "PENDING_PAYMENT" && (
-                  <button
-                    type="button"
-                    disabled={updating}
-                    onClick={() => onMockPay && onMockPay(booking.booking_code)}
-                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm hover:from-emerald-700 hover:to-teal-700 active:scale-95 disabled:opacity-50 transition"
-                    title="จำลองว่าลูกค้าสแกนจ่ายเงินผ่าน QR Code เรียบร้อยแล้ว"
-                  >
-                    <Zap className="h-3.5 w-3.5" />
-                    จำลองสแกนชำระเงิน (Mock Pay)
-                  </button>
-                )}
-
                 <button
                   type="button"
-                  disabled={updating || booking.status === "CONFIRMED"}
+                  disabled={updating || booking.status === "CONFIRMED" || booking.status === "CANCELLED" || (booking.payments || []).filter((payment) => payment.status === "APPROVED" && ["STRIPE_LIVE_CARD", "BANK_TRANSFER_VERIFIED"].includes(payment.payment_method)).reduce((sum, payment) => sum + Number(payment.amount || 0), 0) + 0.01 < Number(booking.total_price)}
                   onClick={() => onUpdateStatus(booking.id, "CONFIRMED")}
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
                     booking.status === "CONFIRMED"
@@ -168,34 +151,6 @@ export default function BookingDetailModal({
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   ยืนยันการจอง
-                </button>
-
-                <button
-                  type="button"
-                  disabled={updating || booking.status === "AWAITING_VERIFICATION"}
-                  onClick={() => onUpdateStatus(booking.id, "AWAITING_VERIFICATION")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
-                    booking.status === "AWAITING_VERIFICATION"
-                      ? "bg-sky-100 text-sky-800 cursor-default ring-1 ring-sky-300"
-                      : "bg-sky-600 text-white hover:bg-sky-700 active:scale-95 disabled:opacity-50"
-                  }`}
-                >
-                  <Clock className="h-3.5 w-3.5" />
-                  รอตรวจสอบ
-                </button>
-
-                <button
-                  type="button"
-                  disabled={updating || booking.status === "PENDING_PAYMENT"}
-                  onClick={() => onUpdateStatus(booking.id, "PENDING_PAYMENT")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
-                    booking.status === "PENDING_PAYMENT"
-                      ? "bg-amber-100 text-amber-800 cursor-default ring-1 ring-amber-300"
-                      : "bg-amber-600 text-white hover:bg-amber-700 active:scale-95 disabled:opacity-50"
-                  }`}
-                >
-                  <Clock className="h-3.5 w-3.5" />
-                  รอชำระเงิน
                 </button>
 
                 <button
