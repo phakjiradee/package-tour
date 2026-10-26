@@ -35,6 +35,7 @@ import {
   Wallet,
   Users,
   XCircle,
+  CreditCard,
 } from "lucide-react";
 import {
   getAuth,
@@ -56,6 +57,20 @@ const formatPhoneNumber = (value) => {
   return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
 };
 
+// ฟังก์ชันจัดรูปแบบเลขบัตร ปชช. (x-xxxx-xxxxx-xx-x) หรือ Passport
+const formatIdCardOrPassport = (value) => {
+  if (!value) return "";
+  if (/[a-zA-Z]/.test(value)) {
+    return value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+  }
+  const cleaned = value.replace(/\D/g, "").slice(0, 13);
+  if (cleaned.length <= 1) return cleaned;
+  if (cleaned.length <= 5) return `${cleaned.slice(0, 1)}-${cleaned.slice(1)}`;
+  if (cleaned.length <= 10) return `${cleaned.slice(0, 1)}-${cleaned.slice(1, 5)}-${cleaned.slice(5)}`;
+  if (cleaned.length <= 12) return `${cleaned.slice(0, 1)}-${cleaned.slice(1, 5)}-${cleaned.slice(5, 10)}-${cleaned.slice(10)}`;
+  return `${cleaned.slice(0, 1)}-${cleaned.slice(1, 5)}-${cleaned.slice(5, 10)}-${cleaned.slice(10, 12)}-${cleaned.slice(12)}`;
+};
+
 export default function UserProfilePage() {
   const router = useRouter();
   const currentUser = useSyncExternalStore(
@@ -64,16 +79,35 @@ export default function UserProfilePage() {
     getAuthServerSnapshot,
   );
 
-  const [activeTab, setActiveTab] = useState("profile"); // 'profile' | 'points' | 'bookings' | 'security'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam && ["profile", "points", "bookings"].includes(tabParam)) {
+        return tabParam;
+      }
+    }
+    return "profile";
+  });
+  const [redirectUrl, setRedirectUrl] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("redirect") || "";
+    }
+    return "";
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Profile Form State
   const [formData, setFormData] = useState({
+    title: "นาย",
     name: "",
     email: "",
     phone: "",
+    id_card_or_passport: "",
+    date_of_birth: "",
     lineId: "",
     age: "",
   });
@@ -102,17 +136,6 @@ export default function UserProfilePage() {
   const [userPoints, setUserPoints] = useState(0);
   const [pointTransactions, setPointTransactions] = useState([]);
 
-  // ตรวจสอบแท็บเริ่มต้นจาก URL Query Params (เช่น ?tab=points)
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (tabParam && ["profile", "points", "bookings"].includes(tabParam)) {
-        setActiveTab(tabParam);
-      }
-    }
-  }, []);
-
   // ตรวจสอบการเข้าสู่ระบบ
   useEffect(() => {
     const token =
@@ -133,13 +156,20 @@ export default function UserProfilePage() {
         if (user) {
           setUserDetails(user);
           setUserPoints(Number(user.points) || 0);
+          const dob = user.date_of_birth
+            ? new Date(user.date_of_birth).toISOString().slice(0, 10)
+            : "";
           setFormData({
+            title: user.title || "นาย",
             name: user.name || "",
             email: user.email || "",
             phone: formatPhoneNumber(user.phone || ""),
+            id_card_or_passport: formatIdCardOrPassport(user.id_card_or_passport || ""),
+            date_of_birth: dob,
             lineId: user.lineId || "",
             age: user.age ? String(user.age) : "",
           });
+          setAuth(user);
         }
 
         // ดึงประวัติการจองของผู้ใช้เพื่อทำสถิติ
@@ -197,11 +227,23 @@ export default function UserProfilePage() {
       return;
     }
 
+    const cleanId = formData.id_card_or_passport.toUpperCase().replace(/[\s-]/g, "");
+    if (cleanId && !/^(\d{13}|[A-Z0-9]{6,12})$/.test(cleanId)) {
+      setProfileAlert({
+        type: "error",
+        message: "เลขบัตรประชาชนต้องมี 13 หลัก หรือเลข Passport 6-12 ตัวอักษร",
+      });
+      return;
+    }
+
     try {
       setIsSavingProfile(true);
       const res = await authService.updateProfile({
+        title: formData.title || "นาย",
         name: formData.name.trim(),
         phone: cleanPhone || null,
+        id_card_or_passport: cleanId || null,
+        date_of_birth: formData.date_of_birth || null,
         lineId: formData.lineId.trim() || null,
         age: formData.age ? parseInt(formData.age) : null,
       });
@@ -213,7 +255,7 @@ export default function UserProfilePage() {
         });
         if (res.user) {
           setUserDetails(res.user);
-          // อัปเดตข้อมูลใน auth store เพื่อให้ navbar ซิงค์ชื่อทันที
+          // อัปเดตข้อมูลใน auth store เพื่อให้ส่วนอื่นๆ ซิงค์ทันที
           setAuth(res.user);
         }
       } else {
@@ -495,12 +537,21 @@ export default function UserProfilePage() {
             <div className="md:col-span-2 rounded-3xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-xs">
               <div className="mb-5 border-b border-slate-100 pb-4">
                 <h2 className="text-base font-bold text-slate-900">
-                  แก้ไขข้อมูลส่วนตัว
+                  แก้ไขข้อมูลส่วนตัวและผู้จองหลัก
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  ข้อมูลนี้จะถูกนำไปใช้กรอกชื่อและเบอร์ติดต่อโดยอัตโนมัติเมื่อทำการจองแพ็กเกจ
+                  ข้อมูลนี้จำเป็นสำหรับการจองแพ็กเกจ ออกตั๋วโดยสาร และกรมธรรม์ประกันภัยการเดินทาง
                 </p>
               </div>
+
+              {redirectUrl && (
+                <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl bg-amber-50 p-4 border border-amber-200 text-xs font-semibold text-amber-900">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>กรุณากรอกข้อมูลส่วนตัว (เลขบัตร ปชช./Passport และวันเกิด) ให้เรียบร้อยเพื่อดำเนินการจองต่อ</span>
+                  </div>
+                </div>
+              )}
 
               {profileAlert.message && (
                 <div
@@ -520,28 +571,138 @@ export default function UserProfilePage() {
               )}
 
               <form onSubmit={handleProfileSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    ชื่อ-นามสกุล <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
+                {/* คำนำหน้าชื่อ + ชื่อ-นามสกุล */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      คำนำหน้าชื่อ <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={formData.title}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          name: e.target.value,
+                          title: e.target.value,
                         }))
                       }
-                      placeholder="เช่น ธนากร สุขสวัสดิ์"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all cursor-pointer shadow-2xs"
+                    >
+                      <option value="นาย">นาย</option>
+                      <option value="นาง">นาง</option>
+                      <option value="นางสาว">นางสาว</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      ชื่อ-นามสกุล (ตามบัตร ปชช. หรือ Passport) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                        placeholder="เช่น ธนากร สุขสวัสดิ์"
+                        className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm font-medium text-slate-800 shadow-2xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* เลขประจำตัวประชาชน / Passport */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      เลขประจำตัวประชาชน / Passport <span className="text-rose-500">*</span>
+                    </label>
+                    {formData.id_card_or_passport && (
+                      <span
+                        className={`text-[10px] font-medium ${
+                          formData.id_card_or_passport.replace(/\D/g, "").length === 13
+                            ? "text-emerald-600 font-bold"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {formData.id_card_or_passport.replace(/\D/g, "").length > 0 &&
+                        !/[a-zA-Z]/.test(formData.id_card_or_passport)
+                          ? `${formData.id_card_or_passport.replace(/\D/g, "").length}/13 หลัก`
+                          : "Passport"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={17}
+                      placeholder="เลขบัตร 13 หลัก เช่น 1-2345-67890-12-3 หรือ Passport"
+                      value={formData.id_card_or_passport}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          id_card_or_passport: formatIdCardOrPassport(e.target.value),
+                        }))
+                      }
                       className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm font-medium text-slate-800 shadow-2xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    ข้อมูลนี้จำเป็นต้องใช้ในการออกตั๋วโดยสารและลงทะเบียนประกันอุบัติเหตุการเดินทาง
+                  </p>
+                </div>
+
+                {/* วันเกิดตามเอกสาร + อายุ */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      วันเกิดตามเอกสาร <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={formData.date_of_birth}
+                        max={new Date().toISOString().slice(0, 10)}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            date_of_birth: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 shadow-2xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all cursor-pointer"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      ใช้ตรวจช่วงอายุที่กรมธรรม์รับประกัน
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      อายุ (ปี)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={formData.age}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, age: e.target.value }))
+                      }
+                      placeholder="เช่น 28"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 shadow-2xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
                     />
                   </div>
                 </div>
 
+                {/* อีเมล */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-bold text-slate-700">
@@ -565,10 +726,11 @@ export default function UserProfilePage() {
                   </p>
                 </div>
 
+                {/* เบอร์โทรศัพท์ + Line ID */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      เบอร์โทรศัพท์มือถือ
+                      เบอร์โทรศัพท์มือถือ <span className="text-rose-500">*</span>
                     </label>
                     <div className="relative">
                       <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -605,41 +767,46 @@ export default function UserProfilePage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    อายุ (ปี)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="120"
-                    value={formData.age}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, age: e.target.value }))
-                    }
-                    placeholder="เช่น 28"
-                    className="w-full sm:w-1/2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 shadow-2xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
-                  />
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
-                  <button
-                    type="submit"
-                    disabled={isSavingProfile}
-                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-200 transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-50 cursor-pointer"
-                  >
-                    {isSavingProfile ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>กำลังบันทึก...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>บันทึกข้อมูลส่วนตัว</span>
-                      </>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                  {redirectUrl && (
+                    <button
+                      type="button"
+                      onClick={() => router.push(redirectUrl)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-xs hover:bg-slate-50 transition-all cursor-pointer"
+                    >
+                      <ArrowRight className="h-4 w-4 rotate-180" />
+                      <span>กลับไปหน้าจอง</span>
+                    </button>
+                  )}
+                  <div className="ml-auto flex items-center gap-2">
+                    {redirectUrl && profileAlert.type === "success" && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(redirectUrl)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-200 hover:bg-emerald-700 transition-all cursor-pointer"
+                      >
+                        <span>ไปจองแพ็กเกจต่อ</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
                     )}
-                  </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingProfile}
+                      className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-200 transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isSavingProfile ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>กำลังบันทึก...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span>บันทึกข้อมูลส่วนตัว</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>

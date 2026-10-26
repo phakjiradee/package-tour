@@ -45,8 +45,14 @@ export const bookingService = {
   },
 
   // อัปเดตสถานะการจอง (สำหรับแอดมิน)
-  async updateStatus(id, status) {
-    const response = await api.patch(`/booking/${id}/status`, { status });
+  async updateStatus(id, status, payload = {}) {
+    const response = await api.patch(`/booking/${id}/status`, { status, ...payload });
+    return response.data;
+  },
+
+  // จัดการการคืนเงิน (สำหรับแอดมิน)
+  async refund(id, data = {}) {
+    const response = await api.post(`/booking/${id}/refund`, data);
     return response.data;
   },
 

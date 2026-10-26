@@ -37,6 +37,8 @@ const STATUS_TABS = [
   { label: "ทั้งหมด", value: "ALL" },
   { label: "รอชำระเงิน", value: "PENDING_PAYMENT" },
   { label: "ยืนยันแล้ว", value: "CONFIRMED" },
+  { label: "ขอคืนเงิน (Refund)", value: "REFUND_PENDING" },
+  { label: "คืนเงินแล้ว", value: "REFUNDED" },
   { label: "ยกเลิกแล้ว", value: "CANCELLED" },
 ];
 
@@ -161,20 +163,27 @@ export default function BackofficeBookingPage() {
   };
 
   // Update status handler
-  const handleUpdateStatus = async (bookingId, newStatus) => {
+  const handleUpdateStatus = async (bookingId, newStatus, payload = {}) => {
     try {
       setUpdatingStatus(true);
-      await bookingService.updateStatus(bookingId, newStatus);
+      const res = await bookingService.updateStatus(bookingId, newStatus, payload);
       showToast("อัปเดตสถานะการจองสำเร็จ");
 
       // Update in local state
-      setBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
-      );
-
-      // If modal is open with this booking, update it too
-      if (selectedBooking && selectedBooking.id === bookingId) {
-        setSelectedBooking((prev) => ({ ...prev, status: newStatus }));
+      if (res && res.data) {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? res.data : b)),
+        );
+        if (selectedBooking && selectedBooking.id === bookingId) {
+          setSelectedBooking(res.data);
+        }
+      } else {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus, ...payload } : b)),
+        );
+        if (selectedBooking && selectedBooking.id === bookingId) {
+          setSelectedBooking((prev) => ({ ...prev, status: newStatus, ...payload }));
+        }
       }
       await Promise.all([fetchBookings(pagination.page, search, statusFilter), fetchOverview()]);
     } catch (err) {

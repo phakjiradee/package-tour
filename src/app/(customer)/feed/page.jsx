@@ -164,11 +164,19 @@ export default function CustomerHomePage() {
     };
   }, []);
 
-  // Filter packages for customer visibility
+  // Filter packages for customer visibility (hide Draft, Archived, Closed, and Expired packages)
   const visiblePackages = useMemo(() => {
-    return packages.filter(
-      (pkg) => pkg.status !== "Draft" && pkg.status !== "Archived"
-    );
+    const now = new Date();
+    return packages.filter((pkg) => {
+      if (pkg.status === "Draft" || pkg.status === "Archived" || pkg.status === "Closed") {
+        return false;
+      }
+      const isAfterEnd =
+        pkg.booking_end_date &&
+        new Date(new Date(pkg.booking_end_date).setHours(23, 59, 59, 999)) < now;
+      if (isAfterEnd) return false;
+      return true;
+    });
   }, [packages]);
 
   // 1. หัวข้อ: แนะนำยอดนิยม (Recommended / Popular - Limit 10)

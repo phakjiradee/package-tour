@@ -54,15 +54,31 @@ export default function CustomerPackageListPage() {
     };
   }, []);
 
+  // Filter active and unexpired packages for customers
+  const activePackages = useMemo(() => {
+    const now = new Date();
+    return packages.filter((pkg) => {
+      // Customer visibility rule: Draft, Archived, and Closed are hidden from customer catalog
+      if (pkg.status === "Draft" || pkg.status === "Archived" || pkg.status === "Closed") {
+        return false;
+      }
+
+      // Hide expired packages (booking_end_date in the past)
+      const isAfterEnd =
+        pkg.booking_end_date &&
+        new Date(new Date(pkg.booking_end_date).setHours(23, 59, 59, 999)) < now;
+      if (isAfterEnd) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [packages]);
+
   // Filter and sort packages
   const filteredPackages = useMemo(() => {
-    return packages
+    return activePackages
       .filter((pkg) => {
-        // Customer visibility rule: Draft and Archived are hidden from customer catalog
-        if (pkg.status === "Draft" || pkg.status === "Archived") {
-          return false;
-        }
-
         // Search filter
         const query = searchQuery.trim().toLowerCase();
         if (query) {
@@ -90,23 +106,13 @@ export default function CustomerPackageListPage() {
         return true;
       })
       .sort((a, b) => {
-        const now = new Date();
-        const aAfterEnd = a.booking_end_date && new Date(new Date(a.booking_end_date).setHours(23, 59, 59, 999)) < now;
-        const bAfterEnd = b.booking_end_date && new Date(new Date(b.booking_end_date).setHours(23, 59, 59, 999)) < now;
-        const aClosed = a.status === "Closed" || aAfterEnd;
-        const bClosed = b.status === "Closed" || bAfterEnd;
-
-        // Push expired or closed packages to the bottom
-        if (!aClosed && bClosed) return -1;
-        if (aClosed && !bClosed) return 1;
-
-        // Otherwise sort by user selection
+        // Sort by user selection
         if (sortBy === "price_asc") return (a.price || 0) - (b.price || 0);
         if (sortBy === "price_desc") return (b.price || 0) - (a.price || 0);
         if (sortBy === "duration_desc") return (b.dayplans?.length || 0) - (a.dayplans?.length || 0);
         return b.id - a.id; // default newest
       });
-  }, [packages, searchQuery, sortBy, filterDuration, filterAddonOnly]);
+  }, [activePackages, searchQuery, sortBy, filterDuration, filterAddonOnly]);
 
   return (
     <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8 pb-16 space-y-8">
@@ -196,7 +202,7 @@ export default function CustomerPackageListPage() {
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            ทั้งหมด ({packages.length})
+            ทั้งหมด ({activePackages.length})
           </button>
 
           <button

@@ -28,6 +28,7 @@ import {
   Sparkles,
   XCircle,
   AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import bookingService from "@/service/booking";
 import MockPaymentQR from "@/components/payment/MockPaymentQR";
@@ -232,6 +233,8 @@ function BookingSuccessContent({ params }) {
   const isConfirmed = booking.status === "CONFIRMED";
   const isCancelled = booking.status === "CANCELLED";
   const isPaymentException = booking.status === "PAYMENT_EXCEPTION";
+  const isRefundPending = booking.status === "REFUND_PENDING";
+  const isRefunded = booking.status === "REFUNDED";
 
   return (
     <div className="min-h-screen bg-slate-50/60 pb-20 pt-8 print:bg-white print:p-0">
@@ -284,12 +287,22 @@ function BookingSuccessContent({ params }) {
         <div className="rounded-3xl bg-white p-6 sm:p-8 text-center shadow-sm border border-slate-200/80 mb-6">
           <div
             className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${
-              isCancelled || isPaymentException
+              isRefunded
+                ? "bg-teal-50 text-teal-600"
+                : isRefundPending
+                ? "bg-purple-50 text-purple-600"
+                : isCancelled || isPaymentException
                 ? "bg-rose-50 text-rose-600"
-                : "bg-emerald-50 text-emerald-600"
+                : isConfirmed
+                ? "bg-emerald-50 text-emerald-600"
+                : "bg-amber-50 text-amber-600"
             }`}
           >
-            {isCancelled || isPaymentException ? (
+            {isRefunded ? (
+              <CheckCircle2 className="h-10 w-10 text-teal-600" />
+            ) : isRefundPending ? (
+              <RotateCcw className="h-10 w-10 text-purple-600" />
+            ) : isCancelled || isPaymentException ? (
               <XCircle className="h-10 w-10 text-rose-600" />
             ) : (
               <CheckCircle2 className="h-10 w-10" />
@@ -298,14 +311,22 @@ function BookingSuccessContent({ params }) {
 
           <span
             className={`inline-block rounded-full px-3.5 py-1 text-xs font-bold mb-2 ${
-              isCancelled || isPaymentException
+              isRefunded
+                ? "bg-teal-100 text-teal-800 ring-1 ring-teal-200"
+                : isRefundPending
+                ? "bg-purple-100 text-purple-800 ring-1 ring-purple-200"
+                : isCancelled || isPaymentException
                 ? "bg-rose-100 text-rose-800 ring-1 ring-rose-200"
                 : isConfirmed
                 ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200"
                 : "bg-amber-100 text-amber-800 ring-1 ring-amber-200"
             }`}
           >
-            {isCancelled
+            {isRefunded
+              ? "คืนเงินเรียบร้อยแล้ว (REFUNDED)"
+              : isRefundPending
+              ? "รอดำเนินการคืนเงิน (REFUND PENDING)"
+              : isCancelled
               ? "ยกเลิกการจองแล้ว (CANCELLED)"
               : isPaymentException
               ? "พบการชำระเงินหลังยกเลิกการจอง"
@@ -315,14 +336,22 @@ function BookingSuccessContent({ params }) {
           </span>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            {isCancelled
+            {isRefunded
+              ? "รายการจองนี้ได้รับการคืนเงินเรียบร้อยแล้ว"
+              : isRefundPending
+              ? "รายการจองนี้อยู่ระหว่างดำเนินการคืนเงิน"
+              : isCancelled
               ? "รายการจองนี้ถูกยกเลิกแล้ว"
               : isPaymentException
               ? "กรุณาติดต่อเจ้าหน้าที่เรื่องการชำระเงิน"
               : "ขอบคุณสำหรับการจองทัวร์กับ Zentura"}
           </h1>
           <p className="mt-1 text-sm text-slate-500 max-w-md mx-auto">
-            {isCancelled
+            {isRefunded
+              ? "ทางทีมงานได้ดำเนินการคืนเงินให้ท่านเรียบร้อยแล้ว เนื่องจากเกิดปัญหาในการจัดเดินทางหรือสถานที่ท่องเที่ยว"
+              : isRefundPending
+              ? "เนื่องจากติดปัญหาในการดำเนินทริปหรือสถานที่ท่องเที่ยว ทางเรากำลังดำเนินการโอนเงินคืนให้ท่านตามยอดที่ระบุ"
+              : isCancelled
               ? "รายการจองนี้ถูกยกเลิกตามคำขอเรียบร้อยแล้ว หากคุณต้องการเดินทาง กรุณาเลือกแพ็กเกจและทำรายการจองใหม่อีกครั้ง"
               : isPaymentException
               ? "ระบบได้รับเงินหลังการยกเลิกและยังไม่ได้ออกประกัน กรุณาติดต่อเจ้าหน้าที่เพื่อดำเนินการคืนเงิน"
@@ -349,8 +378,86 @@ function BookingSuccessContent({ params }) {
           </div>
         </div>
 
-        {/* PAYMENT / CANCELLATION SECTION */}
-        {isPaymentException ? <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">รับชำระหลังยกเลิกการจองแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อดำเนินการคืนเงินและตรวจสอบสถานะประกัน</div> : isCancelled ? (
+        {/* PAYMENT / CANCELLATION / REFUND SECTION */}
+        {isRefundPending || isRefunded ? (
+          /* Refund Summary Card */
+          <div
+            className={`rounded-3xl p-6 sm:p-8 shadow-md mb-6 border text-white ${
+              isRefunded
+                ? "bg-gradient-to-br from-teal-950 via-slate-900 to-teal-900 border-teal-800/60"
+                : "bg-gradient-to-br from-purple-950 via-slate-900 to-purple-900 border-purple-800/60"
+            }`}
+          >
+            <div
+              className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b ${
+                isRefunded ? "border-teal-800/60" : "border-purple-800/60"
+              }`}
+            >
+              <div>
+                <p
+                  className={`text-xs font-medium ${
+                    isRefunded ? "text-teal-200" : "text-purple-200"
+                  }`}
+                >
+                  ยอดเงินคืน
+                </p>
+                <p className="text-3xl font-extrabold text-white">
+                  ฿{(booking.refund_amount ?? booking.total_price)?.toLocaleString()}
+                </p>
+              </div>
+              <div
+                className={`rounded-xl px-4 py-2 border text-xs font-bold flex items-center gap-2 ${
+                  isRefunded
+                    ? "bg-teal-500/20 border-teal-400/40 text-teal-300"
+                    : "bg-purple-500/20 border-purple-400/40 text-purple-300"
+                }`}
+              >
+                {isRefunded ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 text-teal-400" />
+                    สถานะ: คืนเงินแล้ว (REFUNDED)
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="h-4 w-4 text-purple-400" />
+                    สถานะ: รอดำเนินการคืนเงิน (REFUND PENDING)
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-slate-400">สาเหตุการคืนเงิน:</span>
+                <span className="font-semibold text-white">
+                  {booking.refund_reason || "เนื่องจากติดปัญหาในการดำเนินทริปหรือสถานที่ท่องเที่ยว"}
+                </span>
+              </div>
+              {booking.refunded_at && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-slate-400">วันเวลาที่คืนเงิน:</span>
+                  <span className="font-semibold text-white">
+                    {new Date(booking.refunded_at).toLocaleString("th-TH")}
+                  </span>
+                </div>
+              )}
+              {booking.refund_slip_url && (
+                <div className="pt-2 border-t border-slate-700/60 flex items-center justify-between">
+                  <span className="text-slate-400">หลักฐานการโอนเงินคืน:</span>
+                  <a
+                    href={booking.refund_slip_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-teal-300 hover:text-teal-200 underline"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    เปิดดูสลิปโอนเงิน
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : isPaymentException ? <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">รับชำระหลังยกเลิกการจองแล้ว กรุณาติดต่อเจ้าหน้าที่เพื่อดำเนินการคืนเงินและตรวจสอบสถานะประกัน</div> : isCancelled ? (
           /* Cancelled Summary Card */
           <div className="rounded-3xl bg-slate-900 text-white p-6 sm:p-8 shadow-md mb-6 border border-slate-800">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
@@ -672,6 +779,83 @@ function BookingSuccessContent({ params }) {
             )}
           </div>
 
+          {/* Financial Transactions Evidence */}
+          {booking.payments && booking.payments.length > 0 && (
+            <div className="pt-4 border-t border-slate-100">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <CreditCard className="h-3.5 w-3.5 text-indigo-600" />
+                <span>ประวัติธุรกรรมการเงิน (Transactions)</span>
+              </h4>
+              <div className="space-y-2">
+                {booking.payments.map((p) => {
+                  const isRefund = p.payment_method === "REFUND_TRANSFER" || p.status === "REFUNDED";
+                  return (
+                    <div
+                      key={p.id}
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl p-3 text-xs border ${
+                        isRefund
+                          ? "bg-purple-50/50 border-purple-200/80"
+                          : "bg-slate-50 border-slate-200/60"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800">
+                            {isRefund
+                              ? "โอนเงินคืน (Refund Transaction)"
+                              : p.payment_method === "PROMPTPAY_MOCK"
+                              ? "PromptPay QR"
+                              : p.payment_method === "STRIPE_LIVE_CARD"
+                              ? "บัตรเครดิต (Stripe)"
+                              : p.payment_method || "PromptPay QR"}
+                          </span>
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              isRefund
+                                ? "bg-purple-100 text-purple-700"
+                                : p.status === "APPROVED"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-slate-200 text-slate-700"
+                            }`}
+                          >
+                            {isRefund ? "คืนเงินแล้ว" : p.status === "APPROVED" ? "สำเร็จ" : p.status}
+                          </span>
+                        </div>
+                        <p className="text-slate-400 text-[11px] mt-0.5">
+                          {new Date(p.paid_at || p.createdAt).toLocaleString("th-TH")}
+                        </p>
+                        {p.reject_reason && (
+                          <p className="text-purple-800 text-[11px] mt-0.5">
+                            {p.reject_reason}
+                          </p>
+                        )}
+                        {p.slip_url && (
+                          <a
+                            href={p.slip_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 underline mt-1"
+                          >
+                            <ExternalLink className="h-3 w-3" /> เปิดดูหลักฐานสลิปการเงิน
+                          </a>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span
+                          className={`font-extrabold text-sm ${
+                            isRefund ? "text-rose-600" : "text-emerald-600"
+                          }`}
+                        >
+                          {isRefund ? "−" : "+"}฿{p.amount?.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Collaborators List (if any) */}
           {booking.bookingCollaps && booking.bookingCollaps.length > 0 && (
             <div className="pt-4 border-t border-slate-100">
@@ -706,7 +890,7 @@ function BookingSuccessContent({ params }) {
           </Link>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-            {!isCancelled && !isPaymentException && (
+            {!isCancelled && !isPaymentException && !isRefundPending && !isRefunded && (
               <button
                 type="button"
                 onClick={() => setIsCancelModalOpen(true)}

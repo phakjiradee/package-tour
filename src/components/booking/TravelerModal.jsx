@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import {
   User,
   CreditCard,
@@ -14,6 +15,8 @@ import {
   Crown,
   UserCheck,
   Trash2,
+  Pencil,
+  AlertCircle,
 } from "lucide-react";
 import { UserAvatar } from "@/components/package/CollaboratorBox";
 
@@ -71,6 +74,116 @@ function TravelerForm({
   });
 
   const isFirst = travelerIndex === 0;
+
+  if (isFirst) {
+    const isComplete = Boolean(
+      currentUser?.name?.trim() &&
+      currentUser?.id_card_or_passport?.trim() &&
+      currentUser?.date_of_birth
+    );
+
+    return (
+      <>
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-4.5 flex-1">
+          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 flex items-start gap-3.5">
+            <div className="shrink-0 mt-0.5">
+              {currentUser ? (
+                <UserAvatar user={currentUser} size="sm" showCrown={true} />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                  <Crown className="h-4 w-4 text-amber-300" />
+                </div>
+              )}
+            </div>
+            <div className="text-xs min-w-0 flex-1">
+              <p className="font-bold text-indigo-950 flex items-center gap-1.5">
+                <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                <span>บัญชีผู้จองหลัก ({currentUser?.name || contactName || "คุณ"})</span>
+              </p>
+              <p className="text-indigo-700 text-[11px] mt-1 leading-relaxed">
+                ข้อมูลของผู้จองหลักจะอิงตามข้อมูลในหน้าโปรไฟล์ของคุณเท่านั้น เพื่อความถูกต้องในการออกตั๋วและกรมธรรม์
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-4 space-y-3 text-xs">
+            <div className="flex items-center justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">คำนำหน้า และ ชื่อ-นามสกุล:</span>
+              <span className="font-bold text-slate-800">
+                {currentUser?.title || "นาย"} {currentUser?.name || contactName || "-"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">เลขประจำตัวประชาชน / Passport:</span>
+              <span className="font-bold text-slate-800">
+                {currentUser?.id_card_or_passport ? (
+                  formatIdCardOrPassport(currentUser.id_card_or_passport)
+                ) : (
+                  <span className="text-rose-500 font-semibold flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5" /> ยังไม่ได้ระบุในโปรไฟล์
+                  </span>
+                )}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">วันเกิดตามเอกสาร:</span>
+              <span className="font-bold text-slate-800">
+                {currentUser?.date_of_birth ? (
+                  new Date(currentUser.date_of_birth).toISOString().slice(0, 10)
+                ) : (
+                  <span className="text-rose-500 font-semibold flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5" /> ยังไม่ได้ระบุในโปรไฟล์
+                  </span>
+                )}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between py-1">
+              <span className="text-slate-500 font-medium">เบอร์โทรศัพท์:</span>
+              <span className="font-bold text-slate-800">
+                {currentUser?.phone ? formatPhoneNumber(currentUser.phone) : "-"}
+              </span>
+            </div>
+          </div>
+
+          <Link
+            href={`/profile?redirect=${encodeURIComponent(
+              typeof window !== "undefined"
+                ? window.location.pathname + window.location.search
+                : ""
+            )}`}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all cursor-pointer"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span>{isComplete ? "แก้ไขข้อมูลในหน้าโปรไฟล์" : "ไปกรอกข้อมูลให้ครบถ้วนที่หน้าโปรไฟล์"}</span>
+          </Link>
+        </div>
+
+        <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
+          >
+            ปิด
+          </button>
+
+          {hasNext && (
+            <button
+              type="button"
+              onClick={() => onSwitchTab && onSwitchTab(travelerIndex + 1)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition-all cursor-pointer"
+            >
+              <span>ผู้เดินทางท่านถัดไป</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </>
+    );
+  }
 
   const handleFieldChange = (field, value) => {
     setFormData((prev) => ({
@@ -423,7 +536,7 @@ export default function TravelerModal({
 
   const totalTravelers = travelers.length;
   const hasNext = travelerIndex < totalTravelers - 1;
-  const hasPrev = travelerIndex > 0;
+  const hasPrev = travelerIndex > 1;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-200">
@@ -439,7 +552,7 @@ export default function TravelerModal({
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                <h3 className="text-base sm:lg font-bold text-slate-900">
                   ข้อมูลผู้เดินทางท่านที่ {travelerIndex + 1}
                 </h3>
                 {isFirst ? (
@@ -473,10 +586,11 @@ export default function TravelerModal({
           </button>
         </div>
 
-        {/* Traveler Switcher Tabs (if multiple travelers) */}
-        {totalTravelers > 1 && (
+        {/* Traveler Switcher Tabs (if multiple companion travelers) */}
+        {travelers.filter((_, idx) => idx > 0).length > 1 && (
           <div className="px-5 pt-3 pb-2 border-b border-slate-100 bg-slate-50/70 overflow-x-auto no-scrollbar flex items-center gap-1.5">
             {travelers.map((t, idx) => {
+              if (idx === 0) return null;
               const active = idx === travelerIndex;
               const isFilled =
                 Boolean(t.full_name?.trim()) && Boolean(t.id_card_or_passport?.trim()) && Boolean(t.date_of_birth);
@@ -493,9 +607,7 @@ export default function TravelerModal({
                   }`}
                 >
                   <span>ท่านที่ {idx + 1}</span>
-                  {idx === 0 ? (
-                    <span className="text-[10px] opacity-80">(หลัก)</span>
-                  ) : t.passenger_type === "child" ? (
+                  {t.passenger_type === "child" ? (
                     <span className="text-[10px] font-bold text-amber-500 bg-amber-50 px-1 rounded">
                       เด็ก
                     </span>

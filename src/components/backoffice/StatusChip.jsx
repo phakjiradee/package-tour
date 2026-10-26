@@ -47,6 +47,14 @@ export default function StatusChip({
     resolvedTone = "danger";
     ResolvedIcon = ResolvedIcon || XCircle;
     if (!label) resolvedLabel = "ยกเลิกแล้ว";
+  } else if (status === "REFUND_PENDING") {
+    resolvedTone = "purple";
+    ResolvedIcon = ResolvedIcon || AlertCircle;
+    if (!label) resolvedLabel = "ขอคืนเงิน (รอดำเนินการ)";
+  } else if (status === "REFUNDED") {
+    resolvedTone = "purple";
+    ResolvedIcon = ResolvedIcon || CheckCircle2;
+    if (!label) resolvedLabel = "คืนเงินแล้ว";
   } else if (status === "DRAFT" || status === "draft") {
     resolvedTone = "neutral";
     ResolvedIcon = ResolvedIcon || Circle;

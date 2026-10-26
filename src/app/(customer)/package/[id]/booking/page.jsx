@@ -211,10 +211,10 @@ export default function PackageBookingPage({ params }) {
   const [travelDate, setTravelDate] = useState("");
 
   // Contact Info
-  const [contactName, setContactName] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactLineId, setContactLineId] = useState("");
+  const [contactName, setContactName] = useState(() => currentUser?.name || "");
+  const [contactPhone, setContactPhone] = useState(() => formatPhoneNumber(currentUser?.phone || ""));
+  const [contactEmail, setContactEmail] = useState(() => currentUser?.email || "");
+  const [contactLineId, setContactLineId] = useState(() => currentUser?.lineId || "");
   const [specialRequests, setSpecialRequests] = useState("");
 
   // Selected Addons: { [addonId]: true }
@@ -228,14 +228,17 @@ export default function PackageBookingPage({ params }) {
 
   // Travelers array (Lead traveler is index 0)
   const [travelers, setTravelers] = useState(() => {
+    const dobStr = currentUser?.date_of_birth
+      ? new Date(currentUser.date_of_birth).toISOString().slice(0, 10)
+      : "";
     const list = [
       {
         passenger_type: "adult",
-        title: "นาย",
-        full_name: "",
-        id_card_or_passport: "",
-        date_of_birth: "",
-        phone: "",
+        title: currentUser?.title || "นาย",
+        full_name: currentUser?.name || "",
+        id_card_or_passport: currentUser?.id_card_or_passport || "",
+        date_of_birth: dobStr,
+        phone: currentUser?.phone || "",
         collab_user: null,
       },
     ];
@@ -302,6 +305,19 @@ export default function PackageBookingPage({ params }) {
   ).length;
   const totalPeople = adultCount + childCount;
   const bookingContactPhone = contactPhone || currentUser?.phone || travelers[0]?.phone || "";
+  const bookingContactName = (contactName || currentUser?.name || travelers[0]?.full_name || "").trim();
+
+  const leadDob = currentUser?.date_of_birth
+    ? new Date(currentUser.date_of_birth).toISOString().slice(0, 10)
+    : "";
+  const isLeadProfileComplete = Boolean(
+    currentUser?.name?.trim() &&
+    currentUser?.id_card_or_passport?.trim() &&
+    leadDob
+  );
+  const currentBookingPath = typeof window !== "undefined"
+    ? window.location.pathname + window.location.search
+    : `/package/${packageId}/booking`;
 
   // Derived collaborators from travelers list
   const collaborators = travelers
@@ -407,31 +423,38 @@ export default function PackageBookingPage({ params }) {
     }
   }, []);
 
-  // Autofill contact info and lead traveler from logged in user if available
+  // Refresh me from server to ensure latest profile data is in client store
   useEffect(() => {
-    if (currentUser) {
-      if (!contactName && currentUser.name) setContactName(currentUser.name);
-      if (!contactEmail && currentUser.email)
-        setContactEmail(currentUser.email);
-      if (!contactPhone && currentUser.phone)
-        setContactPhone(formatPhoneNumber(currentUser.phone));
-
-      setTravelers((prev) => {
-        if (prev.length === 0) return prev;
-        const first = prev[0];
-        if (!first.full_name && currentUser.name) {
-          const updated = [...prev];
-          updated[0] = {
-            ...first,
-            full_name: currentUser.name,
-            phone: first.phone || currentUser.phone || "",
-          };
-          return updated;
+    async function refreshProfile() {
+      try {
+        const meRes = await authService.getMe();
+        const user = meRes?.user || meRes?.data || meRes;
+        if (user) {
+          setAuth(user);
+          setTravelers((prev) => {
+            if (prev.length === 0) return prev;
+            const updated = [...prev];
+            const dobStr = user.date_of_birth
+              ? new Date(user.date_of_birth).toISOString().slice(0, 10)
+              : "";
+            updated[0] = {
+              ...updated[0],
+              passenger_type: "adult",
+              title: user.title || "นาย",
+              full_name: user.name || "",
+              id_card_or_passport: user.id_card_or_passport || "",
+              date_of_birth: dobStr,
+              phone: user.phone || "",
+            };
+            return updated;
+          });
         }
-        return prev;
-      });
+      } catch (err) {
+        // ignore
+      }
     }
-  }, [currentUser]);
+    refreshProfile();
+  }, []);
 
   // วันที่เดินทางของแพ็กเกจ และช่วงเวลาเปิดรับจอง
   const travelStartDate =
@@ -524,7 +547,7 @@ export default function PackageBookingPage({ params }) {
     const finalTravelDate =
       travelDate || travelStartDate || new Date().toISOString();
 
-    const activeContactName = (contactName || currentUser?.name || "").trim();
+    const activeContactName = bookingContactName;
     const activeContactPhone = bookingContactPhone.trim();
     const activeContactEmail = (
       contactEmail ||
@@ -568,10 +591,26 @@ export default function PackageBookingPage({ params }) {
       setErrorMessage("กรุณาอ่านและรับทราบเงื่อนไขกรมธรรม์ก่อนจอง");
       return;
     }
-    const incompleteIndex = travelers.findIndex((t, idx) =>
-      !(t.full_name?.trim() || (idx === 0 && activeContactName)) ||
-      !t.id_card_or_passport?.trim() || !t.date_of_birth
+
+    const leadDob = currentUser?.date_of_birth
+      ? new Date(currentUser.date_of_birth).toISOString().slice(0, 10)
+      : "";
+    const isLeadProfileComplete = Boolean(
+      currentUser?.name?.trim() &&
+      currentUser?.id_card_or_passport?.trim() &&
+      leadDob
     );
+    if (!isLeadProfileComplete) {
+      setErrorMessage(
+        "กรุณากรอกข้อมูลผู้จองหลัก (เลขประจำตัวประชาชน/Passport และวันเกิด) ในหน้าโปรไฟล์ให้ครบถ้วนก่อนทำการจอง"
+      );
+      return;
+    }
+
+    const incompleteIndex = travelers.findIndex((t, idx) => {
+      if (idx === 0) return false;
+      return !t.full_name?.trim() || !t.id_card_or_passport?.trim() || !t.date_of_birth;
+    });
     if (incompleteIndex !== -1) {
       setErrorMessage(`กรุณากรอกชื่อ เลขบัตร/Passport และวันเกิดของผู้เดินทางท่านที่ ${incompleteIndex + 1} ให้ครบ`);
       setEditingTravelerIndex(incompleteIndex);
@@ -592,17 +631,36 @@ export default function PackageBookingPage({ params }) {
         seat_code: item.seat_code.trim().toLowerCase(),
       }));
 
-    // Lead traveler may use the account name; every other name must be explicit.
-    const finalTravelers = travelers.map((t, idx) => ({
-      ...t,
-      full_name: t.full_name?.trim() || (idx === 0 ? activeContactName : ""),
-      seat_code: seatAssignments[idx]?.seat_code
-        ? seatAssignments[idx].seat_code.trim().toLowerCase()
-        : null,
-      bus_id: seatAssignments[idx]?.bus_id
-        ? Number(seatAssignments[idx].bus_id)
-        : null,
-    }));
+    // Lead traveler strictly uses the profile data; every other traveler uses their form data.
+    const finalTravelers = travelers.map((t, idx) => {
+      if (idx === 0) {
+        return {
+          ...t,
+          passenger_type: "adult",
+          title: currentUser?.title || "นาย",
+          full_name: (currentUser?.name || activeContactName).trim(),
+          id_card_or_passport: (currentUser?.id_card_or_passport || "").toUpperCase().replace(/[\s-]/g, ""),
+          date_of_birth: leadDob,
+          phone: currentUser?.phone || activeContactPhone,
+          seat_code: seatAssignments[0]?.seat_code
+            ? seatAssignments[0].seat_code.trim().toLowerCase()
+            : null,
+          bus_id: seatAssignments[0]?.bus_id
+            ? Number(seatAssignments[0].bus_id)
+            : null,
+        };
+      }
+      return {
+        ...t,
+        full_name: t.full_name?.trim(),
+        seat_code: seatAssignments[idx]?.seat_code
+          ? seatAssignments[idx].seat_code.trim().toLowerCase()
+          : null,
+        bus_id: seatAssignments[idx]?.bus_id
+          ? Number(seatAssignments[idx].bus_id)
+          : null,
+      };
+    });
 
     const payload = {
       package_id: parseInt(packageId),
@@ -765,14 +823,17 @@ export default function PackageBookingPage({ params }) {
                       </div>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={() => router.push("/profile")}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 active:scale-[0.98] transition-all cursor-pointer"
+                    <Link
+                      href={`/profile?redirect=${encodeURIComponent(currentBookingPath)}`}
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all shadow-2xs cursor-pointer ${
+                        isLeadProfileComplete
+                          ? "border border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                          : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200"
+                      }`}
                     >
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      <span>ยืนยันตัวตน</span>
-                    </button>
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span>{isLeadProfileComplete ? "แก้ไขข้อมูลในโปรไฟล์" : "กรอกข้อมูลในโปรไฟล์"}</span>
+                    </Link>
                   </div>
                 </div>
 
@@ -833,6 +894,24 @@ export default function PackageBookingPage({ params }) {
                     </div>
                   </div>
                 </div>
+
+                {!isLeadProfileComplete && (
+                  <div className="mt-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                      <span>
+                        ยังไม่ได้ระบุเลขบัตรประชาชน / Passport หรือวันเกิดในโปรไฟล์ (จำเป็นสำหรับการจอง)
+                      </span>
+                    </div>
+                    <Link
+                      href={`/profile?redirect=${encodeURIComponent(currentBookingPath)}`}
+                      className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-3 py-1 text-xs font-bold text-white hover:bg-amber-700 shrink-0 self-start sm:self-auto shadow-2xs"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      <span>กรอกข้อมูลในโปรไฟล์</span>
+                    </Link>
+                  </div>
+                )}
               </div>
 
               {/* Card 2: ข้อมูลผู้ร่วมเดินทาง (Travelers) */}
@@ -845,6 +924,11 @@ export default function PackageBookingPage({ params }) {
                     <div>
                       <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                         <span>รายชื่อผู้ร่วมเดินทาง</span>
+                        {travelers.length > 1 && (
+                          <span className="text-xs font-normal text-slate-400">
+                            ({travelers.length - 1} ท่าน)
+                          </span>
+                        )}
                       </h2>
                       <p className="text-xs text-slate-500">
                         ข้อมูลสำหรับรายชื่อขึ้นยานพาหนะ และใช้ทำประกันเมื่อเลือกซื้อ
@@ -855,161 +939,157 @@ export default function PackageBookingPage({ params }) {
 
                 {/* Travelers List */}
                 <div className="space-y-3">
-                  {travelers.map((traveler, index) => {
-                    const isFirst = index === 0;
-                    const isCollab = Boolean(traveler.collab_user);
-                    const displayName = isFirst
-                      ? currentUser?.name || contactName || traveler.full_name
-                      : traveler.collab_user
+                  {travelers.length <= 1 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 py-6 px-4 text-center">
+                      <p className="text-xs text-slate-500 font-medium">
+                        ไม่มีผู้ร่วมเดินทางเพิ่มเติม (เดินทาง 1 ท่าน)
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        ข้อมูลของผู้จองหลักจะถูกบันทึกตามโปรไฟล์โดยอัตโนมัติ
+                      </p>
+                    </div>
+                  ) : (
+                    travelers.map((traveler, index) => {
+                      if (index === 0) return null;
+                      const isCollab = Boolean(traveler.collab_user);
+                      const displayName = traveler.collab_user
                         ? traveler.collab_user.name
                         : traveler.full_name;
+                      const displayTitle = traveler.title || "นาย";
+                      const displayId = traveler.id_card_or_passport;
+                      const displayPhone = traveler.phone;
 
-                    const isNameFilled = Boolean(displayName?.trim());
-                    const isIdFilled = Boolean(
-                      traveler.id_card_or_passport?.trim(),
-                    );
-                    const isComplete = isNameFilled && isIdFilled && Boolean(traveler.date_of_birth);
+                      const isNameFilled = Boolean(displayName?.trim());
+                      const isIdFilled = Boolean(displayId?.trim());
+                      const isComplete =
+                        isNameFilled && isIdFilled && Boolean(traveler.date_of_birth);
 
-                    return (
-                      <div
-                        key={index}
-                        onClick={() => {
-                          setEditingTravelerIndex(index);
-                        }}
-                        className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 rounded-2xl border p-4 transition-all cursor-pointer ${
-                          isComplete
-                            ? "border-sky-200/90 bg-white hover:border-sky-400 hover:shadow-xs"
-                            : "border-dashed border-sky-300 bg-sky-50/40 hover:border-sky-400 hover:bg-sky-50/60"
-                        }`}
-                      >
-                        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-                          {/* Traveler Avatar (Fallback illustration or Collab user photo) */}
-                          <TravelerAvatar
-                            traveler={traveler}
-                            isFirst={isFirst}
-                            displayName={displayName}
-                          />
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => setEditingTravelerIndex(index)}
+                          className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 rounded-2xl border p-4 transition-all cursor-pointer ${
+                            isComplete
+                              ? "border-sky-200/90 bg-white hover:border-sky-400 hover:shadow-xs"
+                              : "border-dashed border-sky-300 bg-sky-50/40 hover:border-sky-400 hover:bg-sky-50/60"
+                          }`}
+                        >
+                          <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                            {/* Traveler Avatar */}
+                            <TravelerAvatar
+                              traveler={traveler}
+                              isFirst={false}
+                              displayName={displayName}
+                            />
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                                  traveler.passenger_type === "child"
-                                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                }`}
-                              >
-                                {traveler.passenger_type === "child"
-                                  ? "เด็ก (Child)"
-                                  : "ผู้ใหญ่ (Adult)"}
-                              </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                                    traveler.passenger_type === "child"
+                                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                                      : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                  }`}
+                                >
+                                  {traveler.passenger_type === "child"
+                                    ? "เด็ก (Child)"
+                                    : "ผู้ใหญ่ (Adult)"}
+                                </span>
 
-                              {isFirst ? (
-                                <span className="text-[11px] font-semibold text-slate-600 bg-slate-100/90 px-2 py-0.5 rounded-md border border-slate-200 flex items-center gap-1 shadow-2xs">
-                                  <Crown className="h-3 w-3 text-slate-400" />
-                                  <span>บัญชีผู้จอง</span>
-                                </span>
-                              ) : isCollab ? (
-                                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shadow-2xs">
-                                  <UserCheck className="h-3 w-3 text-emerald-600" />
-                                  <span>
-                                    Collab: @{traveler.collab_user.name}
-                                  </span>
-                                </span>
-                              ) : (
-                                <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                                  ข้อมูลทั่วไป (Manual)
-                                </span>
-                              )}
-
-                              {isComplete ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  ข้อมูลครบแล้ว
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100/90 px-2 py-0.5 rounded-md border border-slate-200">
-                                  รอกรอกข้อมูล
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Details Row */}
-                            {isNameFilled ? (
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
-                                <span className="font-bold text-slate-900 text-sm">
-                                  {traveler.title} {displayName}
-                                </span>
-                                <span className="text-slate-300">|</span>
-                                <span className="inline-flex items-center gap-1">
-                                  <CreditCard className="h-3 w-3 text-slate-400" />
-                                  <span className="font-medium text-slate-700">
-                                    {traveler.id_card_or_passport || (
-                                      <span className="text-slate-400 font-sans italic">
-                                        ยังไม่ได้ระบุเลขบัตร / Passport
-                                      </span>
-                                    )}
-                                  </span>
-                                </span>
-                                {traveler.phone && (
-                                  <>
-                                    <span className="text-slate-300">|</span>
-                                    <span className="text-slate-500">
-                                      โทร: {traveler.phone}
+                                {isCollab ? (
+                                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                                    <UserCheck className="h-3 w-3 text-emerald-600" />
+                                    <span>
+                                      Collab: @{traveler.collab_user.name}
                                     </span>
-                                  </>
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                    ข้อมูลทั่วไป (Manual)
+                                  </span>
+                                )}
+
+                                {isComplete ? (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    ข้อมูลครบแล้ว
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
+                                    <AlertCircle className="h-3 w-3 text-amber-600" />
+                                    รอกรอกข้อมูล
+                                  </span>
                                 )}
                               </div>
-                            ) : (
-                              <p className="text-xs text-slate-400 italic">
-                                ยังไม่ได้ระบุชื่อและเลขบัตร
-                                คลิกที่นี่เพื่อกรอกข้อมูล
-                              </p>
-                            )}
+
+                              {/* Details Row */}
+                              {isNameFilled ? (
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                                  <span className="font-bold text-slate-900 text-sm">
+                                    {displayTitle} {displayName}
+                                  </span>
+                                  <span className="text-slate-300">|</span>
+                                  <span className="inline-flex items-center gap-1">
+                                    <CreditCard className="h-3 w-3 text-slate-400" />
+                                    <span className="font-medium text-slate-700">
+                                      {displayId}
+                                    </span>
+                                  </span>
+                                  {displayPhone && (
+                                    <>
+                                      <span className="text-slate-300">|</span>
+                                      <span className="text-slate-500">
+                                        โทร: {displayPhone}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-slate-400 italic">
+                                  ยังไม่ได้ระบุชื่อและเลขบัตร คลิกที่นี่เพื่อกรอกข้อมูล
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Action CTA Buttons */}
-                        <div className="flex items-center gap-2 sm:self-center shrink-0">
-                          {isComplete && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingTravelerIndex(index);
-                              }}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 group-hover:border-indigo-300 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all shadow-2xs cursor-pointer"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              <span>แก้ไข</span>
-                            </button>
-                          )}
+                          {/* Action CTA Buttons */}
+                          <div className="flex items-center gap-2 sm:self-center shrink-0">
+                            {isComplete && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingTravelerIndex(index);
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 group-hover:border-indigo-300 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all shadow-2xs cursor-pointer"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span>แก้ไข</span>
+                              </button>
+                            )}
 
-                          {!isFirst && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (
                                   window.confirm(
-                                    `คุณต้องการลบผู้เดินทางท่านที่ ${
-                                      index + 1
-                                    } ออกจากทริปหรือไม่?`,
+                                    `คุณต้องการลบผู้เดินทางท่านนี้ออกจากทริปหรือไม่?`
                                   )
                                 ) {
                                   handleDeleteTraveler(index);
                                 }
                               }}
-                              className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-2xs"
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-2xs cursor-pointer"
                               title="ลบผู้เดินทางนี้"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Dashed Add Participant Button */}
@@ -1165,7 +1245,7 @@ export default function PackageBookingPage({ params }) {
                       const travelerName =
                         traveler.full_name?.trim() ||
                         (idx === 0
-                          ? activeContactName || "ผู้จองหลัก"
+                          ? bookingContactName || "ผู้จองหลัก"
                           : `ผู้เดินทางคนที่ ${idx + 1}`);
 
                       return (
@@ -1437,7 +1517,7 @@ export default function PackageBookingPage({ params }) {
                               <span className="truncate max-w-[140px]">
                                 ท่านที่ {idx + 1} (
                                 {t.full_name ||
-                                  (idx === 0 ? activeContactName : "ไม่ระบุ")}
+                                  (idx === 0 ? bookingContactName : "ไม่ระบุ")}
                                 )
                               </span>
                               <span className="font-semibold text-slate-800">
@@ -1532,6 +1612,7 @@ export default function PackageBookingPage({ params }) {
         currentUser={currentUser}
         contactName={contactName}
         onSaveTraveler={(idx, updatedData) => {
+          if (idx === 0) return; // Lead traveler strictly locked to profile!
           setTravelers((prev) => {
             const next = [...prev];
             next[idx] = { ...next[idx], ...updatedData };

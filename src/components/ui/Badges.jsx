@@ -216,6 +216,28 @@ export function BookingStatusBadge({ status, className = "" }) {
     );
   }
 
+  if (s === "REFUND_PENDING") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900 border border-amber-300 shadow-2xs ${className}`}
+      >
+        <AlertCircle size={12.5} className="text-amber-600 shrink-0" />
+        <span>ขอคืนเงิน (รอดำเนินการ)</span>
+      </span>
+    );
+  }
+
+  if (s === "REFUNDED") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-900 border border-purple-300 shadow-2xs ${className}`}
+      >
+        <CheckCircle2 size={12.5} className="text-purple-600 shrink-0" />
+        <span>คืนเงินแล้ว</span>
+      </span>
+    );
+  }
+
   if (s === "COMPLETED") {
     return (
       <span

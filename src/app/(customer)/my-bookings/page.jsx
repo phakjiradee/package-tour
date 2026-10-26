@@ -76,6 +76,16 @@ export default function MyBookingsPage() {
           label: "ยืนยันการจองแล้ว",
           bg: "bg-emerald-50 text-emerald-700 border-emerald-200"
         };
+      case "REFUND_PENDING":
+        return {
+          label: "รอดำเนินการคืนเงิน (ทริปมีปัญหา)",
+          bg: "bg-purple-50 text-purple-700 border-purple-200"
+        };
+      case "REFUNDED":
+        return {
+          label: "คืนเงินเรียบร้อยแล้ว",
+          bg: "bg-teal-50 text-teal-700 border-teal-200"
+        };
       case "AWAITING_VERIFICATION":
         return {
           label: "รอเจ้าหน้าที่ตรวจสลิป",
@@ -249,7 +259,7 @@ export default function MyBookingsPage() {
                       </div>
 
                       <div className="mt-2 flex items-center gap-2">
-                        {item.status !== "CANCELLED" && (
+                        {!["CANCELLED", "REFUND_PENDING", "REFUNDED"].includes(item.status) && (
                           <button
                             type="button"
                             onClick={() => setCancelModalBooking(item)}
@@ -266,6 +276,10 @@ export default function MyBookingsPage() {
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                             item.status === "CONFIRMED"
                               ? "text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+                              : item.status === "REFUND_PENDING"
+                              ? "text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200"
+                              : item.status === "REFUNDED"
+                              ? "text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200"
                               : item.status === "CANCELLED"
                               ? "text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200"
                               : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-200"
@@ -274,6 +288,8 @@ export default function MyBookingsPage() {
                           <span>
                             {item.status === "CONFIRMED"
                               ? "ดูใบยืนยันการจอง"
+                              : item.status === "REFUND_PENDING" || item.status === "REFUNDED"
+                              ? "ดูข้อมูลการคืนเงิน"
                               : item.status === "CANCELLED"
                               ? "ดูรายละเอียด"
                               : "ชำระเงิน"}
@@ -283,6 +299,39 @@ export default function MyBookingsPage() {
                       </div>
                     </div>
                   </div>
+
+                  {(item.status === "REFUND_PENDING" || item.status === "REFUNDED" || item.refund_reason) && (
+                    <div
+                      className={`mt-3 rounded-xl p-3 border text-xs flex items-start gap-2.5 ${
+                        item.status === "REFUNDED"
+                          ? "bg-teal-50/70 border-teal-200/80 text-teal-900"
+                          : "bg-purple-50/70 border-purple-200/80 text-purple-900"
+                      }`}
+                    >
+                      <AlertCircle
+                        className={`h-4 w-4 mt-0.5 shrink-0 ${
+                          item.status === "REFUNDED" ? "text-teal-600" : "text-purple-600"
+                        }`}
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between flex-wrap gap-1 font-bold">
+                          <span>
+                            {item.status === "REFUNDED"
+                              ? "ดำเนินการคืนเงินสำเร็จแล้ว"
+                              : "อยู่ระหว่างดำเนินการคืนเงิน (ทริปมีปัญหา)"}
+                          </span>
+                          {item.refund_amount ? (
+                            <span className={item.status === "REFUNDED" ? "text-teal-700" : "text-purple-700"}>
+                              ยอดเงินคืน: ฿{Number(item.refund_amount).toLocaleString()}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 text-slate-600">
+                          เหตุผล: {item.refund_reason || "เนื่องจากเกิดปัญหาในการจัดทริปหรือสถานที่ท่องเที่ยว"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {item.bookingCollaps && item.bookingCollaps.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs">
