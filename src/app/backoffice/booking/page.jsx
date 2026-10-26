@@ -210,7 +210,7 @@ export default function BackofficeBookingPage() {
   const selectedPackage = packages.find((pkg) => String(pkg.id) === String(selectedPackageId));
   const summary = selectedPackage?.summary;
   const travelerGap = summary?.travelerGap;
-  const afterDepositSatang = !summary?.costConfigured || summary.totalDepositSatang == null ? null : summary.receivedSatang - summary.totalDepositSatang;
+  const afterDepositSatang = !summary?.costConfigured || summary.totalDepositSatang == null ? null : summary.confirmedBookingTotalSatang - summary.totalDepositSatang;
   const visiblePackages = packages.filter((pkg) =>
     (packageStatus === "ALL" || pkg.status === packageStatus) &&
     `${pkg.name} ${pkg.location?.name || ""}`.toLowerCase().includes(packageSearch.toLowerCase().trim()));
@@ -269,22 +269,21 @@ export default function BackofficeBookingPage() {
 
       {selectedPackageId && !overviewLoading && !selectedPackage && <p role="alert" className="rounded-lg bg-rose-50 p-4 text-rose-700">ไม่พบแพ็กเกจนี้</p>}
 
-      {/* Package summary, calculated from every booking and approved payment */}
+      {/* Package summary across all bookings for this package */}
       <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard title="จำนวนจอง" value={summary ? `${summary.bookingCount} รายการ` : "-"} icon={CalendarCheck} subtitle={summary ? `รวมผู้เดินทาง ${summary.reservedTravelers} คน` : "กำลังโหลด"} />
+        <StatCard title="ยังไม่ยืนยัน" value={summary ? `${summary.unconfirmedBookingCount} รายการ` : "-"} icon={CalendarCheck} subtitle={summary ? `รวมผู้เดินทาง ${summary.unconfirmedTravelers} คน` : "กำลังโหลด"} />
         <StatCard title="ยืนยันแล้ว" value={summary ? `${summary.confirmedBookingCount} รายการ` : "-"} icon={Users} subtitle={summary ? `รวมผู้เดินทาง ${summary.confirmedTravelers} คน` : "กำลังโหลด"} />
         <StatCard title="เป้าผู้เดินทาง" value={summary?.minimumTravelers != null ? `${summary.minimumTravelers} คน` : "ยังไม่ตั้ง"} icon={Target} subtitle="ตั้งขั้นต่ำในหน้าแก้ไขแพ็กเกจ" />
         <StatCard title="ส่วนต่างจากเป้า" value={travelerGap != null ? `${travelerGap > 0 ? "+" : travelerGap < 0 ? "−" : ""}${Math.abs(travelerGap)} คน` : "-"} icon={Users} tone={travelerGap < 0 ? "danger" : travelerGap >= 0 ? "success" : undefined} subtitle="ผู้เดินทางที่ยืนยันแล้ว − เป้าผู้เดินทาง" />
         <StatCard title="ที่นั่งรถที่เลือก" value={summary?.targetTravelers != null ? `${summary.targetTravelers} ที่นั่ง` : "-"} icon={BusFront} subtitle="ความจุรวมของรถในแพ็กเกจ" />
-        <StatCard title="รายรับที่ตรวจสอบได้" value={summary ? `฿${formatPrice(summary.receivedSatang / 100)}` : "-"} icon={DollarSign} subtitle="ไม่รวมรายการชำระที่ตรวจสอบไม่ได้" />
+        <StatCard title="ยอดจองที่ยืนยัน" value={summary ? `฿${formatPrice(summary.confirmedBookingTotalSatang / 100)}` : "-"} icon={DollarSign} subtitle="มูลค่าการจอง ไม่ใช่ยอดเงินเข้าธนาคาร" />
         <StatCard title="มัดจำที่ตกลง" value={summary?.costConfigured && summary.totalDepositSatang != null ? `฿${formatPrice(summary.totalDepositSatang / 100)}` : "ยังไม่ตั้ง"} icon={Wallet} subtitle="รวมมัดจำผู้ให้บริการตามแผน" />
-        <StatCard title="ส่วนต่างรายรับ–มัดจำ" value={afterDepositSatang != null ? `${afterDepositSatang < 0 ? "−" : ""}฿${formatPrice(Math.abs(afterDepositSatang) / 100)}` : "-"} icon={DollarSign} tone={afterDepositSatang < 0 ? "danger" : afterDepositSatang > 0 ? "success" : undefined} subtitle="รายรับยืนยัน − มัดจำที่ตกลง" />
-        <StatCard title="ต้นทุนรวมตามเป้า" value={summary?.costConfigured && summary.costAtMinimumSatang != null ? `฿${formatPrice(summary.costAtMinimumSatang / 100)}` : "ยังไม่ตั้ง"} icon={ReceiptText} subtitle="คำนวณตามเป้าหมายขั้นต่ำ" />
-        <StatCard title="จ่ายผู้ให้บริการแล้ว" value={summary ? `฿${formatPrice(summary.supplierPaidSatang / 100)}` : "-"} icon={Wallet} subtitle="รวมมัดจำและยอดจ่ายส่วนที่เหลือ" />
+        <StatCard title="ส่วนต่างยอดจอง–มัดจำ" value={afterDepositSatang != null ? `${afterDepositSatang < 0 ? "−" : ""}฿${formatPrice(Math.abs(afterDepositSatang) / 100)}` : "-"} icon={DollarSign} tone={afterDepositSatang < 0 ? "danger" : afterDepositSatang > 0 ? "success" : undefined} subtitle="ยอดจองที่ยืนยัน − มัดจำที่ตกลง" />
+        <StatCard title="ต้นทุนรวม(ค่าใช้จ่ายสถานที่)" value={summary?.costConfigured && summary.costAtMinimumSatang != null ? `฿${formatPrice(summary.costAtMinimumSatang / 100)}` : "ยังไม่ตั้ง"} icon={ReceiptText} subtitle="คำนวณตามเป้าหมายขั้นต่ำ" />
       </div>
 
       {summary && <div className="space-y-2">
-        {(summary.unverifiedBookingCount > 0 || summary.exceptionCount > 0) && <div role="status" className="flex gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><AlertTriangle size={17} className="mt-0.5 shrink-0" /><div>{summary.unverifiedBookingCount > 0 && <p>มี {summary.unverifiedBookingCount} รายการชำระแบบทดสอบหรือข้อมูลเก่าที่ยังยืนยันแหล่งเงินไม่ได้ รายการยืนยันแล้วจะแสดงในยอดการจอง แต่ไม่รวมเป็นรายรับที่ตรวจสอบได้</p>}{summary.exceptionCount > 0 && <p>มีข้อมูลเก่า {summary.exceptionCount} รายการในสถานะรอตรวจสอบ โปรดตรวจสอบการชำระเงินจริงก่อนเปลี่ยนสถานะ</p>}</div></div>}
+        {(summary.unverifiedBookingCount > 0 || summary.exceptionCount > 0) && <div role="status" className="flex gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><AlertTriangle size={17} className="mt-0.5 shrink-0" /><div>{summary.unverifiedBookingCount > 0 && <p>มี {summary.unverifiedBookingCount} รายการชำระแบบทดสอบหรือข้อมูลเก่าที่ยังยืนยันแหล่งเงินไม่ได้ ยอดจองที่ยืนยันและส่วนต่างกับมัดจำเป็นมูลค่าการจองตามระบบ ไม่ใช่เงินรับที่ตรวจสอบแล้ว</p>}{summary.exceptionCount > 0 && <p>มีข้อมูลเก่า {summary.exceptionCount} รายการในสถานะรอตรวจสอบ โปรดตรวจสอบการชำระเงินจริงก่อนเปลี่ยนสถานะ</p>}</div></div>}
         <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500">ยอดชำระในระบบยังไม่ใช่รายงานกระทบยอดธนาคาร</p>
       </div>}
 
