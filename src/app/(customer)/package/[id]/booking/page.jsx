@@ -257,6 +257,7 @@ export default function PackageBookingPage({ params }) {
     (t) => t.passenger_type === "child",
   ).length;
   const totalPeople = adultCount + childCount;
+  const bookingContactPhone = contactPhone || currentUser?.phone || travelers[0]?.phone || "";
 
   // Derived collaborators from travelers list
   const collaborators = travelers
@@ -454,11 +455,7 @@ export default function PackageBookingPage({ params }) {
       travelDate || travelStartDate || new Date().toISOString();
 
     const activeContactName = (contactName || currentUser?.name || "").trim();
-    const activeContactPhone = (
-      contactPhone ||
-      currentUser?.phone ||
-      ""
-    ).trim();
+    const activeContactPhone = bookingContactPhone.trim();
     const activeContactEmail = (
       contactEmail ||
       currentUser?.email ||
@@ -472,7 +469,7 @@ export default function PackageBookingPage({ params }) {
 
     if (!activeContactName || !activeContactPhone || !activeContactEmail) {
       setErrorMessage(
-        "กรุณากรอกข้อมูลผู้ติดต่อให้ครบถ้วนในบัญชีโปรไฟล์ (ชื่อ, เบอร์โทร, อีเมล)",
+        "กรุณากรอกชื่อและอีเมลในโปรไฟล์ และเบอร์โทรในโปรไฟล์หรือข้อมูลผู้เดินทางหลัก",
       );
       return;
     }
@@ -706,8 +703,8 @@ export default function PackageBookingPage({ params }) {
                         เบอร์โทรศัพท์
                       </span>
                       <span className="font-bold text-slate-800 text-xs sm:text-sm truncate block">
-                        {contactPhone || currentUser?.phone ? (
-                          formatPhoneNumber(contactPhone || currentUser?.phone)
+                        {bookingContactPhone ? (
+                          formatPhoneNumber(bookingContactPhone)
                         ) : (
                           <span className="text-amber-600 font-sans italic text-xs">
                             ยังไม่ได้ระบุ
