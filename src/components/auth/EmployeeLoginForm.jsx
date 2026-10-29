@@ -17,14 +17,20 @@ import {
   UserCheck,
 } from "lucide-react";
 import { setBackofficeAuth } from "@/lib/backoffice-auth";
+import { setGuideAuth } from "@/lib/guide-auth";
 import TypingText from "@/components/ui/TypingText";
 import { authService } from "@/service/auth";
+import { guideService } from "@/service/guide";
 
 export default function EmployeeLoginForm({
   brandName = "Zentura Backoffice",
   showcaseImage = "/dep377-lake-8844310_1280.jpg",
+  portal = "backoffice",
 }) {
   const router = useRouter();
+  const isGuide = portal === "guide";
+  const destination = isGuide ? "/worker/assignment" : "/backoffice/dashboard";
+  const setPortalAuth = isGuide ? setGuideAuth : setBackofficeAuth;
 
   // Step: "login" | "first-time-password"
   const [step, setStep] = useState("login");
@@ -65,11 +71,14 @@ export default function EmployeeLoginForm({
 
     setIsLoading(true);
     try {
-      const response = await authService.login({
+      const response = await (isGuide ? guideService.login({
+        email: loginForm.email.trim(),
+        password: loginForm.password,
+      }) : authService.login({
         email: loginForm.email.trim(),
         password: loginForm.password,
         isEmployee: true,
-      });
+      }));
 
       const user = response.user;
       const token = response.token;
@@ -84,9 +93,9 @@ export default function EmployeeLoginForm({
       }
 
       // Normal login (already set password)
-      setBackofficeAuth(user, token);
-      setSuccessMessage("เข้าสู่ระบบสำเร็จ กำลังพาเข้าสู่ระบบ Backoffice...");
-      router.push("/backoffice/dashboard");
+      setPortalAuth(user, token);
+      setSuccessMessage("เข้าสู่ระบบสำเร็จ กำลังพาเข้าสู่ระบบ...");
+      router.push(destination);
     } catch (err) {
       console.error("Login error:", err);
       setErrorMessage(
@@ -122,19 +131,24 @@ export default function EmployeeLoginForm({
 
     setIsLoading(true);
     try {
-      const response = await authService.setPassword({
+      const response = await (isGuide ? guideService.setPassword({
         employeeId: pendingUser.id,
         email: pendingUser.email,
         currentPassword,
         newPassword,
-      });
+      }) : authService.setPassword({
+        employeeId: pendingUser.id,
+        email: pendingUser.email,
+        currentPassword,
+        newPassword,
+      }));
 
       // Save authenticated employee
-      setBackofficeAuth(response.user, response.token);
+      setPortalAuth(response.user, response.token);
       setSuccessMessage("ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว! กำลังเข้าสู่ระบบ...");
 
       setTimeout(() => {
-        router.push("/backoffice/dashboard");
+        router.push(destination);
       }, 1000);
     } catch (err) {
       console.error("Set password error:", err);
@@ -180,19 +194,19 @@ export default function EmployeeLoginForm({
           <div className="relative z-10 space-y-3">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/20 px-3 py-1 text-xs font-medium text-cyan-200 backdrop-blur-md border border-cyan-400/30">
               <ShieldCheck className="h-3.5 w-3.5" />
-              ระบบบริหารจัดการหลังบ้าน (Backoffice)
+              {isGuide ? "ระบบงานไกด์นำเที่ยว" : "ระบบบริหารจัดการหลังบ้าน (Backoffice)"}
             </span>
             <h2 className="text-2xl font-bold leading-snug drop-shadow-md min-h-16">
               <TypingText
                 words={[
-                  "จัดการแพ็กเกจทัวร์และข้อมูลพนักงาน",
+                  isGuide ? "ตรวจสอบทัวร์ที่ได้รับมอบหมาย" : "จัดการแพ็กเกจทัวร์และข้อมูลพนักงาน",
                   "ระบบปลอดภัย ตรวจสอบได้ทุกขั้นตอน",
                   "ควบคุมการดำเนินงานได้ในที่เดียว",
                 ]}
               />
             </h2>
             <p className="text-xs text-slate-300 drop-shadow">
-              เข้าถึงเฉพาะเจ้าหน้าที่และผู้ดูแลระบบที่ได้รับอนุญาตเท่านั้น
+              {isGuide ? "เข้าถึงเฉพาะไกด์ที่ได้รับมอบหมายเท่านั้น" : "เข้าถึงเฉพาะเจ้าหน้าที่และผู้ดูแลระบบที่ได้รับอนุญาตเท่านั้น"}
             </p>
           </div>
         </div>
@@ -214,7 +228,7 @@ export default function EmployeeLoginForm({
                 <div className="mb-6">
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 mb-2">
                     <UserCheck className="h-3.5 w-3.5 text-cyan-600" />
-                    เข้าสู่ระบบพนักงาน
+                    {isGuide ? "เข้าสู่ระบบไกด์" : "เข้าสู่ระบบพนักงาน"}
                   </div>
                   <h1 className="text-2xl font-bold tracking-tight text-slate-950">
                     เข้าสู่ระบบ
@@ -305,12 +319,12 @@ export default function EmployeeLoginForm({
                         กำลังตรวจสอบข้อมูล...
                       </>
                     ) : (
-                      "เข้าสู่ระบบพนักงาน"
+                      isGuide ? "เข้าสู่ระบบไกด์" : "เข้าสู่ระบบพนักงาน"
                     )}
                   </button>
 
                   <p className="pt-2 text-center text-[11px] text-slate-400">
-                    * ระบบนี้เฉพาะพนักงานและผู้ดูแลระบบเท่านั้น ไม่เปิดรับสมัครภายนอก
+                    {isGuide ? "* ระบบนี้เฉพาะไกด์ที่ได้รับบัญชีจากผู้ดูแลระบบ" : "* ระบบนี้เฉพาะพนักงานและผู้ดูแลระบบเท่านั้น ไม่เปิดรับสมัครภายนอก"}
                   </p>
                 </form>
               </>

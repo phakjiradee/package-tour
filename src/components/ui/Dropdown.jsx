@@ -13,51 +13,55 @@ import {
   getBackofficeToken,
   setBackofficeAuth,
 } from "@/lib/backoffice-auth";
+import { clearGuideAuth, getGuideToken, setGuideAuth } from "@/lib/guide-auth";
 import { authService } from "@/service/auth";
+import { guideService } from "@/service/guide";
 import SearchableSelect from "./SearchableSelect";
 
 /**
  * Backoffice Navbar User Profile Dropdown Menu
  */
-export function UserDropdown() {
+export function UserDropdown({ portal = "backoffice" }) {
   const router = useRouter();
+  const isGuide = portal === "guide";
+  const loginPath = isGuide ? "/worker/login" : "/backoffice/login";
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);
   const ref = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
-    authService
+    (isGuide ? guideService : authService)
       .getMe()
       .then((res) => {
         if (isMounted && res?.user?.isEmployee === true) {
           setUser(res.user);
-          const currentToken = getBackofficeToken();
+          const currentToken = isGuide ? getGuideToken() : getBackofficeToken();
           if (currentToken) {
-            setBackofficeAuth(res.user, currentToken);
+            (isGuide ? setGuideAuth : setBackofficeAuth)(res.user, currentToken);
           }
         } else if (isMounted) {
-          clearBackofficeAuth();
-          router.replace("/backoffice/login");
+          (isGuide ? clearGuideAuth : clearBackofficeAuth)();
+          router.replace(loginPath);
         }
       })
       .catch((err) => {
         if (!isMounted) return;
         setUser(null);
         if ([401, 403, 404].includes(err.response?.status)) {
-          clearBackofficeAuth();
-          router.replace("/backoffice/login");
+          (isGuide ? clearGuideAuth : clearBackofficeAuth)();
+          router.replace(loginPath);
         }
       });
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [router, isGuide, loginPath]);
 
   const handleSignOut = () => {
-    clearBackofficeAuth();
+    (isGuide ? clearGuideAuth : clearBackofficeAuth)();
     setOpen(false);
-    router.push("/backoffice/login");
+    router.push(loginPath);
   };
 
   useEffect(() => {
@@ -113,7 +117,7 @@ export function UserDropdown() {
             </p>
           </div>
 
-          <div className="py-1">
+          {!isGuide && <div className="py-1">
             <button
               type="button"
               onClick={() => {
@@ -125,7 +129,7 @@ export function UserDropdown() {
               <UserRound className="h-3.5 w-3.5 text-zinc-400" />
               <span>โปรไฟล์ของฉัน</span>
             </button>
-          </div>
+          </div>}
 
           <div className="border-t border-zinc-100 pt-1">
             <button

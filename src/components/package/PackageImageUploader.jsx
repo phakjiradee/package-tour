@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { getBackofficeToken } from "@/lib/backoffice-auth";
 import {
   Upload,
   Image as ImageIcon,
@@ -32,6 +33,7 @@ export default function PackageImageUploader({ images = [], onChange }) {
     try {
       const res = await fetch("http://localhost:4000/api/upload/multiple", {
         method: "POST",
+        headers: { Authorization: `Bearer ${getBackofficeToken() || ""}` },
         body: formData,
       });
 

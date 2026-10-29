@@ -22,10 +22,14 @@ api.interceptors.request.use((config) => {
     const boToken = window.localStorage.getItem("bo_token");
     const supplierPortal = config.url?.startsWith("/supplier/") &&
       !config.url?.startsWith("/supplier/admin/");
+    const guidePortal = config.url?.startsWith("/guide/") &&
+      !window.location.pathname.startsWith("/backoffice");
     const inBackoffice = window.location.pathname.startsWith("/backoffice");
     const inSupplier = window.location.pathname.startsWith("/supplier");
+    const inGuide = window.location.pathname.startsWith("/worker");
     const token = supplierPortal || inSupplier
       ? window.localStorage.getItem("sp_token")
+      : guidePortal || inGuide ? window.localStorage.getItem("gd_token")
       : inBackoffice ? boToken : window.localStorage.getItem("pt_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Calendar,
   CheckCircle2,
@@ -34,6 +35,7 @@ import {
 import { guideService } from "@/service/guide";
 import { employeeService } from "@/service/employee";
 import { getBackofficeAuth } from "@/lib/backoffice-auth";
+import { getGuideAuth } from "@/lib/guide-auth";
 import { formatThaiDate } from "@/lib/date";
 import PageHeader from "@/components/backoffice/PageHeader";
 import StatCard from "@/components/backoffice/StatCard";
@@ -41,9 +43,10 @@ import TwoToneCard from "@/components/backoffice/TwoToneCard";
 import { PositionBadge } from "@/components/ui/Badges";
 
 export default function GuideAssignmentPage() {
+  const isGuidePortal = usePathname().startsWith("/worker");
   // Authentication & Guide selection
   const [currentUser] = useState(() =>
-    typeof window !== "undefined" ? getBackofficeAuth() : null
+    typeof window !== "undefined" ? (isGuidePortal ? getGuideAuth() : getBackofficeAuth()) : null
   );
   const [allGuides, setAllGuides] = useState([]);
   const [selectedGuideId, setSelectedGuideId] = useState(null);
@@ -74,9 +77,16 @@ export default function GuideAssignmentPage() {
   // 1. Initial Load: Load all guides list
   useEffect(() => {
     let isMounted = true;
-    const auth = getBackofficeAuth();
+    const auth = isGuidePortal ? getGuideAuth() : getBackofficeAuth();
 
     const loadGuidesList = async () => {
+      if (isGuidePortal) {
+        if (auth?.id) {
+          setAllGuides([auth]);
+          setSelectedGuideId(auth.id);
+        }
+        return;
+      }
       try {
         const emps = await employeeService.getAll();
         if (!isMounted) return;
@@ -112,7 +122,7 @@ export default function GuideAssignmentPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isGuidePortal]);
 
   // 2. Fetch guide packages whenever selectedGuideId changes
   const fetchGuidePackages = useCallback(async (guideId = selectedGuideId) => {

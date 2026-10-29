@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
-  Building,
   ClipboardList,
   Compass,
   UserCheck,
@@ -47,21 +46,11 @@ export default function GuideNavbar() {
             </button>
 
             {/* User Dropdown */}
-            <Dropdown />
+          <Dropdown portal="guide" />
           </div>
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 inset-x-0 z-50 flex h-12 bg-white/95 backdrop-blur-md border-t border-zinc-200 md:hidden select-none">
-        <Link
-          href="/backoffice/dashboard"
-          className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-zinc-500 hover:text-zinc-900"
-        >
-          <Building size={15} />
-          <span>หลังบ้าน</span>
-        </Link>
-      </nav>
     </>
   );
 }

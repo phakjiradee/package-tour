@@ -1,6 +1,21 @@
 import { api } from "../lib/axios";
 
 export const guideService = {
+  async login(payload) {
+    const response = await api.post("/guide/login", payload);
+    return response.data;
+  },
+
+  async setPassword(payload) {
+    const response = await api.post("/guide/set-password", payload);
+    return response.data;
+  },
+
+  async getMe() {
+    const response = await api.get("/guide/me");
+    return response.data;
+  },
+
   /**
    * ดึงรายการแพ็กเกจที่ไกด์เคยดูแลหรือดูแลอยู่
    * @param {Object} params - { guide_id, status: 'all' | 'ongoing' | 'past' }
